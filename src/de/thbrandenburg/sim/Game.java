@@ -1,22 +1,15 @@
 package de.thbrandenburg.sim;
 
-import com.esotericsoftware.kryonet.Server;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import java.io.IOException;
+import org.java_websocket.server.WebSocketServer;
+import java.net.InetSocketAddress;
 
 public class Game {
     public void start() {
-        Server server = new Server();
-        server.start();
+        String host = "localhost";
+        int port = 8887;
 
-        try {
-            server.bind(54555, 54777);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        WebSocketServer server = new SimpleServer(new InetSocketAddress(host, port));
+        server.run();
+        server.start();
     }
 }
