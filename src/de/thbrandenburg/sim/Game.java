@@ -4,6 +4,8 @@ import org.java_websocket.server.WebSocketServer;
 import java.net.InetSocketAddress;
 
 public class Game {
+    private int tick = 0;
+
     public void start() {
         String host = "localhost";
         int port = 8887;
