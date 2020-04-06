@@ -1,23 +1,39 @@
-package de.thbrandenburg.sim;
+package de.thbrandenburg.sim.Server;
+
+import de.thbrandenburg.sim.Game;
+import org.java_websocket.WebSocket;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
+import org.json.simple.JSONObject;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 
-import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.WebSocketServer;
+public final class GameServer extends WebSocketServer {
+    Game game;
 
-public class SimpleServer extends WebSocketServer {
-
-    public SimpleServer(InetSocketAddress address) {
+    public GameServer(InetSocketAddress address) {
         super(address);
+    }
+
+    public void notifyAllClients(String message) {
+        broadcast(message);
     }
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        conn.send("Welcome to the server!"); //This method sends a message to the new client
-        broadcast( "new connection: " + handshake.getResourceDescriptor() ); //This method sends a message to all clients connected
-        System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the room!" );
+        // Welcome a connected client
+        JSONObject message = new JSONObject();
+        message.put("message", "Welcome to the server!");
+        conn.send(message.toJSONString());
+        message.clear();
+
+        // TODO Check if enough players are "ready" for a game session to start
+        // FIXME Currently opens a single game session (thread) for each connecting player ;D
+        // Start game session
+        message.put("message", "Enough players connected. Starting game session...");
+        broadcast(message.toJSONString());
+        game = new Game(this);
     }
 
     @Override
@@ -28,6 +44,7 @@ public class SimpleServer extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         System.out.println("received message from "	+ conn.getRemoteSocketAddress() + ": " + message);
+        // Do something with the client event
     }
 
     @Override
