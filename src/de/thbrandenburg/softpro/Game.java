@@ -1,6 +1,6 @@
-package de.thbrandenburg.sim;
+package de.thbrandenburg.softpro;
 
-import de.thbrandenburg.sim.Server.GameServer;
+import de.thbrandenburg.softpro.Server.GameServer;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
