@@ -57,12 +57,12 @@ public final class GameServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        System.out.println("closed " + conn.getRemoteSocketAddress() + " with exit code " + code + " additional info: " + reason);
+        logger.log(Level.INFO, "closed " + conn.getRemoteSocketAddress() + " with exit code " + code + " additional info: " + reason);
     }
 
     @Override
     public void onMessage(WebSocket conn, String message) {
-        System.out.println("received message from "	+ conn.getRemoteSocketAddress() + ": " + message);
+        logger.log(Level.INFO, "received message from "	+ conn.getRemoteSocketAddress() + ": " + message);
 
         // Decide which event handler to forward the message to (GameEventHandler, LobbyEventHandler)
 
@@ -74,7 +74,7 @@ public final class GameServer extends WebSocketServer {
 
     @Override
     public void onMessage( WebSocket conn, ByteBuffer message ) {
-        System.out.println("received ByteBuffer from "	+ conn.getRemoteSocketAddress());
+        logger.log(Level.INFO, "received ByteBuffer from "	+ conn.getRemoteSocketAddress());
     }
 
     @Override
@@ -84,7 +84,7 @@ public final class GameServer extends WebSocketServer {
 
     @Override
     public void onStart() {
-        System.out.println("server started successfully");
+        logger.log(Level.INFO, "server started successfully");
         setConnectionLostTimeout(0);
         setConnectionLostTimeout(100);
     }
