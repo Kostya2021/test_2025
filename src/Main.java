@@ -1,4 +1,4 @@
-import de.thbrandenburg.softpro.Server.GameServer;
+import de.andrenitze.softpro.Server.GameServer;
 
 public class Main {
     public static GameServer server;

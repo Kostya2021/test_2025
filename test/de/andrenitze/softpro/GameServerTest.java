@@ -1,6 +1,6 @@
-package de.thbrandenburg.softpro;
+package de.andrenitze.softpro;
 
-import de.thbrandenburg.softpro.Server.GameServer;
+import de.andrenitze.softpro.Server.GameServer;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.simple.JSONObject;
