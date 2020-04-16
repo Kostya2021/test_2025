@@ -44,7 +44,7 @@ public final class GameServer extends WebSocketServer {
         conn.send(message.toJSONString());
         message.clear();
 
-        players.put("UNIQUE_CLIENT_ID!!!", new Player());
+        players.put("player_" + players.size(), new Player());
         logger.info("Number of players connected: {}", players.size());
 
         // FIXME Currently opens a single game session (thread) for each connecting player ;D

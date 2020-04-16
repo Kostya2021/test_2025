@@ -1,11 +1,22 @@
 import de.andrenitze.softpro.Server.GameServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetAddress;
 
 public class Main {
     public static GameServer server;
+    private static Logger logger = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
-        server = new GameServer("localhost", 443);
-        server.run();
-        server.start();
+        try {
+            server = new GameServer(InetAddress.getLocalHost().getHostName(), 80);
+            logger.info(InetAddress.getLocalHost().getHostAddress());
+            logger.info(InetAddress.getLocalHost().getHostName());
+            server.run();
+            server.start();
+        } catch (Exception e) {
+            logger.error(e.toString());
+        }
    }
 }
