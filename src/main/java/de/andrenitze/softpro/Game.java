@@ -1,6 +1,5 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.Server.GameServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.Server;
+package de.andrenitze.softpro;
 
 public abstract class EventHandler {
 }

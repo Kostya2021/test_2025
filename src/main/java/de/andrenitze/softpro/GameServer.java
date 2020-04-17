@@ -1,6 +1,5 @@
-package de.andrenitze.softpro.Server;
+package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.Game;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;

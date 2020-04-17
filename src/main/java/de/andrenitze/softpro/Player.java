@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.Server;
+package de.andrenitze.softpro;
 
 import java.util.ArrayList;
 

@@ -1,4 +1,5 @@
-import de.andrenitze.softpro.Server.GameServer;
+package de.andrenitze.softpro;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -6,9 +7,10 @@ import java.net.InetAddress;
 
 public class Main {
     public static GameServer server;
-    private static Logger logger = LoggerFactory.getLogger(Main.class);
+    private static Logger logger = LoggerFactory.getLogger(Main.class.getName());
 
     public static void main(String[] args) {
+        logger.trace("Starting server...");
         try {
             server = new GameServer(InetAddress.getLocalHost().getHostName(), 80);
             logger.info(InetAddress.getLocalHost().getHostAddress());
@@ -17,6 +19,8 @@ public class Main {
             server.start();
         } catch (Exception e) {
             logger.error(e.toString());
+        } finally {
+            logger.trace("Shutting down the server.");
         }
    }
 }
