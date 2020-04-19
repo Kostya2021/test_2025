@@ -3,13 +3,15 @@ package de.andrenitze.softpro;
 import java.util.ArrayList;
 
 public class Player {
-    private final String name;
+    private String name;
+    private String company;
 
     private double funds;
     private final ArrayList<Employee> employees;
 
-    public Player() {
+    Player() {
         name = "Unknown player";
+        company = "Unknown company";
         funds = 100000;
         employees = new ArrayList<>();
         employees.add(new Employee());
@@ -23,11 +25,15 @@ public class Player {
         this.funds += additionalFunds;
     }
 
-    public void subtractFunds(double subtractedFunds) {
-        this.funds -= subtractedFunds;
+    private void subtractFunds(double fundsToSubtract) {
+        this.funds -= fundsToSubtract;
     }
 
     public double getFunds() {
         return funds;
+    }
+
+    void calculateAndSubtractSalaries() {
+        this.subtractFunds(10000);
     }
 }

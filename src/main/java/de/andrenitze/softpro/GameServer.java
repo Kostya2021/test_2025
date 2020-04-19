@@ -9,27 +9,28 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public final class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
-    private Game[] games;
-    private final HashMap<String, Player> players;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 4;
+    private ArrayList<Game> games;
+    private final HashMap<String, Player> playersWaitingInLobby;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private JSONObject message;
 
     /**
-     * Creates a {@link #GameServer(String, int)} instance to manage game sessions and players.
+     * Creates a {@link #GameServer(String, int)} instance to manage game sessions and playersWaitingInLobby.
      *
      * @param hostname String  Host name (IP for clients to connect to)
      * @param port int          Port number (default: 8887)
      */
-    public GameServer(String hostname, int port) {
+    GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
-        players = new HashMap<>();
+        playersWaitingInLobby = new HashMap<>();
+        games = new ArrayList<>();
     }
 
-    public void notifyAllClients(String message) {
+    void notifyAllClients(String message) {
         broadcast(message);
     }
 
@@ -38,20 +39,23 @@ public final class GameServer extends WebSocketServer {
         logger.info("Connected user with websocket server");
 
         // Welcome a connected client
-        message = new JSONObject();
-        message.put("message", "Welcome to the server! Waiting for other players to join...");
+        JSONObject message = new JSONObject();
+        message.put("message", "Welcome to the server! Waiting for other playersWaitingInLobby to join...");
         conn.send(message.toJSONString());
         message.clear();
 
-        players.put("player_" + players.size(), new Player());
-        logger.info("Number of players connected: {}", players.size());
+        // Add new player to lobby
+        playersWaitingInLobby.put("player_" + playersWaitingInLobby.size(), new Player());
+        logger.info("Number of players connected: {}", playersWaitingInLobby.size());
 
         // FIXME Currently opens a single game session (thread) for each connecting player ;D
-        // Start game session, if enough players are "ready" for a game session to start
-        if (players.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
-            message.put("message", "Enough players connected. Starting game session...");
+        // Start a new game session if enough player are waiting in the lobby
+        if (playersWaitingInLobby.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
+            message.put("message", "Enough playersWaitingInLobby connected. Starting game session...");
             broadcast(message.toJSONString());
-            games[0] = new Game(this);
+
+            // Create a new game on this server with all connected playersWaitingInLobby
+            games.add( new Game(playersWaitingInLobby, this));
         }
     }
 
@@ -85,7 +89,6 @@ public final class GameServer extends WebSocketServer {
     @Override
     public void onStart() {
         logger.info("server started successfully");
-        setConnectionLostTimeout(0);
         setConnectionLostTimeout(100);
     }
 }
