@@ -3,10 +3,7 @@ package de.andrenitze.softpro;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -14,23 +11,25 @@ import java.util.concurrent.TimeUnit;
 class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 1000;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private HashMap<String, Player> players;
+    private final GameServer gameServer;
+    private Vector<Player> players;
     private int currentTick;
     private Date currentDate;
 
     // Every GameServer hosts exactly one Game
-    Game(HashMap<String, Player> players, GameServer gameServer) {
+    Game(Vector<Player> players, GameServer gameServer) {
         // Every game consists of players and a world in a specific state
         this.players = players;
+        this.gameServer = gameServer; // a reference, hopefully
         currentTick = 0;
         currentDate = new Date();
-        logger.debug("A new game has started!");
+        logger.debug("A new game has started with {} players.", players.size());
 
         // Start running the game time
         final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         executorService.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
-            gameServer.notifyAllClients("{\"tick\": "+ getCurrentTick()+"}");
+            this.gameServer.notifyAllClients("{\"tick\": "+ getCurrentTick()+"}");
 
             // Do all kinds of calculations in the world
             // ...
@@ -54,12 +53,11 @@ class Game {
 
         // If it's the first day of the month, calculate salaries and decrease company funds accordingly
         if (isFirstDayOfMonth(c)) {
-            System.out.println("Erster des Monats. Gehälter abziehen.");
-
-            for (Map.Entry<String, Player> entry : this.players.entrySet()) {
-                Player player = entry.getValue();
+            for (Player player : this.players) {
                 player.calculateAndSubtractSalaries();
             }
+            // Inform clients of changes from original, agreed-upon state (e.g., convention: funds = 1.000.000 at game start)
+            this.gameServer.broadcast("{event: \"new salaries have been calculated for everyone\"}");
         }
     }
 

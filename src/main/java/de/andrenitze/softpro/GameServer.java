@@ -4,18 +4,20 @@ import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Vector;
 
 public final class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 4;
-    private ArrayList<Game> games;
-    private final HashMap<String, Player> playersWaitingInLobby;
+    private static final String NEW_PLAYER = "NEW_PLAYER";
+    private Vector<Game> games; // synchronized read/write, i.e., locking out other threads
+    private final Vector<Player> playersWaitingInLobby;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     /**
@@ -26,8 +28,8 @@ public final class GameServer extends WebSocketServer {
      */
     GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
-        playersWaitingInLobby = new HashMap<>();
-        games = new ArrayList<>();
+        playersWaitingInLobby = new Vector<>(10);
+        games = new Vector<>(10);
     }
 
     void notifyAllClients(String message) {
@@ -36,39 +38,55 @@ public final class GameServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        logger.info("Connected user with websocket server");
+        logger.debug("Connected user with websocket server");
 
         // Welcome a connected client
         JSONObject message = new JSONObject();
-        message.put("message", "Welcome to the server! Waiting for other playersWaitingInLobby to join...");
+        message.put("message", "Waiting for other players to join...");
         conn.send(message.toJSONString());
         message.clear();
 
-        // Add new player to lobby
-        playersWaitingInLobby.put("player_" + playersWaitingInLobby.size(), new Player());
-        logger.info("Number of players connected: {}", playersWaitingInLobby.size());
+        // FIXME Remove players from list when clients leave (i.e., by ending the WebSocket session when closing the browser)
 
-        // FIXME Currently opens a single game session (thread) for each connecting player ;D
-        // Start a new game session if enough player are waiting in the lobby
+        // Start a new game session if enough players are waiting in the lobby
         if (playersWaitingInLobby.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
-            message.put("message", "Enough playersWaitingInLobby connected. Starting game session...");
+            message.put("message", "Enough players connected. Starting game session...");
             broadcast(message.toJSONString());
 
             // Create a new game on this server with all connected playersWaitingInLobby
             games.add( new Game(playersWaitingInLobby, this));
+            logger.debug("Running games: {}", games.size());
+
+            // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
+            playersWaitingInLobby.clear();
         }
     }
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        logger.info("closed " + conn.getRemoteSocketAddress() + " with exit code " + code + " additional info: " + reason);
+        logger.debug("Client {} left the game (exit code {})", conn.getRemoteSocketAddress(), code);
     }
 
     @Override
     public void onMessage(WebSocket conn, String message) {
-        logger.info("received message from "	+ conn.getRemoteSocketAddress() + ": " + message);
+        logger.debug("received message from {}: {}", conn.getRemoteSocketAddress(), message);
 
         // Decide which event handler to forward the message to (GameEventHandler, LobbyEventHandler)
+        try {
+            JSONObject jsonObject = (JSONObject) new JSONParser().parse(message);
+
+            // If it's a new player event, create the player and add her to the lobby
+            if (jsonObject.get("eventType").equals(NEW_PLAYER)) {
+                JSONObject playerObject = (JSONObject) jsonObject.get("player");
+                Player player = new Player(playerObject.get("name").toString(), playerObject.get("company").toString());
+                playersWaitingInLobby.add(player);
+                logger.debug("New player '{}' added. New number of players in lobby: {}",
+                        player.getName(),
+                        playersWaitingInLobby.size());
+            }
+        } catch (ParseException e) {
+            logger.error(e.toString());
+        }
 
         // Dispatch lobby events
         //conn.getResourceDescriptor() // /lobby
@@ -78,17 +96,17 @@ public final class GameServer extends WebSocketServer {
 
     @Override
     public void onMessage( WebSocket conn, ByteBuffer message ) {
-        logger.info("received ByteBuffer from "	+ conn.getRemoteSocketAddress());
+        logger.debug("received ByteBuffer from {}", conn.getRemoteSocketAddress());
     }
 
     @Override
     public void onError(WebSocket conn, Exception ex) {
-        logger.warn("an error occurred on connection " + conn.getRemoteSocketAddress()  + ":" + ex);
+        logger.warn("an error occurred on connection {}; {}", conn.getRemoteSocketAddress(), ex);
     }
 
     @Override
     public void onStart() {
-        logger.info("server started successfully");
-        setConnectionLostTimeout(100);
+        logger.info("Server started successfully");
+        setConnectionLostTimeout(120);
     }
 }
