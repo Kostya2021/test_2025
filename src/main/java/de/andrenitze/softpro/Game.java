@@ -108,4 +108,9 @@ class Game {
     Map<WebSocket, Player> getPlayers() {
         return players;
     }
+
+    void shutdown() {
+        gameServer = null;
+        executorService.shutdownNow();
+    }
 }

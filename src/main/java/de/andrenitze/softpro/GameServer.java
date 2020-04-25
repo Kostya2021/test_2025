@@ -58,7 +58,7 @@ public final class GameServer extends WebSocketServer {
             if (game.getPlayers().size() == 0) {
                 logger.debug("Shutting down game {}", game);
                 games.remove(game);
-                game = null;
+                game.shutdown();
                 logger.debug("Running games: {}", games.size());
             }
         }
