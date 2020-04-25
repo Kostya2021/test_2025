@@ -11,25 +11,25 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.Vector;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 4;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     private static final String NEW_PLAYER = "NEW_PLAYER";
-    private Vector<Game> games; // synchronized read/write, i.e., locking out other threads
-    private final Vector<Player> playersWaitingInLobby;
+    private HashSet<Game> games = new HashSet<>();
+    private Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     /**
-     * Creates a {@link #GameServer(String, int)} instance to manage game sessions and playersWaitingInLobby.
+     * Creates a {@link #GameServer(String, int)} instance to manage game connections and playersWaitingInLobby.
      *
      * @param hostname String  Host name (IP for clients to connect to)
      * @param port int          Port number (default: 8887)
      */
     GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
-        playersWaitingInLobby = new Vector<>(10);
-        games = new Vector<>(10);
     }
 
     void notifyAllClients(String message) {
@@ -38,33 +38,30 @@ public final class GameServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        logger.debug("Connected user with websocket server");
-
-        // Welcome a connected client
-        JSONObject message = new JSONObject();
-        message.put("message", "Waiting for other players to join...");
-        conn.send(message.toJSONString());
-        message.clear();
-
-        // FIXME Remove players from list when clients leave (i.e., by ending the WebSocket session when closing the browser)
-
-        // Start a new game session if enough players are waiting in the lobby
-        if (playersWaitingInLobby.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
-            message.put("message", "Enough players connected. Starting game session...");
-            broadcast(message.toJSONString());
-
-            // Create a new game on this server with all connected playersWaitingInLobby
-            games.add( new Game(playersWaitingInLobby, this));
-            logger.debug("Running games: {}", games.size());
-
-            // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
-            playersWaitingInLobby.clear();
-        }
+        logger.debug("Client {} connected", conn.getRemoteSocketAddress());
+        playersAndTheirConnections.put(conn, new Player());
     }
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
         logger.debug("Client {} left the game (exit code {})", conn.getRemoteSocketAddress(), code);
+
+        // Remove disconnected clients from lobby
+        playersAndTheirConnections.remove(conn);
+
+        // Remove disconnected clients from all running games
+        for (Game game : games) {
+            game.removePlayer(conn);
+            logger.debug("Client {} left game {} ({} players left)", conn.getRemoteSocketAddress(), game.toString(), game.getPlayers().size());
+
+            // Close the game session if this was the last player
+            if (game.getPlayers().size() == 0) {
+                logger.debug("Shutting down game {}", game);
+                games.remove(game);
+                game = null;
+                logger.debug("Running games: {}", games.size());
+            }
+        }
     }
 
     @Override
@@ -79,13 +76,28 @@ public final class GameServer extends WebSocketServer {
             if (jsonObject.get("eventType").equals(NEW_PLAYER)) {
                 JSONObject playerObject = (JSONObject) jsonObject.get("player");
                 Player player = new Player(playerObject.get("name").toString(), playerObject.get("company").toString());
-                playersWaitingInLobby.add(player);
+                playersAndTheirConnections.put(conn, player);
+
                 logger.debug("New player '{}' added. New number of players in lobby: {}",
                         player.getName(),
-                        playersWaitingInLobby.size());
+                        playersAndTheirConnections.size());
             }
         } catch (ParseException e) {
             logger.error(e.toString());
+        }
+
+        // Start a new game session if enough players are waiting in the lobby
+        if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
+            JSONObject jsonMessage = new JSONObject();
+            jsonMessage.put("message", "Enough players connected. Starting game session...");
+            broadcast(jsonMessage.toJSONString());
+
+            // Create a new game on this server with all connected playersWaitingInLobby
+            games.add( new Game(new ConcurrentHashMap<>(playersAndTheirConnections), this));
+            logger.debug("Running games: {}", games.size());
+
+            // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
+            playersAndTheirConnections.clear();
         }
 
         // Dispatch lobby events

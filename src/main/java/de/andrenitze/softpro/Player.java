@@ -5,13 +5,12 @@ import java.util.ArrayList;
 public class Player {
     private String name;
     private String company;
-    private double funds;
+    private double funds = 100000;
     private final ArrayList<Employee> employees;
 
     Player() {
         this.name = "Unknown player";
         this.company = "Unknown company";
-        funds = 100000;
         employees = new ArrayList<>();
         employees.add(new Employee());
     }
@@ -19,7 +18,6 @@ public class Player {
     Player(String name, String company) {
         this.name = name;
         this.company = company;
-        funds = 100000;
         employees = new ArrayList<>();
         employees.add(new Employee());
     }
