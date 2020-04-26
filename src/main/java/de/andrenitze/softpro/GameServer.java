@@ -3,6 +3,7 @@ package de.andrenitze.softpro;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -11,12 +12,15 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public final class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
     private static final String NEW_PLAYER = "NEW_PLAYER";
     private HashSet<Game> games = new HashSet<>();
     private Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
@@ -40,6 +44,17 @@ public final class GameServer extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         logger.debug("Client {} connected", conn.getRemoteSocketAddress());
         playersAndTheirConnections.put(conn, new Player());
+        Collection<Player> players = playersAndTheirConnections.values();
+
+        ArrayList<String> playersList = players.stream().map(Player::getName).collect(Collectors.toCollection(ArrayList::new));
+        JSONArray playersArray = new JSONArray(playersList);
+
+        ArrayList<String> list = new ArrayList<String>();
+        list.add("foo");
+        list.add("baar");
+        JSONArray jsArray = new JSONArray(list);
+
+        broadcast("{\"playersInLobby\": " + playersArray.toJSONString() + "}");
     }
 
     @Override
