@@ -3,6 +3,7 @@ package de.andrenitze.softpro;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -16,14 +17,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 4;
     private static final String NEW_PLAYER = "NEW_PLAYER";
     private HashSet<Game> games = new HashSet<>();
     private Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     /**
-     * Creates a {@link #GameServer(String, int)} instance to manage game connections and playersWaitingInLobby.
+     * Creates a GameServer instance to manage games and players
      *
      * @param hostname String  Host name (IP for clients to connect to)
      * @param port int          Port number (default: 8887)
@@ -52,7 +53,7 @@ public final class GameServer extends WebSocketServer {
         // Remove disconnected clients from all running games
         for (Game game : games) {
             game.removePlayer(conn);
-            logger.debug("Client {} left game {} ({} players left)", conn.getRemoteSocketAddress(), game.toString(), game.getPlayers().size());
+            logger.debug("Client {} left game {} ({} players left)", conn.getRemoteSocketAddress(), game, game.getPlayers().size());
 
             // Close the game session if this was the last player
             if (game.getPlayers().size() == 0) {
@@ -62,6 +63,7 @@ public final class GameServer extends WebSocketServer {
                 logger.debug("Running games: {}", games.size());
             }
         }
+        broadcastPlayerList();
     }
 
     @Override
@@ -81,6 +83,8 @@ public final class GameServer extends WebSocketServer {
                 logger.debug("New player '{}' added. New number of players in lobby: {}",
                         player.getName(),
                         playersAndTheirConnections.size());
+
+                broadcastPlayerList();
             }
         } catch (ParseException e) {
             logger.error(e.toString());
@@ -98,12 +102,21 @@ public final class GameServer extends WebSocketServer {
 
             // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
             playersAndTheirConnections.clear();
+            broadcastPlayerList();
         }
 
         // Dispatch lobby events
         //conn.getResourceDescriptor() // /lobby
 
         // Dispatch game events
+    }
+
+    private void broadcastPlayerList() {
+        JSONArray playersList = new JSONArray();
+        playersAndTheirConnections.forEach((WebSocket webSocket, Player readyPlayer) -> {
+            playersList.add(readyPlayer.getName());
+        });
+        broadcast("{\"playersInLobby\": " + playersList.toJSONString() + "}");
     }
 
     @Override
