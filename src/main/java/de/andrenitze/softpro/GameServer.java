@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 4;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
     private static final String NEW_PLAYER = "NEW_PLAYER";
     private HashSet<Game> games = new HashSet<>();
     private Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
@@ -78,13 +78,11 @@ public final class GameServer extends WebSocketServer {
             if (jsonObject.get("eventType").equals(NEW_PLAYER)) {
                 JSONObject playerObject = (JSONObject) jsonObject.get("player");
                 Player player = new Player(playerObject.get("name").toString(), playerObject.get("company").toString());
-                playersAndTheirConnections.put(conn, player);
+                addPlayer(conn, player);
 
                 logger.debug("New player '{}' added. New number of players in lobby: {}",
                         player.getName(),
                         playersAndTheirConnections.size());
-
-                broadcastPlayerList();
             }
         } catch (ParseException e) {
             logger.error(e.toString());
@@ -132,6 +130,10 @@ public final class GameServer extends WebSocketServer {
     @Override
     public void onStart() {
         logger.info("Server started successfully");
-        setConnectionLostTimeout(120);
+    }
+
+    void addPlayer(WebSocket webSocket, Player player) {
+        playersAndTheirConnections.put(webSocket, player);
+        broadcastPlayerList();
     }
 }

@@ -13,7 +13,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 1000;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 100;
+    private static final int BANCRUPTCY_THRESHOLD = -50000;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
     private Map<WebSocket, Player> players;
@@ -69,6 +70,19 @@ class Game {
                 sendMessageToPlayer(player, newStateEvent.toJSONString());
             });
         }
+        
+        // If a player is out of money, it's "Game over"
+        players.forEach((webSocket, player) -> {
+            if (player.getFunds() <= BANCRUPTCY_THRESHOLD) {
+                JSONObject gameOverEvent = new JSONObject();
+                gameOverEvent.put("eventType", "GAME_OVER");
+                sendMessageToPlayer(player, gameOverEvent.toJSONString());
+                removePlayer(webSocket);
+
+                // TODO Tell Gameserver to move player back to lobby
+                gameServer.addPlayer(webSocket, player);
+            }
+        });
     }
 
     void sendMessageToPlayer(Player player, String message) {
@@ -103,6 +117,11 @@ class Game {
 
     void removePlayer(WebSocket conn) {
         players.remove(conn);
+
+        // Close game session if this was the last player
+        if (players.size() == 0) {
+            shutdown();
+        }
     }
 
     Map<WebSocket, Player> getPlayers() {
