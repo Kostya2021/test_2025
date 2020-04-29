@@ -17,10 +17,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     private static final String NEW_PLAYER = "NEW_PLAYER";
-    private HashSet<Game> games = new HashSet<>();
-    private Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
+    private final HashSet<Game> games = new HashSet<>();
+    private final Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     /**
@@ -118,7 +118,7 @@ public final class GameServer extends WebSocketServer {
     }
 
     @Override
-    public void onMessage( WebSocket conn, ByteBuffer message ) {
+    public void onMessage(WebSocket conn, ByteBuffer message) {
         logger.debug("received ByteBuffer from {}", conn.getRemoteSocketAddress());
     }
 
