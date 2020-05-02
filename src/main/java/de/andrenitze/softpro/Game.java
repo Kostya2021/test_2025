@@ -72,15 +72,17 @@ class Game {
                 JSONObject gameOverEvent = new JSONObject();
                 gameOverEvent.put("eventType", "GAME_OVER");
                 sendMessageToPlayer(player, gameOverEvent.toJSONString());
-                removePlayer(webSocket);
 
-                // TODO Tell Gameserver to move player back to lobby
+                // Tell Gameserver to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
+
+                // Kick player out of the game
+                removePlayer(webSocket);
             }
         });
 
-        // Spawn a random project for players to make some money.
-        if (projectSpawnProbability >= 0.95) {
+        // Randomly spawn projects for players to make some money
+        if (new Random().nextFloat() >= 0.95) {
             // Generate a new project
             Project project = Project.generateRandomProject();
             projects.add(project);
@@ -97,12 +99,6 @@ class Game {
 
             logger.debug("New Project '{}' spawned", project.getName());
             sendMessageToAllPlayers(newProjectEvent.toJSONString());
-
-            // If a project was spawned, set the probability for the next tick to 0.0
-            projectSpawnProbability = new Random().nextFloat();
-        } else {
-            // If no project was spawned, increase the probability for the next tick
-            projectSpawnProbability += 0.025;
         }
     }
 
