@@ -3,10 +3,16 @@ This is the central game server that can be deployed to and run in an infrastruc
 
 ## Run the game server
 To run the server:
+
 ```mvn clean package```
 
-The server will be waiting for incoming connection requests via HTTP port 8887. It will upgrade all valid requests to a WebSocket connection.
+To build a ```*.jar``` with all dependencies in the "/target" folder:
+
+```mvn package assembly:single```
+
+The server will be waiting for incoming connection requests via HTTP port 80. It will upgrade all valid requests to a WebSocket connection (HTTP 101 - Switching Protocols) on the same port.
 
 ## Test Suite
 No tests defined, yet. :*(
-TODO Add jUnit tests
+
+Use jUnit.

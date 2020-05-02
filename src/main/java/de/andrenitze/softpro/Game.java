@@ -5,22 +5,22 @@ import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 100;
-    private static final int BANCRUPTCY_THRESHOLD = -50000;
+    private static final int BANKRUPTCY_THRESHOLD = -50000;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
-    private Map<WebSocket, Player> players;
+    private final Map<WebSocket, Player> players;
+    private final ArrayList<Project> projects;
     private int currentTick;
     private Date currentDate;
-    private ScheduledExecutorService executorService;
+    private final ScheduledExecutorService executorService;
+    private double projectSpawnProbability = 0.0;
 
     // Every GameServer hosts exactly one Game
     Game(Map<WebSocket, Player> players, GameServer gameServer) {
@@ -29,21 +29,16 @@ class Game {
         this.gameServer = gameServer;
         currentTick = 0;
         currentDate = new Date();
+        projects = new ArrayList<>();
         logger.debug("A new game has started with {} players.", players.size());
 
         // Start running the game time
         executorService = Executors.newSingleThreadScheduledExecutor();
         executorService.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
-            this.gameServer.notifyAllClients("{\"tick\": " + getCurrentTick() + "}");
+            this.sendMessageToAllPlayers("{\"tick\": " + getCurrentTick() + "}");
 
-            // Do all kinds of calculations in the world
-            // ...
-
-            // Notify clients if there are any new events. These can be game-wide or player-specific.
-            //gameServer.broadcast("event...");
-
-            // Progress game time
+            // Progress game time and calculate the world's state for each tick
             progressGameTime();
         }, 0, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
     }
@@ -71,28 +66,55 @@ class Game {
             });
         }
         
-        // If a player is out of money, it's "Game over"
+        // If a player is out of money, the game is over for that player. The other players can continue.
         players.forEach((webSocket, player) -> {
-            if (player.getFunds() <= BANCRUPTCY_THRESHOLD) {
+            if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 JSONObject gameOverEvent = new JSONObject();
                 gameOverEvent.put("eventType", "GAME_OVER");
                 sendMessageToPlayer(player, gameOverEvent.toJSONString());
-                removePlayer(webSocket);
 
-                // TODO Tell Gameserver to move player back to lobby
+                // Tell Gameserver to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
+
+                // Kick player out of the game
+                removePlayer(webSocket);
             }
         });
+
+        // Randomly spawn projects for players to make some money
+        if (new Random().nextFloat() >= 0.95) {
+            // Generate a new project
+            Project project = Project.generateRandomProject();
+            projects.add(project);
+
+            // Inform players of new project
+            JSONObject newProjectEvent = new JSONObject();
+            newProjectEvent.put("eventType", "NEW_PROJECT");
+
+            // Serialize a project as JSON string
+            JSONObject newProjectJson = new JSONObject();
+            newProjectJson.put("name", project.getName());
+            newProjectJson.put("volume", project.getVolume());
+            newProjectEvent.put("project", newProjectJson);
+
+            logger.debug("New Project '{}' spawned", project.getName());
+            sendMessageToAllPlayers(newProjectEvent.toJSONString());
+        }
+    }
+
+    void sendMessageToAllPlayers(String message) {
+        // Send the message to all players
+        players.forEach((webSocket, player) -> webSocket.send(message));
     }
 
     void sendMessageToPlayer(Player player, String message) {
         logger.debug("Sending message to player {}: '{}'", player.getName(), message);
 
         // Get the WebSocket connection of the player
-        WebSocket conn = getConnectionByPlayer(players, player);
+        WebSocket webSocket = getConnectionByPlayer(players, player);
 
         // Send a single message on that WebSocket connection
-        conn.send(message);
+        webSocket.send(message);
     }
 
     private static WebSocket getConnectionByPlayer(Map<WebSocket, Player> map, Player value) {

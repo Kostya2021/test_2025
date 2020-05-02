@@ -12,7 +12,7 @@ public class Main {
     public static void main(String[] args) {
         logger.trace("Starting server...");
         try {
-            server = new GameServer(InetAddress.getLocalHost().getHostName(), 80);
+            server = new GameServer(InetAddress.getLocalHost().getHostAddress(), 80);
             logger.info(InetAddress.getLocalHost().getHostAddress());
             logger.info(InetAddress.getLocalHost().getHostName());
             server.run();
