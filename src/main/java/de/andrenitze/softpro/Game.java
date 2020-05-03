@@ -81,24 +81,39 @@ class Game {
             }
         });
 
-        // Randomly spawn projects for players to make some money
+        // Randomly spawn tenders for players to make some money
         if (new Random().nextFloat() >= 0.95) {
             // Generate a new project
             Project project = Project.generateRandomProject();
             projects.add(project);
 
             // Inform players of new project
-            JSONObject newProjectEvent = new JSONObject();
-            newProjectEvent.put("eventType", "NEW_PROJECT");
+            JSONObject newTenderEvent = new JSONObject();
+            newTenderEvent.put("eventType", "NEW_TENDER");
 
             // Serialize a project as JSON string
-            JSONObject newProjectJson = new JSONObject();
-            newProjectJson.put("name", project.getName());
-            newProjectJson.put("volume", project.getVolume());
-            newProjectEvent.put("project", newProjectJson);
+            JSONObject newTenderJson = new JSONObject();
+            newTenderJson.put("name", project.getName());
+            newTenderJson.put("volume", project.getVolume());
+            newTenderEvent.put("tender", newTenderJson);
 
-            logger.debug("New Project '{}' spawned", project.getName());
-            sendMessageToAllPlayers(newProjectEvent.toJSONString());
+            logger.debug("New tender '{}' spawned", project.getName());
+            sendMessageToAllPlayers(newTenderEvent.toJSONString());
+        }
+
+        // TODO If any player participates in the tender, decide who'll get it
+
+        // Decrease time left for tender
+        for (Project project : projects) {
+            project.decreaseTimeLeftForTender();
+
+            if (project.getTimeLeftForTender() == 0) {
+                // After 14 days, close the call for tender and award the winner
+                JSONObject closeTenderEvent = new JSONObject();
+                closeTenderEvent.put("eventType", "CLOSE_TENDER");
+                closeTenderEvent.put("name", project.getName());
+                sendMessageToAllPlayers(closeTenderEvent.toJSONString());
+            }
         }
     }
 

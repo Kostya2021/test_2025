@@ -41,6 +41,7 @@ public final class GameServer extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         logger.debug("Client {} connected", conn.getRemoteSocketAddress());
         playersAndTheirConnections.put(conn, new Player());
+        broadcastPlayerList();
     }
 
     @Override
@@ -102,18 +103,12 @@ public final class GameServer extends WebSocketServer {
             playersAndTheirConnections.clear();
             broadcastPlayerList();
         }
-
-        // Dispatch lobby events
-        //conn.getResourceDescriptor() // /lobby
-
-        // Dispatch game events
     }
 
     private void broadcastPlayerList() {
         JSONArray playersList = new JSONArray();
-        playersAndTheirConnections.forEach((WebSocket webSocket, Player readyPlayer) -> {
-            playersList.add(readyPlayer.getName());
-        });
+        playersAndTheirConnections.forEach((WebSocket webSocket, Player readyPlayer) ->
+                playersList.add(readyPlayer.getName()));
         broadcast("{\"playersInLobby\": " + playersList.toJSONString() + "}");
     }
 
@@ -124,7 +119,7 @@ public final class GameServer extends WebSocketServer {
 
     @Override
     public void onError(WebSocket conn, Exception ex) {
-        logger.warn("an error occurred on connection {}; {}", conn.getRemoteSocketAddress(), ex);
+        logger.warn("an error occurred on connection {} : {}", conn.getRemoteSocketAddress(), ex.getStackTrace());
     }
 
     @Override

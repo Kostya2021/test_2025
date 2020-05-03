@@ -13,6 +13,8 @@ public class Player {
         this.company = "Unknown company";
         employees = new ArrayList<>();
         employees.add(new Employee());
+        employees.add(new Employee());
+        employees.add(new Employee());
     }
 
     Player(String name, String company) {
@@ -20,8 +22,9 @@ public class Player {
         this.company = company;
         employees = new ArrayList<>();
         employees.add(new Employee());
+        employees.add(new Employee());
+        employees.add(new Employee());
     }
-
 
     public String getName() {
         return name;
@@ -47,7 +50,11 @@ public class Player {
         return funds;
     }
 
+    public String getCompany() {
+        return company;
+    }
+
     void calculateAndSubtractSalaries() {
-        this.subtractFunds(10000);
+        employees.forEach(employee -> this.subtractFunds(employee.getSalary()));
     }
 }

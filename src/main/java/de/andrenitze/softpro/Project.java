@@ -6,10 +6,18 @@ public class Project {
     private static int id;
     private final String name;
     private final int volume;
+    private int earnedValue;
+    private int totalValue;
+    private int deadlineInDays;
+    private int timeLeftForTender;
+    private int riskLevel;
 
     public Project(String name,  int volume) {
         this.name = name;
         this.volume = volume;
+        this.earnedValue = 0;
+        this.timeLeftForTender = 14;
+        this.totalValue = volume;
         ++id;
     }
 
@@ -37,5 +45,13 @@ public class Project {
 
     public String getName() {
         return name;
+    }
+
+    public void decreaseTimeLeftForTender() {
+        --this.timeLeftForTender;
+    }
+
+    public int getTimeLeftForTender() {
+        return timeLeftForTender;
     }
 }
