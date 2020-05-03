@@ -1,16 +1,31 @@
 package de.andrenitze.softpro;
 
+import org.java_websocket.WebSocket;
 import org.json.simple.JSONObject;
 
 public class GameEventHandler {
-    private Player player;
+    private final Game game;
+    private final GameServer gameServer;
 
-    public void handleEvent(String newPlayerEvent, JSONObject playerObject) {
-        // Create new player from parsed JSON
-        JSONObject playerJSONObject = (JSONObject) playerObject.get("player");
-        Player player = new Player(playerJSONObject.get("name").toString(), playerJSONObject.get("company").toString());
+    public GameEventHandler(Game game, GameServer gameServer) {
+        this.game = game;
+        this.gameServer = gameServer;
+    }
 
-        // Add player to game
+    public void handleEvent(WebSocket websocket, JSONObject event) {
+        // A player joins a tender
+        if (event.get("eventType").equals("JOIN_TENDER")) {
+            JSONObject tenderObject = (JSONObject) event.get("tender");
 
+            // Find the corresponding project...
+            String projectName = tenderObject.get("name").toString();
+            for (Project project : game.getProjects()) {
+                if (project.getName().equals(projectName)) {
+                    // ...and add the player to the tender process
+                    Player player = game.getPlayerByWebSocket(websocket);
+                    project.addCompany(player);
+                }
+            }
+        }
     }
 }

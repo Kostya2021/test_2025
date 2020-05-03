@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
-    private static final String NEW_PLAYER = "NEW_PLAYER";
     private final HashSet<Game> games = new HashSet<>();
     private final Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -68,40 +67,49 @@ public final class GameServer extends WebSocketServer {
     }
 
     @Override
-    public void onMessage(WebSocket conn, String message) {
-        logger.debug("received message from {}: {}", conn.getRemoteSocketAddress(), message);
+    public void onMessage(WebSocket webSocket, String message) {
+        logger.debug("received message from {}: {}", webSocket.getRemoteSocketAddress(), message);
 
-        // Decide which event handler to forward the message to (GameEventHandler, LobbyEventHandler)
+        // Handle lobby events here and forward everything else to the games
         try {
             JSONObject jsonObject = (JSONObject) new JSONParser().parse(message);
 
             // If it's a new player event, create the player and add her to the lobby
-            if (jsonObject.get("eventType").equals(NEW_PLAYER)) {
+            if (jsonObject.get("eventType").equals("NEW_PLAYER")) {
                 JSONObject playerObject = (JSONObject) jsonObject.get("player");
                 Player player = new Player(playerObject.get("name").toString(), playerObject.get("company").toString());
-                addPlayer(conn, player);
+                addPlayer(webSocket, player);
 
                 logger.debug("New player '{}' added. New number of players in lobby: {}",
                         player.getName(),
                         playersAndTheirConnections.size());
             }
+
+            // Start a new game session if enough players are waiting in the lobby
+            if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
+                JSONObject jsonMessage = new JSONObject();
+                jsonMessage.put("message", "Enough players connected. Starting game session...");
+                broadcast(jsonMessage.toJSONString());
+
+                // Create a new game on this server with all connected players
+                games.add( new Game(new ConcurrentHashMap<>(playersAndTheirConnections), this));
+                logger.debug("Running games: {}", games.size());
+
+                // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
+                playersAndTheirConnections.clear();
+                broadcastPlayerList();
+            }
+
+            // Forward all game-related events to the corresponding game instance
+            // Find out which game the message belongs to by its' Websocket connection
+            // WARNING This is on the critical path, so look for performance issues!
+            for (Game game : games) {
+                if (game.hasWebSocket(webSocket)) {
+                    game.getEventHandler().handleEvent(webSocket, jsonObject);
+                }
+            }
         } catch (ParseException e) {
             logger.error(e.toString());
-        }
-
-        // Start a new game session if enough players are waiting in the lobby
-        if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
-            JSONObject jsonMessage = new JSONObject();
-            jsonMessage.put("message", "Enough players connected. Starting game session...");
-            broadcast(jsonMessage.toJSONString());
-
-            // Create a new game on this server with all connected playersWaitingInLobby
-            games.add( new Game(new ConcurrentHashMap<>(playersAndTheirConnections), this));
-            logger.debug("Running games: {}", games.size());
-
-            // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
-            playersAndTheirConnections.clear();
-            broadcastPlayerList();
         }
     }
 

@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import org.java_websocket.WebSocket;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +12,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 100;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -50000;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
@@ -19,22 +20,43 @@ class Game {
     private final ArrayList<Project> projects;
     private int currentTick;
     private Date currentDate;
-    private final ScheduledExecutorService executorService;
-    private double projectSpawnProbability = 0.0;
+    private final ScheduledExecutorService gameLoop;
+    private GameEventHandler eventHandler;
 
     // Every GameServer hosts exactly one Game
     Game(Map<WebSocket, Player> players, GameServer gameServer) {
         // Every game consists of players and a world in a specific state
         this.players = players;
         this.gameServer = gameServer;
+        this.eventHandler = new GameEventHandler(this, gameServer);
         currentTick = 0;
         currentDate = new Date();
         projects = new ArrayList<>();
         logger.debug("A new game has started with {} players.", players.size());
 
+        // Send initial state to all players
+        players.forEach((webSocket, player) -> {
+            JSONObject initialState = new JSONObject();
+            initialState.put("eventType", "STATE_UPDATE");
+
+            JSONArray employeesArray = new JSONArray();
+            for (Employee employee : player.getEmployees()) {
+                JSONObject employeeObject = new JSONObject();
+                employeeObject.put("age", employee.getAge());
+                employeeObject.put("salary", employee.getSalary());
+                employeeObject.put("experience", employee.getExperienceInDays());
+                employeesArray.add(employeeObject);
+            }
+
+            initialState.put("employees", employeesArray);
+            logger.debug("Sending initial state to players");
+            logger.debug(initialState.toJSONString());
+            sendMessageToAllPlayers(initialState.toJSONString());
+        });
+
         // Start running the game time
-        executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(() -> {
+        gameLoop = Executors.newSingleThreadScheduledExecutor();
+        gameLoop.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
             this.sendMessageToAllPlayers("{\"tick\": " + getCurrentTick() + "}");
 
@@ -94,25 +116,41 @@ class Game {
             // Serialize a project as JSON string
             JSONObject newTenderJson = new JSONObject();
             newTenderJson.put("name", project.getName());
-            newTenderJson.put("volume", project.getVolume());
+            newTenderJson.put("volume", project.getVolumeInPersonDays());
+            newTenderJson.put("volume", project.getTimeLeftForTender());
             newTenderEvent.put("tender", newTenderJson);
 
             logger.debug("New tender '{}' spawned", project.getName());
             sendMessageToAllPlayers(newTenderEvent.toJSONString());
         }
 
-        // TODO If any player participates in the tender, decide who'll get it
-
         // Decrease time left for tender
         for (Project project : projects) {
-            project.decreaseTimeLeftForTender();
-
             if (project.getTimeLeftForTender() == 0) {
-                // After 14 days, close the call for tender and award the winner
+                // After deadline is exceeded close the call for tender and award the winner
                 JSONObject closeTenderEvent = new JSONObject();
                 closeTenderEvent.put("eventType", "CLOSE_TENDER");
                 closeTenderEvent.put("name", project.getName());
                 sendMessageToAllPlayers(closeTenderEvent.toJSONString());
+                project.decreaseTimeLeftForTender();
+
+                // Decide who gets the project
+                if (project.getInvolvedParties().size() == 1) {
+                    // Serialize project as JSONObject
+                    JSONObject projectObject = new JSONObject();
+                    projectObject.put("name", project.getName());
+                    projectObject.put("volumeInPersonDays", project.getVolumeInPersonDays());
+                    projectObject.put("earnedValue", project.getEarnedValue());
+
+                    // Inform winner with a confirmation message
+                    JSONObject wonTenderEvent = new JSONObject();
+                    wonTenderEvent.put("eventType", "PROJECT");
+                    wonTenderEvent.put("project", projectObject);
+
+                    sendMessageToPlayer(project.getInvolvedParties().get(0), wonTenderEvent.toJSONString());
+                }
+            } else if (project.getTimeLeftForTender() != 0 && project.getTimeLeftForTender() != -1) {
+                project.decreaseTimeLeftForTender();
             }
         }
     }
@@ -123,16 +161,14 @@ class Game {
     }
 
     void sendMessageToPlayer(Player player, String message) {
-        logger.debug("Sending message to player {}: '{}'", player.getName(), message);
-
         // Get the WebSocket connection of the player
-        WebSocket webSocket = getConnectionByPlayer(players, player);
+        WebSocket webSocket = getWebSocketByPlayer(players, player);
 
         // Send a single message on that WebSocket connection
         webSocket.send(message);
     }
 
-    private static WebSocket getConnectionByPlayer(Map<WebSocket, Player> map, Player value) {
+    private static WebSocket getWebSocketByPlayer(Map<WebSocket, Player> map, Player value) {
         return map.keySet()
                     .stream()
                     .filter(key -> value.equals(map.get(key)))
@@ -167,6 +203,22 @@ class Game {
 
     void shutdown() {
         gameServer = null;
-        executorService.shutdownNow();
+        gameLoop.shutdownNow();
+    }
+
+    public boolean hasWebSocket(WebSocket conn) {
+        return players.containsKey(conn);
+    }
+
+    public GameEventHandler getEventHandler() {
+        return eventHandler;
+    }
+
+    public ArrayList<Project> getProjects() {
+        return projects;
+    }
+
+    public Player getPlayerByWebSocket(WebSocket websocket) {
+        return players.get(websocket);
     }
 }

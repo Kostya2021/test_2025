@@ -1,9 +1,9 @@
 package de.andrenitze.softpro;
 
 public class Employee {
-    private int salary;
-    private int age;
-    private int timeSpentInProjects;
+    private final int salary;
+    private final int age;
+    private int experienceInDays;
 
     Employee() {
         salary = 3000;
@@ -16,5 +16,13 @@ public class Employee {
 
     public int getAge() {
         return age;
+    }
+
+    public int getExperienceInDays() {
+        return experienceInDays;
+    }
+
+    public void setExperienceInDays(int experienceInDays) {
+        this.experienceInDays = experienceInDays;
     }
 }
