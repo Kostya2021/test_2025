@@ -42,6 +42,8 @@ class Game {
             JSONArray employeesArray = new JSONArray();
             for (Employee employee : player.getEmployees()) {
                 JSONObject employeeObject = new JSONObject();
+                employeeObject.put("id", employee.getId());
+                employeeObject.put("name", employee.getName());
                 employeeObject.put("age", employee.getAge());
                 employeeObject.put("salary", employee.getSalary());
                 employeeObject.put("experience", employee.getExperienceInDays());
@@ -115,9 +117,11 @@ class Game {
 
             // Serialize a project as JSON string
             JSONObject newTenderJson = new JSONObject();
+            newTenderJson.put("id", project.getId());
             newTenderJson.put("name", project.getName());
-            newTenderJson.put("volume", project.getVolumeInPersonDays());
-            newTenderJson.put("volume", project.getTimeLeftForTender());
+            newTenderJson.put("totalValue", project.getTotalValue());
+            newTenderJson.put("earnedValue", project.getEarnedValue());
+            newTenderJson.put("timeLeftForTender", project.getTimeLeftForTender());
             newTenderEvent.put("tender", newTenderJson);
 
             logger.debug("New tender '{}' spawned", project.getName());
@@ -138,8 +142,9 @@ class Game {
                 if (project.getInvolvedParties().size() == 1) {
                     // Serialize project as JSONObject
                     JSONObject projectObject = new JSONObject();
+                    projectObject.put("id", project.getId());
                     projectObject.put("name", project.getName());
-                    projectObject.put("volumeInPersonDays", project.getVolumeInPersonDays());
+                    projectObject.put("totalValue", project.getTotalValue());
                     projectObject.put("earnedValue", project.getEarnedValue());
 
                     // Inform winner with a confirmation message

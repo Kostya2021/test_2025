@@ -5,21 +5,23 @@ import java.util.List;
 import java.util.Random;
 
 public class Project {
-    private static int id;
+    private static int lastId = 0;
+    private final int id;
     private final String name;
-    private final int volumeInPersonDays;
+    private final int totalValue;
     private int earnedValue;
     private int deadlineInDays;
     private int timeLeftForTender;
     private int riskLevel;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
 
-    public Project(String name,  int volumeInPersonDays) {
+    public Project(String name,  int totalValue) {
         this.name = name;
-        this.volumeInPersonDays = volumeInPersonDays;
+        this.totalValue = totalValue;
         this.earnedValue = 0;
         this.timeLeftForTender = 14;
-        ++id;
+        this.id = lastId;
+        ++lastId;
     }
 
     /**
@@ -44,11 +46,11 @@ public class Project {
     }
 
     private static String generateProjectName() {
-        return "PROJECT-" + id;
+        return "PROJECT-" + lastId;
     }
 
-    public int getVolumeInPersonDays() {
-        return volumeInPersonDays;
+    public int getTotalValue() {
+        return totalValue;
     }
 
     public String getName() {
@@ -69,7 +71,6 @@ public class Project {
      * Several companies can take part in the tender process.
      * After the tender, several companies can work on the project together.
      *
-     * @param player
      */
     public void addCompany(Player player) {
         involvedParties.add(player);
@@ -101,5 +102,9 @@ public class Project {
 
     public void setRiskLevel(int riskLevel) {
         this.riskLevel = riskLevel;
+    }
+
+    public int getId() {
+        return id;
     }
 }
