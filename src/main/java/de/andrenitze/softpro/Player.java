@@ -14,14 +14,12 @@ public class Player {
         employees = new ArrayList<>();
         employees.add(new Employee());
         employees.add(new Employee());
-        employees.add(new Employee());
     }
 
     Player(String name, String company) {
         this.name = name;
         this.company = company;
         employees = new ArrayList<>();
-        employees.add(new Employee());
         employees.add(new Employee());
         employees.add(new Employee());
     }
@@ -52,6 +50,10 @@ public class Player {
 
     public String getCompany() {
         return company;
+    }
+
+    public ArrayList<Employee> getEmployees() {
+        return employees;
     }
 
     void calculateAndSubtractSalaries() {

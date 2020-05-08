@@ -1,28 +1,38 @@
 package de.andrenitze.softpro;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class Project {
-    private static int id;
+    private static int lastId = 0;
+    private final int id;
     private final String name;
-    private final int volume;
+    private final int totalValue;
     private int earnedValue;
-    private int totalValue;
     private int deadlineInDays;
     private int timeLeftForTender;
     private int riskLevel;
+    private final ArrayList<Player> involvedParties = new ArrayList<>();
 
-    public Project(String name,  int volume) {
+    public Project(String name,  int totalValue) {
         this.name = name;
-        this.volume = volume;
+        this.totalValue = totalValue;
         this.earnedValue = 0;
         this.timeLeftForTender = 14;
-        this.totalValue = volume;
-        ++id;
+        this.id = lastId;
+        ++lastId;
     }
 
     /**
      * Generates a project with a random name and volume
+     *
+     * Projects can be used in several stages. The first stage is a "tender".
+     * All players can participate in tenders.
+     *
+     * After a tender is won by a player, work on the project can get started.
+     * Work on the project increases the earnedValue. When earnedValue has reached
+     * volumeInPersonDays, the project is fully delivered.ö
      *
      * @return Project
      */
@@ -36,11 +46,11 @@ public class Project {
     }
 
     private static String generateProjectName() {
-        return "PROJECT-" + id;
+        return "PROJECT-" + lastId;
     }
 
-    public int getVolume() {
-        return volume;
+    public int getTotalValue() {
+        return totalValue;
     }
 
     public String getName() {
@@ -53,5 +63,48 @@ public class Project {
 
     public int getTimeLeftForTender() {
         return timeLeftForTender;
+    }
+
+    /**
+     * Several companies can be associated with the same project.
+     *
+     * Several companies can take part in the tender process.
+     * After the tender, several companies can work on the project together.
+     *
+     */
+    public void addCompany(Player player) {
+        involvedParties.add(player);
+    }
+
+    public List<Player> getInvolvedParties() {
+        return involvedParties;
+    }
+
+    public int getEarnedValue() {
+        return earnedValue;
+    }
+
+    public void setEarnedValue(int earnedValue) {
+        this.earnedValue = earnedValue;
+    }
+
+    public int getDeadlineInDays() {
+        return deadlineInDays;
+    }
+
+    public void setDeadlineInDays(int deadlineInDays) {
+        this.deadlineInDays = deadlineInDays;
+    }
+
+    public int getRiskLevel() {
+        return riskLevel;
+    }
+
+    public void setRiskLevel(int riskLevel) {
+        this.riskLevel = riskLevel;
+    }
+
+    public int getId() {
+        return id;
     }
 }
