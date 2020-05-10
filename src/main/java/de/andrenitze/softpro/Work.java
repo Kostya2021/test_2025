@@ -9,12 +9,10 @@ package de.andrenitze.softpro;
  * - Work is only conducted on workdays (Monday - Friday)
  *
  */
-public class Work {
-    public Work(Employee employee, Project project) {
-
-    }
-
-    public void conductWorkOnProject() {
-        //project.earnedValue++;
+class Work {
+    void conductWorkOnProject(Employee employee, Project project) {
+        int experience = employee.getExperienceInDays();
+        int newEarnedValue = project.getEarnedValue() + experience;
+        project.setEarnedValue(newEarnedValue);
     }
 }

@@ -16,7 +16,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class GameServer extends WebSocketServer {
+public class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     private final HashSet<Game> games = new HashSet<>();
     private final Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
@@ -28,7 +28,7 @@ public final class GameServer extends WebSocketServer {
      * @param hostname String  Host name (IP for clients to connect to)
      * @param port int          Port number (default: 8887)
      */
-    GameServer(String hostname, int port) {
+    public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
     }
 

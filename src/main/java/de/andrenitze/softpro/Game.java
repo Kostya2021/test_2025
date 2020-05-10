@@ -7,11 +7,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-class Game {
+public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -50000;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -22,8 +23,9 @@ class Game {
     private Date currentDate;
     private final ScheduledExecutorService gameLoop;
     private GameEventHandler eventHandler;
+    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
 
-    // Every GameServer hosts exactly one Game
+        // Every GameServer hosts exactly one Game
     Game(Map<WebSocket, Player> players, GameServer gameServer) {
         // Every game consists of players and a world in a specific state
         this.players = players;
@@ -32,6 +34,7 @@ class Game {
         currentTick = 0;
         currentDate = new Date();
         projects = new ArrayList<>();
+        projectEmployeesMap = new ConcurrentHashMap<>();
         logger.debug("A new game has started with {} players.", players.size());
 
         // Send initial state to all players
@@ -76,7 +79,14 @@ class Game {
         c.add(Calendar.DAY_OF_MONTH, 1);
         currentDate = c.getTime();
 
-        // If it's the first day of the month, calculate salaries and decrease company funds accordingly
+        conductWorkOnAllProjects();
+        processSalariesAndAdjustFunds(c);
+        checkGameOverConditionsAndKickPlayers();
+        randomlySpawnProjectTenders();
+        decreaseTimeLeftForActiveTenders();
+    }
+
+    private void processSalariesAndAdjustFunds(Calendar c) {
         if (isFirstDayOfMonth(c)) {
             logger.debug("Calculating funds for {} players...", players.size());
             players.forEach((webSocket, player) -> {
@@ -89,8 +99,9 @@ class Game {
                 sendMessageToPlayer(player, newStateEvent.toJSONString());
             });
         }
-        
-        // If a player is out of money, the game is over for that player. The other players can continue.
+    }
+
+    private void checkGameOverConditionsAndKickPlayers() {
         players.forEach((webSocket, player) -> {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 JSONObject gameOverEvent = new JSONObject();
@@ -104,8 +115,9 @@ class Game {
                 removePlayer(webSocket);
             }
         });
+    }
 
-        // Randomly spawn tenders for players to make some money
+    private void randomlySpawnProjectTenders() {
         if (new Random().nextFloat() >= 0.95) {
             // Generate a new project
             Project project = Project.generateRandomProject();
@@ -127,8 +139,9 @@ class Game {
             logger.debug("New tender '{}' spawned", project.getName());
             sendMessageToAllPlayers(newTenderEvent.toJSONString());
         }
+    }
 
-        // Decrease time left for tender
+    private void decreaseTimeLeftForActiveTenders() {
         for (Project project : projects) {
             if (project.getTimeLeftForTender() == 0) {
                 // After deadline is exceeded close the call for tender and award the winner
@@ -160,7 +173,17 @@ class Game {
         }
     }
 
-    void sendMessageToAllPlayers(String message) {
+    private void conductWorkOnAllProjects() {
+        /*
+        for (Project project : projects) {
+            for (Employee employee : project.getAssignedEmployees()) {
+                employee.work(project);
+            }
+        }
+        */
+    }
+
+    private void sendMessageToAllPlayers(String message) {
         // Send the message to all players
         players.forEach((webSocket, player) -> webSocket.send(message));
     }
@@ -211,19 +234,51 @@ class Game {
         gameLoop.shutdownNow();
     }
 
-    public boolean hasWebSocket(WebSocket conn) {
+    boolean hasWebSocket(WebSocket conn) {
         return players.containsKey(conn);
     }
 
-    public GameEventHandler getEventHandler() {
+    GameEventHandler getEventHandler() {
         return eventHandler;
     }
 
-    public ArrayList<Project> getProjects() {
+    ArrayList<Project> getProjects() {
         return projects;
     }
 
-    public Player getPlayerByWebSocket(WebSocket websocket) {
+    Player getPlayerByWebSocket(WebSocket websocket) {
         return players.get(websocket);
+    }
+
+    Project getProjectById(int projectId) {
+        for (Project project : projects) {
+            if (project.getId() == projectId) {
+                return project;
+            }
+        }
+        return null;
+    }
+
+    void assignEmployeeToProject(Employee employee, Project project) {
+        // Get current list of employees working on that project
+        ArrayList<Employee> employees = projectEmployeesMap.get(project);
+
+        if (!employees.contains(employee)) {
+            employees.add(employee);
+            projectEmployeesMap.put(project, employees);
+        }
+    }
+
+    void unassignEmployeeFromAllProjects(Employee employee) {
+        for (Project project : projects) {
+            ArrayList<Employee> employees = projectEmployeesMap.get(project);
+            if (!employees.isEmpty()) {
+                for (Employee assignedEmployee : employees) {
+                    if (assignedEmployee.equals(employee)) {
+                        employees.remove(employee);
+                    }
+                }
+            }
+        }
     }
 }

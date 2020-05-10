@@ -24,7 +24,7 @@ public class Player {
         employees.add(new Employee());
     }
 
-    public String getName() {
+    String getName() {
         return name;
     }
 
@@ -36,8 +36,9 @@ public class Player {
         this.company = company;
     }
 
-    public void addFunds(double additionalFunds) {
+    public double addFunds(double additionalFunds) {
         this.funds += additionalFunds;
+        return funds;
     }
 
     private void subtractFunds(double fundsToSubtract) {
@@ -52,11 +53,20 @@ public class Player {
         return company;
     }
 
-    public ArrayList<Employee> getEmployees() {
+    ArrayList<Employee> getEmployees() {
         return employees;
     }
 
     void calculateAndSubtractSalaries() {
         employees.forEach(employee -> this.subtractFunds(employee.getSalary()));
+    }
+
+    Employee getEmployeeById(int id) {
+        for (Employee employee : employees) {
+            if (employee.getId() == id) {
+                return employee;
+            }
+        }
+        return null;
     }
 }

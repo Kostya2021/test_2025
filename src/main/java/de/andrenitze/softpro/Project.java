@@ -36,7 +36,7 @@ public class Project {
      *
      * @return Project
      */
-    public static Project generateRandomProject() {
+    static Project generateRandomProject() {
         return new Project(generateProjectName(), generateVolume());
     }
 
@@ -49,19 +49,19 @@ public class Project {
         return "PROJECT-" + lastId;
     }
 
-    public int getTotalValue() {
+    int getTotalValue() {
         return totalValue;
     }
 
-    public String getName() {
+    String getName() {
         return name;
     }
 
-    public void decreaseTimeLeftForTender() {
+    void decreaseTimeLeftForTender() {
         --this.timeLeftForTender;
     }
 
-    public int getTimeLeftForTender() {
+    int getTimeLeftForTender() {
         return timeLeftForTender;
     }
 
@@ -72,19 +72,18 @@ public class Project {
      * After the tender, several companies can work on the project together.
      *
      */
-    public void addCompany(Player player) {
+    void addCompany(Player player) {
         involvedParties.add(player);
     }
-
-    public List<Player> getInvolvedParties() {
+    List<Player> getInvolvedParties() {
         return involvedParties;
     }
 
-    public int getEarnedValue() {
+    int getEarnedValue() {
         return earnedValue;
     }
 
-    public void setEarnedValue(int earnedValue) {
+    void setEarnedValue(int earnedValue) {
         this.earnedValue = earnedValue;
     }
 
@@ -104,7 +103,7 @@ public class Project {
         this.riskLevel = riskLevel;
     }
 
-    public int getId() {
+    int getId() {
         return id;
     }
 }
