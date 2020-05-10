@@ -75,7 +75,7 @@ public class Project {
     void addCompany(Player player) {
         involvedParties.add(player);
     }
-    List<Player> getInvolvedParties() {
+    List<Player> getInvolvedPlayers() {
         return involvedParties;
     }
 
@@ -105,5 +105,9 @@ public class Project {
 
     int getId() {
         return id;
+    }
+
+    public void addEarnedValue(int addedValue) {
+        setEarnedValue(getEarnedValue()+addedValue);
     }
 }

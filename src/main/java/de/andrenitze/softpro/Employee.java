@@ -40,11 +40,11 @@ public class Employee {
         return experienceInDays;
     }
 
-    public void setExperienceInDays(int experienceInDays) {
-        this.experienceInDays = experienceInDays;
-    }
-
     public String getName() {
         return name;
+    }
+
+    public void increaseExperience() {
+        experienceInDays++;
     }
 }

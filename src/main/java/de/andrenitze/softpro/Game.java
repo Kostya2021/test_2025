@@ -156,7 +156,7 @@ public class Game {
                 project.decreaseTimeLeftForTender();
 
                 // Decide who gets the project
-                if (project.getInvolvedParties().size() == 1) {
+                if (project.getInvolvedPlayers().size() == 1) {
                     // Serialize project as JSONObject
                     JSONObject projectObject = new JSONObject();
                     projectObject.put("id", project.getId());
@@ -169,7 +169,7 @@ public class Game {
                     wonTenderEvent.put(EVENT_TYPE, "PROJECT");
                     wonTenderEvent.put("project", projectObject);
 
-                    sendMessageToPlayer(project.getInvolvedParties().get(0), wonTenderEvent.toJSONString());
+                    sendMessageToPlayer(project.getInvolvedPlayers().get(0), wonTenderEvent.toJSONString());
                 }
             } else if (project.getTimeLeftForTender() != 0 && project.getTimeLeftForTender() != -1) {
                 project.decreaseTimeLeftForTender();
@@ -178,13 +178,40 @@ public class Game {
     }
 
     private void conductWorkOnAllProjects() {
-        /*
-        for (Project project : projects) {
-            for (Employee employee : project.getAssignedEmployees()) {
-                employee.work(project);
+        // For all projects that have employees assigned
+        for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeesMap.entrySet()) {
+            Project project = entry.getKey();
+            ArrayList<Employee> employees = entry.getValue();
+            if (!employees.isEmpty()) {
+                int earnedValue;
+
+                // Add some value for each employee
+                for (Employee employee : employees) {
+                    earnedValue = 100;
+
+                    // Increase the employee's experience
+                    employee.increaseExperience();
+
+                    // Increase the project's earnedValue
+                    project.addEarnedValue(earnedValue);
+                }
+
+                // Build event for new project state
+                JSONObject projectObject = new JSONObject();
+                projectObject.put("id", project.getId());
+                projectObject.put("earnedValue", project.getEarnedValue());
+
+                JSONObject event = new JSONObject();
+                event.put(EVENT_TYPE, "PROJECT_UPDATE");
+                event.put("project", projectObject);
+
+                // Send update to all involved players
+                List<Player> players = project.getInvolvedPlayers();
+                for (Player player : players) {
+                    sendMessageToPlayer(player, event.toJSONString());
+                }
             }
         }
-        */
     }
 
     private void sendMessageToAllPlayers(String message) {
