@@ -119,10 +119,13 @@ public class Game {
     }
 
     private void randomlySpawnProjectTenders() {
-        if (new Random().nextFloat() >= 0.95) {
+        if (new Random().nextFloat() >= 0.8) {
             // Generate a new project
             Project project = Project.generateRandomProject();
             projects.add(project);
+
+            // Initialize project-employee map
+            projectEmployeesMap.put(project, new ArrayList<>());
 
             // Inform players of new project
             JSONObject newTenderEvent = new JSONObject();
@@ -269,6 +272,7 @@ public class Game {
         if (!employees.contains(employee)) {
             employees.add(employee);
             projectEmployeesMap.put(project, employees);
+            logger.debug("{} assigned to {}", employee.getName(), project.getName());
         }
     }
 

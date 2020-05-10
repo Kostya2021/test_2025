@@ -3,6 +3,8 @@ package de.andrenitze.softpro;
 import org.java_websocket.WebSocket;
 import org.json.simple.JSONObject;
 
+import static java.lang.Integer.parseInt;
+
 class GameEventHandler {
     private final Game game;
     private final GameServer gameServer;
@@ -30,22 +32,18 @@ class GameEventHandler {
                 }
                 break;
             case "ASSIGN_EMPLOYEE" :
-                JSONObject projectID = (JSONObject) event.get("projectId");
-                JSONObject employeeID = (JSONObject) event.get("employeeId");
-
-                int employeeId = Integer.parseInt(employeeID.toString());
-
+                int employeeId = parseInt((String) event.get("employeeId"));
                 Player player = game.getPlayerByWebSocket(websocket);
                 Employee employee = player.getEmployeeById(employeeId);
 
                 // Assign to no project
-                if (projectID == null) {
+                if (!event.containsKey("projectId")) {
                     // Remove employee from all projects
                     game.unassignEmployeeFromAllProjects(employee);
                     break;
                 }
 
-                int projectId = Integer.parseInt(projectID.toString());
+                int projectId = parseInt((String) event.get("projectId"));
                 Project project = game.getProjectById(projectId);
                 game.assignEmployeeToProject(employee, project);
                 break;
