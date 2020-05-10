@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -50000;
+    public static final String EVENT_TYPE = "eventType";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
     private final Map<WebSocket, Player> players;
@@ -40,7 +41,7 @@ public class Game {
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
             JSONObject initialState = new JSONObject();
-            initialState.put("eventType", "STATE_UPDATE");
+            initialState.put(EVENT_TYPE, "STATE_UPDATE");
 
             JSONArray employeesArray = new JSONArray();
             for (Employee employee : player.getEmployees()) {
@@ -94,7 +95,7 @@ public class Game {
 
                 // Send the new funds to the player
                 JSONObject newStateEvent = new JSONObject();
-                newStateEvent.put("eventType", "NEW_FUNDS");
+                newStateEvent.put(EVENT_TYPE, "NEW_FUNDS");
                 newStateEvent.put("funds", player.getFunds());
                 sendMessageToPlayer(player, newStateEvent.toJSONString());
             });
@@ -105,7 +106,7 @@ public class Game {
         players.forEach((webSocket, player) -> {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 JSONObject gameOverEvent = new JSONObject();
-                gameOverEvent.put("eventType", "GAME_OVER");
+                gameOverEvent.put(EVENT_TYPE, "GAME_OVER");
                 sendMessageToPlayer(player, gameOverEvent.toJSONString());
 
                 // Tell Gameserver to move player back to lobby
@@ -125,7 +126,7 @@ public class Game {
 
             // Inform players of new project
             JSONObject newTenderEvent = new JSONObject();
-            newTenderEvent.put("eventType", "NEW_TENDER");
+            newTenderEvent.put(EVENT_TYPE, "NEW_TENDER");
 
             // Serialize a project as JSON string
             JSONObject newTenderJson = new JSONObject();
@@ -146,7 +147,7 @@ public class Game {
             if (project.getTimeLeftForTender() == 0) {
                 // After deadline is exceeded close the call for tender and award the winner
                 JSONObject closeTenderEvent = new JSONObject();
-                closeTenderEvent.put("eventType", "CLOSE_TENDER");
+                closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
                 closeTenderEvent.put("name", project.getName());
                 sendMessageToAllPlayers(closeTenderEvent.toJSONString());
                 project.decreaseTimeLeftForTender();
@@ -162,7 +163,7 @@ public class Game {
 
                     // Inform winner with a confirmation message
                     JSONObject wonTenderEvent = new JSONObject();
-                    wonTenderEvent.put("eventType", "PROJECT");
+                    wonTenderEvent.put(EVENT_TYPE, "PROJECT");
                     wonTenderEvent.put("project", projectObject);
 
                     sendMessageToPlayer(project.getInvolvedParties().get(0), wonTenderEvent.toJSONString());
@@ -188,19 +189,21 @@ public class Game {
         players.forEach((webSocket, player) -> webSocket.send(message));
     }
 
-    void sendMessageToPlayer(Player player, String message) {
+    private void sendMessageToPlayer(Player player, String message) {
         // Get the WebSocket connection of the player
         WebSocket webSocket = getWebSocketByPlayer(players, player);
 
-        // Send a single message on that WebSocket connection
-        webSocket.send(message);
+        if (webSocket != null) {
+            // Send a single message on that WebSocket connection
+            webSocket.send(message);
+        }
     }
 
-    private static WebSocket getWebSocketByPlayer(Map<WebSocket, Player> map, Player value) {
-        return map.keySet()
+    private WebSocket getWebSocketByPlayer(Map<WebSocket, Player> map, Player player) {
+            return map.keySet()
                     .stream()
-                    .filter(key -> value.equals(map.get(key)))
-                    .findFirst().get();
+                    .filter(key -> player.equals(map.get(key)))
+                    .findFirst().orElse(null);
     }
 
     private boolean isFirstDayOfMonth(Calendar calendar) {
