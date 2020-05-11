@@ -106,7 +106,7 @@ class Game {
         });
 
         // Randomly spawn tenders for players to make some money
-        if (new Random().nextFloat() >= 0.95) {
+        if (new Random().nextFloat() >= 0.75) {
             // Generate a new project
             Project project = Project.generateRandomProject();
             projects.add(project);
