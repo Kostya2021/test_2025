@@ -15,19 +15,21 @@ class GameEventHandler {
     }
 
     void handleEvent(WebSocket websocket, JSONObject event) {
-
         switch (event.get("eventType").toString()) {
             case "JOIN_TENDER" :
-                // A player joins a tender
+                // A player joins a tender or simply accepts a project
                 JSONObject tenderObject = (JSONObject) event.get("tender");
-
-                // Find the corresponding project...
                 String projectName = tenderObject.get("name").toString();
+
                 for (Project project : game.getProjects()) {
                     if (project.getName().equals(projectName)) {
-                        // ...and add the player to the tender process
+                        // Assign player to project
                         Player player = game.getPlayerByWebSocket(websocket);
-                        project.addCompany(player);
+                        project.addParty(player);
+
+                        if (!project.hasTenderProcess()) {
+                            game.immediatelyHideAcceptedProject(project);
+                        }
                     }
                 }
                 break;

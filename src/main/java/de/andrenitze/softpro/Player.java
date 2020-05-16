@@ -1,14 +1,17 @@
 package de.andrenitze.softpro;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class Player {
+    private UUID id;
     private String name;
     private String company;
     private double funds = 100000;
     private final ArrayList<Employee> employees;
 
     Player() {
+        this.id = UUID.randomUUID();
         this.name = "Unknown player";
         this.company = "Unknown company";
         employees = new ArrayList<>();
@@ -68,5 +71,9 @@ public class Player {
             }
         }
         return null;
+    }
+
+    public UUID getId() {
+        return id;
     }
 }

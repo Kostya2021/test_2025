@@ -80,14 +80,24 @@ public class Game {
         c.add(Calendar.DAY_OF_MONTH, 1);
         currentDate = c.getTime();
 
-        conductWorkOnAllProjects();
-        processSalariesAndAdjustFunds(c);
-        checkGameOverConditionsAndKickPlayers();
-        randomlySpawnProjectTenders();
-        decreaseTimeLeftForActiveTenders();
+        long startTime = System.nanoTime();
+        // Execute these things each "tick" (naming convention: methodNamePerTick)
+        // This is important because player interactions alter the state between ticks
+        conductWorkOnAllProjectsPerTick();
+        processSalariesAndAdjustFundsPerTick(c);
+        checkGameOverConditionsAndKickPlayersPerTick();
+        randomlySpawnProjectTendersPerTick();
+        assignProjectsPerTick();
+        long endTime = System.nanoTime();
+        long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
+
+        if (timeElapsedInMilliseconds >= 1) {
+            logger.debug("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+        }
+
     }
 
-    private void processSalariesAndAdjustFunds(Calendar c) {
+    private void processSalariesAndAdjustFundsPerTick(Calendar c) {
         if (isFirstDayOfMonth(c)) {
             logger.debug("Calculating funds for {} players...", players.size());
             players.forEach((webSocket, player) -> {
@@ -102,7 +112,7 @@ public class Game {
         }
     }
 
-    private void checkGameOverConditionsAndKickPlayers() {
+    private void checkGameOverConditionsAndKickPlayersPerTick() {
         players.forEach((webSocket, player) -> {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 JSONObject gameOverEvent = new JSONObject();
@@ -118,8 +128,8 @@ public class Game {
         });
     }
 
-    private void randomlySpawnProjectTenders() {
-        if (new Random().nextFloat() >= 0.8) {
+    private void randomlySpawnProjectTendersPerTick() {
+        if (new Random().nextFloat() >= 0.95) {
             // Generate a new project
             Project project = Project.generateRandomProject();
             projects.add(project);
@@ -136,8 +146,9 @@ public class Game {
             newTenderJson.put("id", project.getId());
             newTenderJson.put("name", project.getName());
             newTenderJson.put("totalValue", project.getTotalValue());
+            newTenderJson.put("riskLevel", project.getRiskLevel());
             newTenderJson.put("earnedValue", project.getEarnedValue());
-            newTenderJson.put("timeLeftForTender", project.getTimeLeftForTender());
+            newTenderJson.put("timeLeftForTender", project.getTenderDeadlineInDays());
             newTenderEvent.put("tender", newTenderJson);
 
             logger.debug("New tender '{}' spawned", project.getName());
@@ -145,24 +156,28 @@ public class Game {
         }
     }
 
-    private void decreaseTimeLeftForActiveTenders() {
+    private void assignProjectsPerTick() {
         for (Project project : projects) {
-            if (project.getTimeLeftForTender() == 0) {
-                // After deadline is exceeded close the call for tender and award the winner
+            if (project.getTenderDeadlineInDays() == 0) {
+                // Close the tender for everyone
                 JSONObject closeTenderEvent = new JSONObject();
                 closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
                 closeTenderEvent.put("name", project.getName());
                 sendMessageToAllPlayers(closeTenderEvent.toJSONString());
-                project.decreaseTimeLeftForTender();
+
+                // Set deadline to -1 to exclude it from further evaluations
+                project.setTenderDeadlineInDays(-1);
 
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
+                    logger.debug("Found project {} with a deadline", project.getName());
                     // Serialize project as JSONObject
                     JSONObject projectObject = new JSONObject();
                     projectObject.put("id", project.getId());
                     projectObject.put("name", project.getName());
                     projectObject.put("totalValue", project.getTotalValue());
                     projectObject.put("earnedValue", project.getEarnedValue());
+                    projectObject.put("riskLevel", project.getRiskLevel());
 
                     // Inform winner with a confirmation message
                     JSONObject wonTenderEvent = new JSONObject();
@@ -171,15 +186,29 @@ public class Game {
 
                     sendMessageToPlayer(project.getInvolvedPlayers().get(0), wonTenderEvent.toJSONString());
                 }
-            } else if (project.getTimeLeftForTender() != 0 && project.getTimeLeftForTender() != -1) {
+            } else if (project.getTenderDeadlineInDays() != 0 && project.getTenderDeadlineInDays() != -1) {
+                // Regular case: Just decrease the time left for tender participation
                 project.decreaseTimeLeftForTender();
             }
         }
     }
 
-    private void conductWorkOnAllProjects() {
+    public void immediatelyHideAcceptedProject(Project project) {
+        if (!project.hasTenderProcess() && project.getInvolvedPlayers().size() == 1) {
+            JSONObject closeTenderEvent = new JSONObject();
+            closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
+            closeTenderEvent.put("name", project.getName());
+            sendMessageToAllPlayers(closeTenderEvent.toJSONString());
+
+            // Make it appear in the next evaluation of assignProjectsPerTick()
+            project.setTenderDeadlineInDays(0);
+        }
+    }
+
+    private void conductWorkOnAllProjectsPerTick() {
         // For all projects that have employees assigned
-        for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeesMap.entrySet()) {
+        for (Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator(); iterator.hasNext(); ) {
+            Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
             ArrayList<Employee> employees = entry.getValue();
             if (!employees.isEmpty()) {
@@ -187,13 +216,22 @@ public class Game {
 
                 // Add some value for each employee
                 for (Employee employee : employees) {
-                    earnedValue = 100;
+                    earnedValue = 500;
 
                     // Increase the employee's experience
                     employee.increaseExperience();
 
                     // Increase the project's earnedValue
                     project.addEarnedValue(earnedValue);
+                }
+
+                // Finish the project and send reward
+                if (project.getEarnedValue() >= project.getTotalValue()) {
+                    project.setEarnedValue(project.getTotalValue());
+                    iterator.remove();
+                    for (Player player : project.getInvolvedPlayers()) {
+                        player.addFunds(Math.round(project.getTotalValue() * 0.2));
+                    }
                 }
 
                 // Build event for new project state
