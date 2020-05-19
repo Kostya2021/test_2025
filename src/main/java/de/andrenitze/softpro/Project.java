@@ -43,7 +43,7 @@ public class Project {
      *
      * After a tender is won by a player, work on the project can get started.
      * Work on the project increases the earnedValue. When earnedValue has reached
-     * volumeInPersonDays, the project is fully delivered.ö
+     * totalValue, the project is fully delivered.
      *
      * @return Project
      */

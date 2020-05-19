@@ -4,22 +4,18 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 public class Player {
-    private UUID id;
+    private final UUID id;
     private String name;
     private String company;
     private double funds = 100000;
     private final ArrayList<Employee> employees;
 
     Player() {
-        this.id = UUID.randomUUID();
-        this.name = "Unknown player";
-        this.company = "Unknown company";
-        employees = new ArrayList<>();
-        employees.add(new Employee());
-        employees.add(new Employee());
+        this("Unknown player", "Unknown company");
     }
 
     Player(String name, String company) {
+        this.id = UUID.randomUUID();
         this.name = name;
         this.company = company;
         employees = new ArrayList<>();

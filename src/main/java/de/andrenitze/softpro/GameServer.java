@@ -115,11 +115,12 @@ public class GameServer extends WebSocketServer {
 
     private void broadcastPlayerList() {
         JSONArray playersList = new JSONArray();
-        JSONObject player = new JSONObject();
         for (Map.Entry<WebSocket, Player> entry : playersAndTheirConnections.entrySet()) {
-            WebSocket webSocket = entry.getKey();
             Player readyPlayer = entry.getValue();
-            playersList.add(readyPlayer.getName());
+            JSONObject player = new JSONObject();
+            player.put("id", readyPlayer.getId().toString());
+            player.put("name", readyPlayer.getName());
+            playersList.add(player);
         }
         broadcast("{\"playersInLobby\": " + playersList.toJSONString() + "}");
     }
