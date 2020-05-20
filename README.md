@@ -13,6 +13,10 @@ To build a ```*.jar``` with all dependencies in the "/target" folder:
 The server will be waiting for incoming connection requests via HTTP port 80. It will upgrade all valid requests to a WebSocket connection (HTTP 101 - Switching Protocols) on the same port.
 
 ## Test Suite
-No tests defined, yet. :*(
+### Unit Tests
+See test folder
 
-Use jUnit.
+### Load Tests
+1) Install Artillery: ```npm install -g artillery```
+2) Check the target URL of the running server in the config: ```/test/loadtest.yml```.
+3) Start the load test: ```artillery run test\loadtest.yml```

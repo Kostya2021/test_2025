@@ -1,0 +1,16 @@
+config:
+    target: "ws://172.17.252.65/lobby"
+    phases:
+      - duration: 20  # Test for 20 seconds
+        arrivalRate: 10 # Every second, add y users
+        rampTo: 100 # Ramp it up to x users over the "duration"
+        name: "Ramping up the load"
+    ws:
+      # Ignore SSL certificate errors
+      # - useful in *development* with self-signed certs
+      rejectUnauthorized: false
+scenarios:
+  - engine: "ws"
+    flow:
+      - send: '{"eventType": "NEW_PLAYER", "player": {"name": "Rob the Bot", "company": "Robotic Enterprises"}}'
+      - think: 30 # Let the game engine run for a while
