@@ -18,7 +18,7 @@ public class Game {
     public static final String EVENT_TYPE = "eventType";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
-    private final Map<WebSocket, Player> players;
+    private final ConcurrentHashMap<WebSocket, Player> players;
     private final ArrayList<Project> projects;
     private int currentTick;
     private Date currentDate;
@@ -27,7 +27,7 @@ public class Game {
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
 
         // Every GameServer hosts exactly one Game
-    Game(Map<WebSocket, Player> players, GameServer gameServer) {
+    Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
         // Every game consists of players and a world in a specific state
         this.players = players;
         this.gameServer = gameServer;
@@ -56,7 +56,6 @@ public class Game {
 
             initialState.put("employees", employeesArray);
             logger.debug("Sending initial state to players");
-            logger.debug(initialState.toJSONString());
             sendMessageToAllPlayers(initialState.toJSONString());
         });
 
@@ -99,7 +98,6 @@ public class Game {
 
     private void processSalariesAndAdjustFundsPerTick(Calendar c) {
         if (isFirstDayOfMonth(c)) {
-            logger.debug("Calculating funds for {} players...", players.size());
             players.forEach((webSocket, player) -> {
                 player.calculateAndSubtractSalaries();
 
@@ -151,7 +149,6 @@ public class Game {
             newTenderJson.put("timeLeftForTender", project.getTenderDeadlineInDays());
             newTenderEvent.put("tender", newTenderJson);
 
-            logger.debug("New tender '{}' spawned", project.getName());
             sendMessageToAllPlayers(newTenderEvent.toJSONString());
         }
     }
