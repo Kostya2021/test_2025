@@ -16,6 +16,7 @@ public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "eventType";
+    private static final String EARNED_VALUE = "earnedValue";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
@@ -145,7 +146,7 @@ public class Game {
             newTenderJson.put("name", project.getName());
             newTenderJson.put("totalValue", project.getTotalValue());
             newTenderJson.put("riskLevel", project.getRiskLevel());
-            newTenderJson.put("earnedValue", project.getEarnedValue());
+            newTenderJson.put(EARNED_VALUE, project.getEarnedValue());
             newTenderJson.put("timeLeftForTender", project.getTenderDeadlineInDays());
             newTenderEvent.put("tender", newTenderJson);
 
@@ -173,7 +174,7 @@ public class Game {
                     projectObject.put("id", project.getId());
                     projectObject.put("name", project.getName());
                     projectObject.put("totalValue", project.getTotalValue());
-                    projectObject.put("earnedValue", project.getEarnedValue());
+                    projectObject.put(EARNED_VALUE, project.getEarnedValue());
                     projectObject.put("riskLevel", project.getRiskLevel());
 
                     // Inform winner with a confirmation message
@@ -209,62 +210,70 @@ public class Game {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
             ArrayList<Employee> employees = entry.getValue();
-            if (!employees.isEmpty()) {
-                int earnedValue;
+            if (employees.isEmpty()) {
+                continue;
+            }
+            int earnedValue;
 
-                // Add some value for each employee
-                for (Employee employee : employees) {
-                    earnedValue = 500;
+            // Add some value for each employee
+            for (Employee employee : employees) {
+                earnedValue = 500;
 
-                    // Rule #1: Context changes decrease employee productivity
-                    int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
-                    if (numberOfParallelProjects == 1) {
+                // Rule #1: Context changes decrease employee productivity
+                int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
+                switch (numberOfParallelProjects) {
+                    case 1:
                         earnedValue *= 1;
-                    } else if (numberOfParallelProjects == 2) {
+                        break;
+                    case 2:
                         earnedValue *= 0.4;
-                    } else if (numberOfParallelProjects == 3) {
+                        break;
+                    case 3:
                         earnedValue *= 0.2;
-                    } else if (numberOfParallelProjects == 4) {
+                        break;
+                    case 4:
                         earnedValue *= 0.1;
-                    } else if (numberOfParallelProjects == 5) {
+                        break;
+                    case 5:
                         earnedValue *= 0.05;
-                    } else {
+                        break;
+                    default:
                         earnedValue = 1;
-                    }
-
-                    // Increase the employee's experience
-                    employee.increaseExperience();
-
-                    // Increase the project's earnedValue
-                    project.addEarnedValue(earnedValue);
+                        break;
                 }
 
-                // Finish the project
-                if (project.getEarnedValue() >= project.getTotalValue()) {
-                    // Send reward
-                    for (Player player : project.getInvolvedPlayers()) {
-                        player.addFunds(Math.round(project.getTotalValue() * 0.2));
-                    }
+                // Increase the employee's experience
+                employee.increaseExperience();
 
-                    // Remove the project from employees map, so that employees are unassigned
-                    project.setEarnedValue(project.getTotalValue());
-                    iterator.remove();
+                // Increase the project's earnedValue
+                project.addEarnedValue(earnedValue);
+            }
+
+            // Finish the project
+            if (project.getEarnedValue() >= project.getTotalValue()) {
+                // Send reward
+                for (Player player : project.getInvolvedPlayers()) {
+                    player.addFunds(Math.round(project.getTotalValue() * 0.2));
                 }
 
-                // Build event for new project state
-                JSONObject projectObject = new JSONObject();
-                projectObject.put("id", project.getId());
-                projectObject.put("earnedValue", project.getEarnedValue());
+                // Remove the project from employees map, so that employees are unassigned
+                project.setEarnedValue(project.getTotalValue());
+                iterator.remove();
+            }
 
-                JSONObject event = new JSONObject();
-                event.put(EVENT_TYPE, "PROJECT_UPDATE");
-                event.put("project", projectObject);
+            // Build event for new project state
+            JSONObject projectObject = new JSONObject();
+            projectObject.put("id", project.getId());
+            projectObject.put(EARNED_VALUE, project.getEarnedValue());
 
-                // Send update to all involved players
-                List<Player> players = project.getInvolvedPlayers();
-                for (Player player : players) {
-                    sendMessageToPlayer(player, event.toJSONString());
-                }
+            JSONObject event = new JSONObject();
+            event.put(EVENT_TYPE, "PROJECT_UPDATE");
+            event.put("project", projectObject);
+
+            // Send update to all involved players
+            List<Player> involvedPlayers = project.getInvolvedPlayers();
+            for (Player player : involvedPlayers) {
+                sendMessageToPlayer(player, event.toJSONString());
             }
         }
     }
