@@ -7,16 +7,14 @@ import static java.lang.Integer.parseInt;
 
 class GameEventHandler {
     private final Game game;
-    private final GameServer gameServer;
 
     GameEventHandler(Game game, GameServer gameServer) {
         this.game = game;
-        this.gameServer = gameServer;
     }
 
     void handleEvent(WebSocket websocket, JSONObject event) {
         switch (event.get("eventType").toString()) {
-            case "JOIN_TENDER" :
+            case "JOIN_TENDER":
                 // A player joins a tender or simply accepts a project
                 JSONObject tenderObject = (JSONObject) event.get("tender");
                 String projectName = tenderObject.get("name").toString();
@@ -33,24 +31,29 @@ class GameEventHandler {
                     }
                 }
                 break;
-            case "ASSIGN_EMPLOYEE" :
-                int employeeId = parseInt((String) event.get("employeeId"));
-                Player player = game.getPlayerByWebSocket(websocket);
-                Employee employee = player.getEmployeeById(employeeId);
-
-                // Assign to no project
-                if (!event.containsKey("projectId")) {
-                    // Remove employee from all projects
-                    game.unassignEmployeeFromAllProjects(employee);
-                    break;
-                }
-
-                int projectId = parseInt((String) event.get("projectId"));
-                Project project = game.getProjectById(projectId);
-                game.assignEmployeeToProject(employee, project);
+            case "ASSIGN_EMPLOYEE":
+                changeEmployeeAssignment(websocket, event, true);
+                break;
+            case "UNASSIGN_EMPLOYEE":
+                changeEmployeeAssignment(websocket, event, false);
                 break;
             default:
                 break;
+        }
+    }
+
+    private void changeEmployeeAssignment(WebSocket websocket, JSONObject event, boolean isAssignOperation) {
+        int employeeId = parseInt((String) event.get("employeeId"));
+        Player player = game.getPlayerByWebSocket(websocket);
+        Employee employee = player.getEmployeeById(employeeId);
+
+        int projectId = parseInt((String) event.get("projectId"));
+        Project project = game.getProjectById(projectId);
+
+        if (isAssignOperation) {
+            game.assignEmployeeToProject(employee, project);
+        } else {
+            game.unassignEmployeeFromProject(employee, project);
         }
     }
 }

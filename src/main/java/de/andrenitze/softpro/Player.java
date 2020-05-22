@@ -7,7 +7,7 @@ public class Player {
     private final UUID id;
     private String name;
     private String company;
-    private double funds = 100000;
+    private double funds = 25000;
     private final ArrayList<Employee> employees;
 
     Player() {

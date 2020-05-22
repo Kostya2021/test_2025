@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit;
 
 public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
-    private static final int BANKRUPTCY_THRESHOLD = -50000;
-    public static final String EVENT_TYPE = "eventType";
+    private static final int BANKRUPTCY_THRESHOLD = -10000;
+    private static final String EVENT_TYPE = "eventType";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
@@ -239,13 +239,16 @@ public class Game {
                     project.addEarnedValue(earnedValue);
                 }
 
-                // Finish the project and send reward
+                // Finish the project
                 if (project.getEarnedValue() >= project.getTotalValue()) {
-                    project.setEarnedValue(project.getTotalValue());
-                    iterator.remove();
+                    // Send reward
                     for (Player player : project.getInvolvedPlayers()) {
                         player.addFunds(Math.round(project.getTotalValue() * 0.2));
                     }
+
+                    // Remove the project from employees map, so that employees are unassigned
+                    project.setEarnedValue(project.getTotalValue());
+                    iterator.remove();
                 }
 
                 // Build event for new project state
@@ -378,6 +381,17 @@ public class Game {
                     }
                 }
             }
+        }
+    }
+
+    void unassignEmployeeFromProject(Employee employee, Project project) {
+        // Get current list of employees working on that project
+        ArrayList<Employee> employees = projectEmployeesMap.get(project) ;
+
+        if (employees.contains(employee)) {
+            employees.remove(employee);
+            projectEmployeesMap.put(project, employees);
+            logger.debug("{} unassigned from {}", employee.getName(), project.getName());
         }
     }
 }
