@@ -204,7 +204,8 @@ public class Game {
 
     private void conductWorkOnAllProjectsPerTick() {
         // For all projects that have employees assigned
-        for (Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator(); iterator.hasNext(); ) {
+        Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator();
+        while (iterator.hasNext()) {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
             ArrayList<Employee> employees = entry.getValue();
@@ -214,6 +215,22 @@ public class Game {
                 // Add some value for each employee
                 for (Employee employee : employees) {
                     earnedValue = 500;
+
+                    // Rule #1: Context changes decrease employee productivity
+                    int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
+                    if (numberOfParallelProjects == 1) {
+                        earnedValue *= 1;
+                    } else if (numberOfParallelProjects == 2) {
+                        earnedValue *= 0.4;
+                    } else if (numberOfParallelProjects == 3) {
+                        earnedValue *= 0.2;
+                    } else if (numberOfParallelProjects == 4) {
+                        earnedValue *= 0.1;
+                    } else if (numberOfParallelProjects == 5) {
+                        earnedValue *= 0.05;
+                    } else {
+                        earnedValue = 1;
+                    }
 
                     // Increase the employee's experience
                     employee.increaseExperience();
@@ -247,6 +264,19 @@ public class Game {
                 }
             }
         }
+    }
+
+    private int getNumberOfParallelProjectsForEmployee(Employee employee) {
+        int numberOfProjects = 0;
+
+        for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeesMap.entrySet()) {
+            ArrayList<Employee> employees = entry.getValue();
+
+            if (employees.contains(employee)) {
+                numberOfProjects++;
+            }
+        }
+        return numberOfProjects;
     }
 
     private void sendMessageToAllPlayers(String message) {
