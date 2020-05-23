@@ -1,5 +1,7 @@
 package de.andrenitze.softpro;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 public class Employee {
@@ -8,7 +10,7 @@ public class Employee {
     private final int salary;
     private final int age;
     private final String name;
-    private int experienceInDays;
+    private final HashMap<Project, Integer> experienceInDays;
 
     Employee() {
         this.name = generateName();
@@ -16,6 +18,7 @@ public class Employee {
         this.age = 30;
         this.id = lastId;
         ++lastId;
+        experienceInDays = new HashMap<>();
     }
 
     private String generateName() {
@@ -24,27 +27,51 @@ public class Employee {
         return firstNames[new Random().nextInt(firstNames.length)] + " " + lastNames[(new Random().nextInt(firstNames.length))];
     }
 
-    public int getId() {
+    int getId() {
         return id;
     }
 
-    public int getSalary() {
+    int getSalary() {
         return salary;
     }
 
-    public int getAge() {
+    int getAge() {
         return age;
     }
 
-    public int getExperienceInDays() {
-        return experienceInDays;
+    int getExperienceInDays() {
+        int experience = 0;
+        if (experienceInDays != null){
+            for (Map.Entry<Project, Integer> entry : experienceInDays.entrySet()) {
+                Integer experiencePerProject = entry.getValue();
+                experience += experiencePerProject;
+            }
+        }
+        return experience;
+    }
+
+    Integer getExperienceInDays(Project project) {
+        Integer experience = 0;
+        if (experienceInDays.get(project) != null) {
+            experience = experienceInDays.get(project);
+        }
+        return experience;
     }
 
     public String getName() {
         return name;
     }
 
-    public void increaseExperience() {
-        experienceInDays++;
+    void increaseExperience(Project project) {
+        Integer experienceToBeAdded = 1;
+
+        // First call; Add the project key and the initial value (1)
+        if (!experienceInDays.containsKey(project)) {
+            experienceInDays.put(project, experienceToBeAdded);
+        } else {
+            // All subsequent calls; Increase the experience
+            Integer newExperience = experienceInDays.get(project) + experienceToBeAdded;
+            experienceInDays.put(project, newExperience);
+        }
     }
 }

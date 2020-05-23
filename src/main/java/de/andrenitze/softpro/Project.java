@@ -32,7 +32,7 @@ public class Project {
     }
 
     private int generateRiskLevel() {
-        return 1;
+        return new Random().nextInt(1);
     }
 
     /**
@@ -103,7 +103,7 @@ public class Project {
         this.earnedValue = earnedValue;
     }
 
-    public int getRiskLevel() {
+    int getRiskLevel() {
         return riskLevel;
     }
 
@@ -111,11 +111,15 @@ public class Project {
         return id;
     }
 
-    public void addEarnedValue(int addedValue) {
-        setEarnedValue(getEarnedValue()+addedValue);
+    void addEarnedValue(int addedValue) {
+        if (getEarnedValue() + addedValue > 0) {
+            setEarnedValue(getEarnedValue() + addedValue);
+        } else {
+            setEarnedValue(0);
+        }
     }
 
-    public boolean hasTenderProcess() {
+    boolean hasTenderProcess() {
         return hasTenderProcess;
     }
 }

@@ -46,13 +46,12 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
-        logger.debug("Client left the game (exit code {})", code);
-
         // Remove disconnected clients from lobby
         playersAndTheirConnections.remove(webSocket);
 
         // Remove disconnected clients from all running games
-        for (Iterator<Game> iterator = games.iterator(); iterator.hasNext(); ) {
+        Iterator<Game> iterator = games.iterator();
+        while (iterator.hasNext()) {
             Game game = iterator.next();
             game.removePlayer(webSocket);
             logger.debug("Client left the game ({} players left)", game.getPlayers().size());

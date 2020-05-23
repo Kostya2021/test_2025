@@ -12,6 +12,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static java.lang.Math.exp;
+
 public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
@@ -213,41 +215,8 @@ public class Game {
             if (employees.isEmpty()) {
                 continue;
             }
-            int earnedValue;
 
-            // Add some value for each employee
-            for (Employee employee : employees) {
-                earnedValue = 500;
-
-                // Rule #1: Context changes decrease employee productivity
-                int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
-                switch (numberOfParallelProjects) {
-                    case 1:
-                        earnedValue *= 1;
-                        break;
-                    case 2:
-                        earnedValue *= 0.4;
-                        break;
-                    case 3:
-                        earnedValue *= 0.2;
-                        break;
-                    case 4:
-                        earnedValue *= 0.1;
-                        break;
-                    case 5:
-                        earnedValue *= 0.05;
-                        break;
-                    default:
-                        earnedValue = 1;
-                        break;
-                }
-
-                // Increase the employee's experience
-                employee.increaseExperience();
-
-                // Increase the project's earnedValue
-                project.addEarnedValue(earnedValue);
-            }
+            addEarnedValueForEachEmployee(project, employees);
 
             // Finish the project
             if (project.getEarnedValue() >= project.getTotalValue()) {
@@ -275,6 +244,55 @@ public class Game {
             for (Player player : involvedPlayers) {
                 sendMessageToPlayer(player, event.toJSONString());
             }
+        }
+    }
+
+    private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {
+        int earnedValue;
+        for (Employee employee : employees) {
+            earnedValue = 500;
+
+            // Rule #1: Context changes decrease employee productivity
+            int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
+            earnedValue /= numberOfParallelProjects + 1;
+            switch (numberOfParallelProjects) {
+                case 1:
+                    earnedValue *= 1;
+                    break;
+                case 2:
+                    earnedValue *= 0.4;
+                    break;
+                case 3:
+                    earnedValue *= 0.2;
+                    break;
+                case 4:
+                    earnedValue *= 0.1;
+                    break;
+                case 5:
+                    earnedValue *= 0.05;
+                    break;
+                default:
+                    earnedValue = 1;
+                    break;
+            }
+
+            // Project experience influences earned value
+            // Example:
+            // 0 days XP = 0% productivity
+            // 1 day XP = 10% productivity
+            // 10 days XP = 50% productivity
+            // 20 days XP = 100% productivity
+            double x = employee.getExperienceInDays(project);
+            if (x < 30) {
+                double productivityFactor = 1.022595 - 1.02502*exp(-0.1399307*x);
+                earnedValue = (int) (earnedValue * productivityFactor);
+            }
+
+            // Increase the employee's experience
+            employee.increaseExperience(project);
+
+            // Increase the project's earnedValue
+            project.addEarnedValue(earnedValue);
         }
     }
 
