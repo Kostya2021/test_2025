@@ -6,13 +6,12 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 
 public class Main {
-    public static GameServer server;
     private static Logger logger = LoggerFactory.getLogger(Main.class.getName());
 
     public static void main(String[] args) {
         logger.trace("Starting server...");
         try {
-            server = new GameServer(InetAddress.getLocalHost().getHostAddress(), 80);
+            GameServer server = new GameServer(InetAddress.getLocalHost().getHostAddress(), 80);
             logger.info(InetAddress.getLocalHost().getHostAddress());
             logger.info(InetAddress.getLocalHost().getHostName());
             server.run();

@@ -10,18 +10,29 @@ public class Project {
     private final String name;
     private final int totalValue;
     private int earnedValue;
-    private int deadlineInDays;
-    private int timeLeftForTender;
-    private int riskLevel;
+    private final boolean hasTenderProcess;
+    private int tenderDeadlineInDays;
+    private final int riskLevel;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
 
-    public Project(String name,  int totalValue) {
+    public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
         this.totalValue = totalValue;
         this.earnedValue = 0;
-        this.timeLeftForTender = 14;
         this.id = lastId;
         ++lastId;
+        this.riskLevel = generateRiskLevel();
+        this.hasTenderProcess = hasTenderProcess;
+
+        if (hasTenderProcess) {
+            this.tenderDeadlineInDays = 14;
+        } else {
+            this.tenderDeadlineInDays = Integer.MAX_VALUE;
+        }
+    }
+
+    private int generateRiskLevel() {
+        return new Random().nextInt(1);
     }
 
     /**
@@ -32,12 +43,12 @@ public class Project {
      *
      * After a tender is won by a player, work on the project can get started.
      * Work on the project increases the earnedValue. When earnedValue has reached
-     * volumeInPersonDays, the project is fully delivered.ö
+     * totalValue, the project is fully delivered.
      *
      * @return Project
      */
-    public static Project generateRandomProject() {
-        return new Project(generateProjectName(), generateVolume());
+    static Project generateRandomProject() {
+        return new Project(generateProjectName(), generateVolume(), false);
     }
 
     private static int generateVolume() {
@@ -49,22 +60,25 @@ public class Project {
         return "PROJECT-" + lastId;
     }
 
-    public int getTotalValue() {
+    int getTotalValue() {
         return totalValue;
     }
 
-    public String getName() {
+    String getName() {
         return name;
     }
 
-    public void decreaseTimeLeftForTender() {
-        --this.timeLeftForTender;
+    void decreaseTimeLeftForTender() {
+        --this.tenderDeadlineInDays;
     }
 
-    public int getTimeLeftForTender() {
-        return timeLeftForTender;
+    int getTenderDeadlineInDays() {
+        return tenderDeadlineInDays;
     }
 
+    public void setTenderDeadlineInDays(int tenderDeadlineInDays) {
+        this.tenderDeadlineInDays = tenderDeadlineInDays;
+    }
     /**
      * Several companies can be associated with the same project.
      *
@@ -72,39 +86,40 @@ public class Project {
      * After the tender, several companies can work on the project together.
      *
      */
-    public void addCompany(Player player) {
-        involvedParties.add(player);
+    void addParty(Player player) {
+        if (!involvedParties.contains(player)) {
+            involvedParties.add(player);
+        }
     }
-
-    public List<Player> getInvolvedParties() {
+    List<Player> getInvolvedPlayers() {
         return involvedParties;
     }
 
-    public int getEarnedValue() {
+    int getEarnedValue() {
         return earnedValue;
     }
 
-    public void setEarnedValue(int earnedValue) {
+    void setEarnedValue(int earnedValue) {
         this.earnedValue = earnedValue;
     }
 
-    public int getDeadlineInDays() {
-        return deadlineInDays;
-    }
-
-    public void setDeadlineInDays(int deadlineInDays) {
-        this.deadlineInDays = deadlineInDays;
-    }
-
-    public int getRiskLevel() {
+    int getRiskLevel() {
         return riskLevel;
     }
 
-    public void setRiskLevel(int riskLevel) {
-        this.riskLevel = riskLevel;
+    int getId() {
+        return id;
     }
 
-    public int getId() {
-        return id;
+    void addEarnedValue(int addedValue) {
+        if (getEarnedValue() + addedValue > 0) {
+            setEarnedValue(getEarnedValue() + addedValue);
+        } else {
+            setEarnedValue(0);
+        }
+    }
+
+    boolean hasTenderProcess() {
+        return hasTenderProcess;
     }
 }

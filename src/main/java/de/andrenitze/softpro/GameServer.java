@@ -13,10 +13,11 @@ import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class GameServer extends WebSocketServer {
+public class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     private final HashSet<Game> games = new HashSet<>();
     private final Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
@@ -28,7 +29,7 @@ public final class GameServer extends WebSocketServer {
      * @param hostname String  Host name (IP for clients to connect to)
      * @param port int          Port number (default: 8887)
      */
-    GameServer(String hostname, int port) {
+    public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
     }
 
@@ -37,23 +38,23 @@ public final class GameServer extends WebSocketServer {
     }
 
     @Override
-    public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        logger.debug("Client {} connected", conn.getRemoteSocketAddress());
-        playersAndTheirConnections.put(conn, new Player());
+    public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
+        logger.debug("Client {} connected", webSocket.getRemoteSocketAddress());
+        playersAndTheirConnections.put(webSocket, new Player());
         broadcastPlayerList();
     }
 
     @Override
-    public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        logger.debug("Client {} left the game (exit code {})", conn.getRemoteSocketAddress(), code);
-
+    public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
         // Remove disconnected clients from lobby
-        playersAndTheirConnections.remove(conn);
+        playersAndTheirConnections.remove(webSocket);
 
         // Remove disconnected clients from all running games
-        for (Game game : games) {
-            game.removePlayer(conn);
-            logger.debug("Client {} left game {} ({} players left)", conn.getRemoteSocketAddress(), game, game.getPlayers().size());
+        Iterator<Game> iterator = games.iterator();
+        while (iterator.hasNext()) {
+            Game game = iterator.next();
+            game.removePlayer(webSocket);
+            logger.debug("Client left the game ({} players left)", game.getPlayers().size());
 
             // Close the game session if this was the last player
             if (game.getPlayers().size() == 0) {
@@ -91,8 +92,8 @@ public final class GameServer extends WebSocketServer {
                 jsonMessage.put("message", "Enough players connected. Starting game session...");
                 broadcast(jsonMessage.toJSONString());
 
-                // Create a new game on this server with all connected players
-                games.add( new Game(new ConcurrentHashMap<>(playersAndTheirConnections), this));
+                // Create a new game on this server with players from the lobby
+                games.add(new Game(new ConcurrentHashMap<>(playersAndTheirConnections), this));
                 logger.debug("Running games: {}", games.size());
 
                 // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
@@ -115,19 +116,29 @@ public final class GameServer extends WebSocketServer {
 
     private void broadcastPlayerList() {
         JSONArray playersList = new JSONArray();
-        playersAndTheirConnections.forEach((WebSocket webSocket, Player readyPlayer) ->
-                playersList.add(readyPlayer.getName()));
+        for (Map.Entry<WebSocket, Player> entry : playersAndTheirConnections.entrySet()) {
+            Player readyPlayer = entry.getValue();
+            JSONObject player = new JSONObject();
+            player.put("id", readyPlayer.getId().toString());
+            player.put("name", readyPlayer.getName());
+            playersList.add(player);
+        }
         broadcast("{\"playersInLobby\": " + playersList.toJSONString() + "}");
     }
 
     @Override
-    public void onMessage(WebSocket conn, ByteBuffer message) {
-        logger.debug("received ByteBuffer from {}", conn.getRemoteSocketAddress());
+    public void onMessage(WebSocket webSocket, ByteBuffer message) {
+        logger.debug("received ByteBuffer from {}", webSocket.getRemoteSocketAddress());
     }
 
     @Override
-    public void onError(WebSocket conn, Exception ex) {
-        logger.warn("an error occurred on connection {} : {}", conn.getRemoteSocketAddress(), ex.getStackTrace());
+    public void onError(WebSocket webSocket, Exception ex) {
+        // Most likely a player dropped out of the game and the WebSocket is null
+        if (webSocket != null) {
+            logger.warn("An error occurred on connection {} : {}", webSocket.getRemoteSocketAddress(), ex.getStackTrace());
+        } else {
+            logger.warn("An error occured on a connection. {}", ex.getStackTrace());
+        }
     }
 
     @Override

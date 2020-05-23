@@ -3,29 +3,57 @@ package de.andrenitze.softpro;
 import org.java_websocket.WebSocket;
 import org.json.simple.JSONObject;
 
-public class GameEventHandler {
-    private final Game game;
-    private final GameServer gameServer;
+import static java.lang.Integer.parseInt;
 
-    public GameEventHandler(Game game, GameServer gameServer) {
+class GameEventHandler {
+    private final Game game;
+
+    GameEventHandler(Game game, GameServer gameServer) {
         this.game = game;
-        this.gameServer = gameServer;
     }
 
-    public void handleEvent(WebSocket websocket, JSONObject event) {
-        // A player joins a tender
-        if (event.get("eventType").equals("JOIN_TENDER")) {
-            JSONObject tenderObject = (JSONObject) event.get("tender");
+    void handleEvent(WebSocket websocket, JSONObject event) {
+        switch (event.get("eventType").toString()) {
+            case "JOIN_TENDER":
+                // A player joins a tender or simply accepts a project
+                JSONObject tenderObject = (JSONObject) event.get("tender");
+                String projectName = tenderObject.get("name").toString();
 
-            // Find the corresponding project...
-            String projectName = tenderObject.get("name").toString();
-            for (Project project : game.getProjects()) {
-                if (project.getName().equals(projectName)) {
-                    // ...and add the player to the tender process
-                    Player player = game.getPlayerByWebSocket(websocket);
-                    project.addCompany(player);
+                for (Project project : game.getProjects()) {
+                    if (project.getName().equals(projectName)) {
+                        // Assign player to project
+                        Player player = game.getPlayerByWebSocket(websocket);
+                        project.addParty(player);
+
+                        if (!project.hasTenderProcess()) {
+                            game.immediatelyHideAcceptedProject(project);
+                        }
+                    }
                 }
-            }
+                break;
+            case "ASSIGN_EMPLOYEE":
+                changeEmployeeAssignment(websocket, event, true);
+                break;
+            case "UNASSIGN_EMPLOYEE":
+                changeEmployeeAssignment(websocket, event, false);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void changeEmployeeAssignment(WebSocket websocket, JSONObject event, boolean isAssignOperation) {
+        int employeeId = parseInt((String) event.get("employeeId"));
+        Player player = game.getPlayerByWebSocket(websocket);
+        Employee employee = player.getEmployeeById(employeeId);
+
+        int projectId = parseInt((String) event.get("projectId"));
+        Project project = game.getProjectById(projectId);
+
+        if (isAssignOperation) {
+            game.assignEmployeeToProject(employee, project);
+        } else {
+            game.unassignEmployeeFromProject(employee, project);
         }
     }
 }

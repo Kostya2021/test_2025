@@ -1,22 +1,21 @@
 package de.andrenitze.softpro;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class Player {
+    private final UUID id;
     private String name;
     private String company;
-    private double funds = 100000;
+    private double funds = 25000;
     private final ArrayList<Employee> employees;
 
     Player() {
-        this.name = "Unknown player";
-        this.company = "Unknown company";
-        employees = new ArrayList<>();
-        employees.add(new Employee());
-        employees.add(new Employee());
+        this("Unknown player", "Unknown company");
     }
 
     Player(String name, String company) {
+        this.id = UUID.randomUUID();
         this.name = name;
         this.company = company;
         employees = new ArrayList<>();
@@ -24,7 +23,7 @@ public class Player {
         employees.add(new Employee());
     }
 
-    public String getName() {
+    String getName() {
         return name;
     }
 
@@ -36,8 +35,9 @@ public class Player {
         this.company = company;
     }
 
-    public void addFunds(double additionalFunds) {
+    public double addFunds(double additionalFunds) {
         this.funds += additionalFunds;
+        return funds;
     }
 
     private void subtractFunds(double fundsToSubtract) {
@@ -52,11 +52,24 @@ public class Player {
         return company;
     }
 
-    public ArrayList<Employee> getEmployees() {
+    ArrayList<Employee> getEmployees() {
         return employees;
     }
 
     void calculateAndSubtractSalaries() {
         employees.forEach(employee -> this.subtractFunds(employee.getSalary()));
+    }
+
+    Employee getEmployeeById(int id) {
+        for (Employee employee : employees) {
+            if (employee.getId() == id) {
+                return employee;
+            }
+        }
+        return null;
+    }
+
+    public UUID getId() {
+        return id;
     }
 }
