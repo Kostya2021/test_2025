@@ -1,8 +1,8 @@
 package de.andrenitze.softpro;
 
 import org.java_websocket.WebSocket;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,7 @@ public class Game {
         // Every game consists of players and a world in a specific state
         this.players = players;
         this.gameServer = gameServer;
-        this.eventHandler = new GameEventHandler(this, gameServer);
+        this.eventHandler = new GameEventHandler(this);
         currentTick = 0;
         currentDate = new Date();
         projects = new ArrayList<>();
@@ -54,12 +54,12 @@ public class Game {
                 employeeObject.put("age", employee.getAge());
                 employeeObject.put("salary", employee.getSalary());
                 employeeObject.put("experience", employee.getExperienceInDays());
-                employeesArray.add(employeeObject);
+                employeesArray.put(employeeObject);
             }
 
             initialState.put("employees", employeesArray);
             logger.debug("Sending initial state to players");
-            sendMessageToAllPlayers(initialState.toJSONString());
+            sendMessageToAllPlayers(initialState.toString());
         });
 
         // Start running the game time
@@ -108,7 +108,7 @@ public class Game {
                 JSONObject newStateEvent = new JSONObject();
                 newStateEvent.put(EVENT_TYPE, "NEW_FUNDS");
                 newStateEvent.put("funds", player.getFunds());
-                sendMessageToPlayer(player, newStateEvent.toJSONString());
+                sendMessageToPlayer(player, newStateEvent.toString());
             });
         }
     }
@@ -118,7 +118,7 @@ public class Game {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 JSONObject gameOverEvent = new JSONObject();
                 gameOverEvent.put(EVENT_TYPE, "GAME_OVER");
-                sendMessageToPlayer(player, gameOverEvent.toJSONString());
+                sendMessageToPlayer(player, gameOverEvent.toString());
 
                 // Tell Gameserver to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
@@ -152,7 +152,7 @@ public class Game {
             newTenderJson.put("timeLeftForTender", project.getTenderDeadlineInDays());
             newTenderEvent.put("tender", newTenderJson);
 
-            sendMessageToAllPlayers(newTenderEvent.toJSONString());
+            sendMessageToAllPlayers(newTenderEvent.toString());
         }
     }
 
@@ -163,7 +163,7 @@ public class Game {
                 JSONObject closeTenderEvent = new JSONObject();
                 closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
                 closeTenderEvent.put("name", project.getName());
-                sendMessageToAllPlayers(closeTenderEvent.toJSONString());
+                sendMessageToAllPlayers(closeTenderEvent.toString());
 
                 // Set deadline to -1 to exclude it from further evaluations
                 project.setTenderDeadlineInDays(-1);
@@ -184,7 +184,7 @@ public class Game {
                     wonTenderEvent.put(EVENT_TYPE, "PROJECT");
                     wonTenderEvent.put("project", projectObject);
 
-                    sendMessageToPlayer(project.getInvolvedPlayers().get(0), wonTenderEvent.toJSONString());
+                    sendMessageToPlayer(project.getInvolvedPlayers().get(0), wonTenderEvent.toString());
                 }
             } else if (project.getTenderDeadlineInDays() != 0 && project.getTenderDeadlineInDays() != -1) {
                 // Regular case: Just decrease the time left for tender participation
@@ -198,7 +198,7 @@ public class Game {
             JSONObject closeTenderEvent = new JSONObject();
             closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
             closeTenderEvent.put("name", project.getName());
-            sendMessageToAllPlayers(closeTenderEvent.toJSONString());
+            sendMessageToAllPlayers(closeTenderEvent.toString());
 
             // Make it appear in the next evaluation of assignProjectsPerTick()
             project.setTenderDeadlineInDays(0);
@@ -242,7 +242,7 @@ public class Game {
             // Send update to all involved players
             List<Player> involvedPlayers = project.getInvolvedPlayers();
             for (Player player : involvedPlayers) {
-                sendMessageToPlayer(player, event.toJSONString());
+                sendMessageToPlayer(player, event.toString());
             }
         }
     }

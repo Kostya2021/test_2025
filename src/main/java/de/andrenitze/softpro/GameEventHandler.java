@@ -1,14 +1,14 @@
 package de.andrenitze.softpro;
 
 import org.java_websocket.WebSocket;
-import org.json.simple.JSONObject;
+import org.json.JSONObject;
 
 import static java.lang.Integer.parseInt;
 
 class GameEventHandler {
     private final Game game;
 
-    GameEventHandler(Game game, GameServer gameServer) {
+    GameEventHandler(Game game) {
         this.game = game;
     }
 

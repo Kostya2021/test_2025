@@ -3,10 +3,9 @@ package de.andrenitze.softpro;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +72,7 @@ public class GameServer extends WebSocketServer {
 
         // Handle lobby events here and forward everything else to the games
         try {
-            JSONObject jsonObject = (JSONObject) new JSONParser().parse(message);
+            JSONObject jsonObject = new JSONObject(message);
 
             // If it's a new player event, create the player and add her to the lobby
             if (jsonObject.get("eventType").equals("NEW_PLAYER")) {
@@ -90,7 +89,7 @@ public class GameServer extends WebSocketServer {
             if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
                 JSONObject jsonMessage = new JSONObject();
                 jsonMessage.put("message", "Enough players connected. Starting game session...");
-                broadcast(jsonMessage.toJSONString());
+                broadcast(jsonMessage.toString());
 
                 // Create a new game on this server with players from the lobby
                 games.add(new Game(new ConcurrentHashMap<>(playersAndTheirConnections), this));
@@ -109,7 +108,7 @@ public class GameServer extends WebSocketServer {
                     game.getEventHandler().handleEvent(webSocket, jsonObject);
                 }
             }
-        } catch (ParseException e) {
+        } catch (JSONException e) {
             logger.error(e.toString());
         }
     }
@@ -121,9 +120,9 @@ public class GameServer extends WebSocketServer {
             JSONObject player = new JSONObject();
             player.put("id", readyPlayer.getId().toString());
             player.put("name", readyPlayer.getName());
-            playersList.add(player);
+            playersList.put(player);
         }
-        broadcast("{\"playersInLobby\": " + playersList.toJSONString() + "}");
+        broadcast("{\"playersInLobby\": " + playersList.toString() + "}");
     }
 
     @Override

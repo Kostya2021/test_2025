@@ -2,7 +2,6 @@ package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.GameServer;
 import org.java_websocket.server.WebSocketServer;
-import org.json.simple.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,22 +26,5 @@ class GameServerTest {
         server.run();
         server.start();
         verify(server).start();
-    }
-
-    @Test
-    void testSingleTenderParticipation() {
-        // 1) A game is running with at least one player
-        // Send new player
-        JSONObject newPlayerEvent = new JSONObject();
-        newPlayerEvent.put("eventType", "NEW_PLAYER");
-        JSONObject playerObject = new JSONObject();
-        playerObject.put("name", "Max");
-        playerObject.put("company", "Software GmbH");
-        newPlayerEvent.put("eventType", playerObject);
-
-        // 2) A tender is spawned
-
-        // 3) One player participates in the tender
-
     }
 }
