@@ -2,13 +2,13 @@ package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.GameServer;
 import org.java_websocket.server.WebSocketServer;
+import org.junit.After;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 class GameServerTest {
     @Mock
@@ -26,5 +26,10 @@ class GameServerTest {
         server.run();
         server.start();
         verify(server).start();
+    }
+
+    @After
+    public void validate() {
+        validateMockitoUsage();
     }
 }
