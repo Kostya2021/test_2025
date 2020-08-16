@@ -29,7 +29,7 @@ public class Game {
     private GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
 
-        // Every GameServer hosts exactly one Game
+    // Every GameServer hosts exactly one Game
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
         // Every game consists of players and a world in a specific state
         this.players = players;
@@ -389,12 +389,14 @@ public class Game {
 
     void assignEmployeeToProject(Employee employee, Project project) {
         // Get current list of employees working on that project
-        ArrayList<Employee> employees = projectEmployeesMap.get(project);
+        if (projectEmployeesMap.containsKey(project)) {
+            ArrayList<Employee> employees = projectEmployeesMap.get(project);
 
-        if (!employees.contains(employee)) {
-            employees.add(employee);
-            projectEmployeesMap.put(project, employees);
-            logger.debug("{} assigned to {}", employee.getName(), project.getName());
+            if (!employees.contains(employee)) {
+                employees.add(employee);
+                projectEmployeesMap.put(project, employees);
+                logger.debug("{} assigned to {}", employee.getName(), project.getName());
+            }
         }
     }
 
