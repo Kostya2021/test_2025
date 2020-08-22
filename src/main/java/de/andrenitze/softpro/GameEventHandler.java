@@ -56,9 +56,8 @@ class GameEventHandler {
     }
 
     private boolean isValidProjectAssignmentEvent(JSONObject event) {
-        // For all fields, check if they are not empty
-        return Objects.equals(event.get(EMPLOYEE_ID), "") &&
-                Objects.equals(event.get(PROJECT_ID), "");
+        return !Objects.equals(event.get(EMPLOYEE_ID), "") &&
+                !Objects.equals(event.get(PROJECT_ID), "");
     }
 
     private void changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
