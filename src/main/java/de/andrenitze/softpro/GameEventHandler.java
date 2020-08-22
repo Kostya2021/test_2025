@@ -3,9 +3,12 @@ package de.andrenitze.softpro;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 
-import static java.lang.Integer.parseInt;
+import java.util.Objects;
 
 class GameEventHandler {
+    public static final String EVENT_TYPE = "eventType";
+    public static final String EMPLOYEE_ID = "employeeId";
+    public static final String PROJECT_ID = "projectId";
     private final Game game;
 
     GameEventHandler(Game game) {
@@ -13,7 +16,7 @@ class GameEventHandler {
     }
 
     void handleEvent(WebSocket websocket, JSONObject event) {
-        switch (event.get("eventType").toString()) {
+        switch (event.get(EVENT_TYPE).toString()) {
             case "JOIN_TENDER":
                 // A player joins a tender or simply accepts a project
                 JSONObject tenderObject = (JSONObject) event.get("tender");
@@ -32,22 +35,35 @@ class GameEventHandler {
                 }
                 break;
             case "ASSIGN_EMPLOYEE":
-                changeEmployeeAssignment(websocket, event, true);
+                if (isValidProjectAssignmentEvent(event)) {
+                    changeEmployeeAssignment(websocket,
+                            (int) event.get(EMPLOYEE_ID),
+                            (int) event.get(PROJECT_ID),
+                            true);
+                }
                 break;
             case "UNASSIGN_EMPLOYEE":
-                changeEmployeeAssignment(websocket, event, false);
+                if (isValidProjectAssignmentEvent(event)) {
+                    changeEmployeeAssignment(websocket,
+                            (int) event.get(EMPLOYEE_ID),
+                            (int) event.get(PROJECT_ID),
+                            false);
+                }
                 break;
             default:
                 break;
         }
     }
 
-    private void changeEmployeeAssignment(WebSocket websocket, JSONObject event, boolean isAssignOperation) {
-        int employeeId = parseInt((String) event.get("employeeId"));
+    private boolean isValidProjectAssignmentEvent(JSONObject event) {
+        // For all fields, check if they are not empty
+        return Objects.equals(event.get(EMPLOYEE_ID), "") &&
+                Objects.equals(event.get(PROJECT_ID), "");
+    }
+
+    private void changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
         Player player = game.getPlayerByWebSocket(websocket);
         Employee employee = player.getEmployeeById(employeeId);
-
-        int projectId = parseInt((String) event.get("projectId"));
         Project project = game.getProjectById(projectId);
 
         if (isAssignOperation) {

@@ -52,14 +52,14 @@ public class GameServer extends WebSocketServer {
         Iterator<Game> iterator = games.iterator();
         while (iterator.hasNext()) {
             Game game = iterator.next();
-            game.removePlayer(webSocket);
+            game.kickPlayer(webSocket);
             logger.debug("Client left the game ({} players left)", game.getPlayers().size());
 
             // Close the game session if this was the last player
             if (game.getPlayers().size() == 0) {
                 logger.debug("Shutting down game {}", game);
-                games.remove(game);
                 game.shutdown();
+                games.remove(game);
                 logger.debug("Running games: {}", games.size());
             }
         }

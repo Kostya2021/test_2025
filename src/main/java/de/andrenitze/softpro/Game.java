@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 import static java.lang.Math.exp;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 100;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "eventType";
     private static final String EARNED_VALUE = "earnedValue";
@@ -66,7 +66,7 @@ public class Game {
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
-            this.sendMessageToAllPlayers("{\"tick\": " + getCurrentTick() + "}");
+            this.sendMessageToAllPlayers("{\"t\": " + getCurrentTick() + "}");
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
@@ -103,14 +103,16 @@ public class Game {
         if (isFirstDayOfMonth(c)) {
             players.forEach((webSocket, player) -> {
                 player.calculateAndSubtractSalaries();
-
-                // Send the new funds to the player
-                JSONObject newStateEvent = new JSONObject();
-                newStateEvent.put(EVENT_TYPE, "NEW_FUNDS");
-                newStateEvent.put("funds", player.getFunds());
-                sendMessageToPlayer(player, newStateEvent.toString());
+                sendFundsUpdateToPlayer(player);
             });
         }
+    }
+
+    private void sendFundsUpdateToPlayer(Player player) {
+        JSONObject newStateEvent = new JSONObject();
+        newStateEvent.put(EVENT_TYPE, "NEW_FUNDS");
+        newStateEvent.put("funds", player.getFunds());
+        sendMessageToPlayer(player, newStateEvent.toString());
     }
 
     private void checkGameOverConditionsAndKickPlayersPerTick() {
@@ -123,8 +125,7 @@ public class Game {
                 // Tell Gameserver to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
 
-                // Kick player out of the game
-                removePlayer(webSocket);
+                kickPlayer(webSocket);
             }
         });
     }
@@ -222,7 +223,8 @@ public class Game {
             if (project.getEarnedValue() >= project.getTotalValue()) {
                 // Send reward
                 for (Player player : project.getInvolvedPlayers()) {
-                    player.addFunds(Math.round(project.getTotalValue() * 0.2));
+                    player.addFunds(Math.round(project.getTotalValue() * 0.3));
+                    sendFundsUpdateToPlayer(player);
                 }
 
                 // Remove the project from employees map, so that employees are unassigned
@@ -284,7 +286,7 @@ public class Game {
             // 20 days XP = 100% productivity
             double x = employee.getExperienceInDays(project);
             if (x < 30) {
-                double productivityFactor = 1.022595 - 1.02502*exp(-0.1399307*x);
+                double productivityFactor = 1.022595 - 1.02502 * exp(-0.1399307 * x);
                 earnedValue = (int) (earnedValue * productivityFactor);
             }
 
@@ -325,10 +327,10 @@ public class Game {
     }
 
     private WebSocket getWebSocketByPlayer(Map<WebSocket, Player> map, Player player) {
-            return map.keySet()
-                    .stream()
-                    .filter(key -> player.equals(map.get(key)))
-                    .findFirst().orElse(null);
+        return map.keySet()
+                .stream()
+                .filter(key -> player.equals(map.get(key)))
+                .findFirst().orElse(null);
     }
 
     private boolean isFirstDayOfMonth(Calendar calendar) {
@@ -344,7 +346,7 @@ public class Game {
         return currentTick;
     }
 
-    void removePlayer(WebSocket conn) {
+    void kickPlayer(WebSocket conn) {
         players.remove(conn);
 
         // Close game session if this was the last player
@@ -389,7 +391,7 @@ public class Game {
 
     void assignEmployeeToProject(Employee employee, Project project) {
         // Get current list of employees working on that project
-        if (projectEmployeesMap.containsKey(project)) {
+        try {
             ArrayList<Employee> employees = projectEmployeesMap.get(project);
 
             if (!employees.contains(employee)) {
@@ -397,6 +399,8 @@ public class Game {
                 projectEmployeesMap.put(project, employees);
                 logger.debug("{} assigned to {}", employee.getName(), project.getName());
             }
+        } catch (NullPointerException e) {
+            logger.error(e.toString());
         }
     }
 

@@ -112,11 +112,7 @@ public class Project {
     }
 
     void addEarnedValue(int addedValue) {
-        if (getEarnedValue() + addedValue > 0) {
-            setEarnedValue(getEarnedValue() + addedValue);
-        } else {
-            setEarnedValue(0);
-        }
+        setEarnedValue(Math.max(getEarnedValue() + addedValue, 0));
     }
 
     boolean hasTenderProcess() {
