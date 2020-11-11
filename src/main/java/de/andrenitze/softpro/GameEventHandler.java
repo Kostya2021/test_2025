@@ -6,7 +6,7 @@ import org.json.JSONObject;
 import java.util.Objects;
 
 class GameEventHandler {
-    public static final String EVENT_TYPE = "eventType";
+    public static final String EVENT_TYPE = "type";
     public static final String EMPLOYEE_ID = "employeeId";
     public static final String PROJECT_ID = "projectId";
     private final Game game;
@@ -19,19 +19,22 @@ class GameEventHandler {
         switch (event.get(EVENT_TYPE).toString()) {
             case "JOIN_TENDER":
                 // A player joins a tender or simply accepts a project
-                JSONObject tenderObject = (JSONObject) event.get("tender");
-                String projectName = tenderObject.get("name").toString();
+                try {
+                    int tenderId = (Integer) event.get("tenderId");
 
-                for (Project project : game.getProjects()) {
-                    if (project.getName().equals(projectName)) {
-                        // Assign player to project
-                        Player player = game.getPlayerByWebSocket(websocket);
-                        project.addParty(player);
+                    for (Project project : game.getProjects()) {
+                        if (project.getId() == tenderId) {
+                            // Assign player to project
+                            Player player = game.getPlayerByWebSocket(websocket);
+                            project.addParty(player);
 
-                        if (!project.hasTenderProcess()) {
-                            game.immediatelyHideAcceptedProject(project);
+                            if (!project.hasTenderProcess()) {
+                                game.immediatelyHideAcceptedProject(project);
+                            }
                         }
                     }
+                } catch (Exception e) {
+                    System.out.println("invalid message");
                 }
                 break;
             case "ASSIGN_EMPLOYEE":

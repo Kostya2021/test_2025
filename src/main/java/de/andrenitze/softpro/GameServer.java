@@ -16,6 +16,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static de.andrenitze.softpro.GameEventHandler.EVENT_TYPE;
+
 public class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     private final HashSet<Game> games = new HashSet<>();
@@ -75,7 +77,7 @@ public class GameServer extends WebSocketServer {
             JSONObject jsonObject = new JSONObject(message);
 
             // If it's a new player event, create the player and add her to the lobby
-            if (jsonObject.get("eventType").equals("NEW_PLAYER")) {
+            if (jsonObject.get(EVENT_TYPE).equals("NEW_PLAYER")) {
                 JSONObject playerObject = (JSONObject) jsonObject.get("player");
                 Player player = new Player(playerObject.get("name").toString(), playerObject.get("company").toString());
                 addPlayer(webSocket, player);
@@ -88,7 +90,7 @@ public class GameServer extends WebSocketServer {
             // Start a new game session if enough players are waiting in the lobby
             if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
                 JSONObject jsonMessage = new JSONObject();
-                jsonMessage.put("message", "Enough players connected. Starting game session...");
+                jsonMessage.put("type", "START_ROUND");
                 broadcast(jsonMessage.toString());
 
                 // Create a new game on this server with players from the lobby
@@ -122,7 +124,7 @@ public class GameServer extends WebSocketServer {
             player.put("name", readyPlayer.getName());
             playersList.put(player);
         }
-        broadcast("{\"playersInLobby\": " + playersList.toString() + "}");
+        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"data\": { \"players\": " + playersList.toString() + "}}");
     }
 
     @Override

@@ -238,7 +238,7 @@ public class Game {
             projectObject.put(EARNED_VALUE, project.getEarnedValue());
 
             JSONObject event = new JSONObject();
-            event.put(EVENT_TYPE, "PROJECT_UPDATE");
+            event.put(EVENT_TYPE, "PROJECT_UPDATED");
             event.put("project", projectObject);
 
             // Send update to all involved players
