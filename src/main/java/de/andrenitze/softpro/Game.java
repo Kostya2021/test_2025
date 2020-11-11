@@ -17,7 +17,7 @@ import static java.lang.Math.exp;
 public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 100;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
-    private static final String EVENT_TYPE = "eventType";
+    private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
@@ -43,9 +43,13 @@ public class Game {
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
-            JSONObject initialState = new JSONObject();
-            initialState.put(EVENT_TYPE, "STATE_UPDATE");
+            // Funds
+            sendFundsUpdateToPlayer(player);
 
+            // Employees
+            JSONObject gameObjectWrapper = new JSONObject();
+            JSONObject initialState = new JSONObject();
+            
             JSONArray employeesArray = new JSONArray();
             for (Employee employee : player.getEmployees()) {
                 JSONObject employeeObject = new JSONObject();
@@ -58,15 +62,17 @@ public class Game {
             }
 
             initialState.put("employees", employeesArray);
+            gameObjectWrapper.put(EVENT_TYPE, "UPDATE_STATE");
+            gameObjectWrapper.put("game", initialState);
             logger.debug("Sending initial state to players");
-            sendMessageToAllPlayers(initialState.toString());
+            sendMessageToAllPlayers(gameObjectWrapper.toString());
         });
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
-            this.sendMessageToAllPlayers("{\"t\": " + getCurrentTick() + "}");
+            this.sendMessageToAllPlayers("{ \""+EVENT_TYPE+"\": \"T\", \"t\": " + getCurrentTick() + "}");
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
@@ -160,12 +166,6 @@ public class Game {
     private void assignProjectsPerTick() {
         for (Project project : projects) {
             if (project.getTenderDeadlineInDays() == 0) {
-                // Close the tender for everyone
-                JSONObject closeTenderEvent = new JSONObject();
-                closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
-                closeTenderEvent.put("name", project.getName());
-                sendMessageToAllPlayers(closeTenderEvent.toString());
-
                 // Set deadline to -1 to exclude it from further evaluations
                 project.setTenderDeadlineInDays(-1);
 
@@ -198,7 +198,7 @@ public class Game {
         if (!project.hasTenderProcess() && project.getInvolvedPlayers().size() == 1) {
             JSONObject closeTenderEvent = new JSONObject();
             closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
-            closeTenderEvent.put("name", project.getName());
+            closeTenderEvent.put("id", project.getId());
             sendMessageToAllPlayers(closeTenderEvent.toString());
 
             // Make it appear in the next evaluation of assignProjectsPerTick()
