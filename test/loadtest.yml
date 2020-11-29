@@ -12,5 +12,5 @@ config:
 scenarios:
   - engine: "ws"
     flow:
-      - send: '{"eventType": "NEW_PLAYER", "player": {"name": "Rob the Bot", "company": "Robotic Enterprises"}}'
+      - send: '{"type": "NEW_PLAYER", "player": {"name": "Rob the Bot", "company": "Robotic Enterprises"}}'
       - think: 30 # Let the game engine run for a while

@@ -5,8 +5,8 @@ import java.util.Map;
 import java.util.Random;
 
 public class Employee {
-    private static int lastId = 0;
-    private final int id;
+    private static int lastId = 1;
+    private final Integer id;
     private final int salary;
     private final int age;
     private final String name;

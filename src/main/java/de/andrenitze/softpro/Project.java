@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.Random;
 
 public class Project {
-    private static int lastId = 0;
-    private final int id;
+    private static int lastId = 1;
+    private final Integer id;
     private final String name;
     private final int totalValue;
     private int earnedValue;
