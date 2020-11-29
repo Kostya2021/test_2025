@@ -1,5 +1,8 @@
 package de.andrenitze.softpro;
 
+import com.google.gson.Gson;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 import org.java_websocket.WebSocket;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -28,6 +31,7 @@ public class Game {
     private final ScheduledExecutorService gameLoop;
     private GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
+    private static final Gson GSON = new Gson();
 
     // Every GameServer hosts exactly one Game
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
@@ -124,9 +128,24 @@ public class Game {
     private void checkGameOverConditionsAndKickPlayersPerTick() {
         players.forEach((webSocket, player) -> {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
-                JSONObject gameOverEvent = new JSONObject();
-                gameOverEvent.put(EVENT_TYPE, "GAME_OVER");
-                sendMessageToPlayer(player, gameOverEvent.toString());
+                GameEvent<HashMap<String, Integer>> gameOverEvent = new GameEvent<>();
+                gameOverEvent.setType(EventType.GAME_OVER);
+
+                int deliveredProjects = 0;
+                int projectsVolume = 0;
+                HashMap<String, Integer> stats = new HashMap<>();
+                for (Project project: this.getProjects()) {
+                    if (project.isCompleted() && project.playerWasInvolved(player)) {
+                        deliveredProjects++;
+                        projectsVolume += project.getTotalValue();
+                    }
+                }
+
+                stats.put("deliveredProjects", deliveredProjects);
+                stats.put("projectsVolume", projectsVolume);
+                gameOverEvent.setPayload(stats);
+
+                sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
 
                 // Tell Gameserver to move player back to lobby
                 gameServer.addPlayer(webSocket, player);

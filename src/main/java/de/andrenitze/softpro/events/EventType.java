@@ -5,5 +5,6 @@ public enum EventType {
     JOIN_TENDER,
     NEW_PLAYER,
     START_ROUND,
-    UNASSIGN_EMPLOYEE
+    UNASSIGN_EMPLOYEE,
+    GAME_OVER,
 }

@@ -118,4 +118,12 @@ public class Project {
     boolean hasTenderProcess() {
         return hasTenderProcess;
     }
+
+    public boolean isCompleted() {
+        return (getTotalValue()-getEarnedValue() == 0);
+    }
+
+    public boolean playerWasInvolved(Player player) {
+        return getInvolvedPlayers().contains(player);
+    }
 }
