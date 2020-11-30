@@ -1,0 +1,6 @@
+objectives:
+  - title:  Hire a new employee
+    order: 1
+    rewardFunds: 25000
+  - title: Finish your first project
+    order: 2

@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
+import de.andrenitze.softpro.entities.ObjectivesManager;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import org.java_websocket.WebSocket;
@@ -44,6 +45,9 @@ public class Game {
         projects = new ArrayList<>();
         projectEmployeesMap = new ConcurrentHashMap<>();
         logger.debug("A new game has started with {} players.", players.size());
+
+        ObjectivesManager om = new ObjectivesManager();
+        logger.debug(om.getObjectives().toString());
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
