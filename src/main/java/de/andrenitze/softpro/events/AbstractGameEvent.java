@@ -5,15 +5,15 @@ import java.util.Objects;
 public abstract class AbstractGameEvent {
     private EventType type;
 
-    public EventType getType() {
+    public EventType getEventType() {
         return type;
     }
 
-    public void setType(EventType type) {
-        this.type = type;
+    public void setEventType(EventType eventType) {
+        this.type = eventType;
     }
 
     public boolean isOfType(EventType eventType) {
-        return Objects.equals(this.getType(), eventType);
+        return Objects.equals(this.getEventType(), eventType);
     }
 }

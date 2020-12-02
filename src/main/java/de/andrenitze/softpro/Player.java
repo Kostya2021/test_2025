@@ -1,14 +1,34 @@
 package de.andrenitze.softpro;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import de.andrenitze.softpro.entities.Objective;
+import de.andrenitze.softpro.entities.Objectives;
+
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class Player {
+    @JsonIgnore
     private final UUID id;
+
+    @JsonProperty
     private String name;
+
+    @JsonProperty
     private String company;
-    private double funds = 20000;
-    private final ArrayList<Employee> employees;
+
+    @JsonProperty
+    private double funds = 5000;
+
+    @JsonProperty
+    private final ArrayList<Employee> employees = new ArrayList<>();
+
+    @JsonSerialize
+    private List<Objective> objectives;
 
     Player() {
         this("Unknown player", "Unknown company");
@@ -18,9 +38,13 @@ public class Player {
         this.id = UUID.randomUUID();
         this.name = name;
         this.company = company;
-        employees = new ArrayList<>();
+
         employees.add(new Employee());
         employees.add(new Employee());
+
+        Objectives objectives = new Objectives();
+        objectives.loadObjectivesFromYamlFile();
+        this.objectives = objectives.getObjectives();
     }
 
     String getName() {

@@ -21,9 +21,9 @@ class GameEventHandler {
     }
 
     void handleEvent(WebSocket websocket, String message) {
-        GameEvent event = GSON.fromJson(message, GameEvent.class);
+        GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
 
-        switch (event.getType()) {
+        switch (event.getEventType()) {
             case JOIN_TENDER:
                 // Fancy way to parse the "tenderId" int out of the message
                 Type payloadType = new TypeToken<GameEvent<Integer>>(){}.getType();
@@ -37,7 +37,7 @@ class GameEventHandler {
                             Player player = game.getPlayerByWebSocket(websocket);
                             project.addParty(player);
 
-                            if (!project.hasTenderProcess()) {
+                            if (project.hasNoTenderProcess()) {
                                 game.immediatelyHideAcceptedProject(project);
                             }
                             break;
@@ -48,7 +48,7 @@ class GameEventHandler {
                 }
                 break;
             case ASSIGN_EMPLOYEE:
-                payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
+                payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>(){}.getType();
                 GameEvent<HashMap<String, Integer>> assignmentEvent = GSON.fromJson(message, payloadType);
 
                 changeEmployeeAssignment(websocket,

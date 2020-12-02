@@ -1,11 +1,9 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
-import de.andrenitze.softpro.entities.ObjectivesManager;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import org.java_websocket.WebSocket;
-import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +28,7 @@ public class Game {
     private int currentTick;
     private Date currentDate;
     private final ScheduledExecutorService gameLoop;
-    private GameEventHandler eventHandler;
+    private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private static final Gson GSON = new Gson();
 
@@ -46,34 +44,12 @@ public class Game {
         projectEmployeesMap = new ConcurrentHashMap<>();
         logger.debug("A new game has started with {} players.", players.size());
 
-        ObjectivesManager om = new ObjectivesManager();
-        logger.debug(om.getObjectives().toString());
-
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
-            // Funds
-            sendFundsUpdateToPlayer(player);
-
-            // Employees
-            JSONObject gameObjectWrapper = new JSONObject();
-            JSONObject initialState = new JSONObject();
-            
-            JSONArray employeesArray = new JSONArray();
-            for (Employee employee : player.getEmployees()) {
-                JSONObject employeeObject = new JSONObject();
-                employeeObject.put("id", employee.getId());
-                employeeObject.put("name", employee.getName());
-                employeeObject.put("age", employee.getAge());
-                employeeObject.put("salary", employee.getSalary());
-                employeeObject.put("experience", employee.getExperienceInDays());
-                employeesArray.put(employeeObject);
-            }
-
-            initialState.put("employees", employeesArray);
-            gameObjectWrapper.put(EVENT_TYPE, "UPDATE_STATE");
-            gameObjectWrapper.put("game", initialState);
             logger.debug("Sending initial state to players");
-            sendMessageToAllPlayers(gameObjectWrapper.toString());
+            GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.UPDATE_STATE);
+            initialPlayerEvent.setPayload(player);
+            sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
 
         // Start running the game time
@@ -123,17 +99,17 @@ public class Game {
     }
 
     private void sendFundsUpdateToPlayer(Player player) {
-        JSONObject newStateEvent = new JSONObject();
-        newStateEvent.put(EVENT_TYPE, "NEW_FUNDS");
-        newStateEvent.put("funds", player.getFunds());
-        sendMessageToPlayer(player, newStateEvent.toString());
+        GameEvent<Double> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
+        newFundsEvent.setPayload(player.getFunds());
+        String json = GSON.toJson(newFundsEvent);
+        sendMessageToPlayer(player, json);
     }
 
     private void checkGameOverConditionsAndKickPlayersPerTick() {
         players.forEach((webSocket, player) -> {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 GameEvent<HashMap<String, Integer>> gameOverEvent = new GameEvent<>();
-                gameOverEvent.setType(EventType.GAME_OVER);
+                gameOverEvent.setEventType(EventType.GAME_OVER);
 
                 int deliveredProjects = 0;
                 int projectsVolume = 0;
@@ -151,7 +127,7 @@ public class Game {
 
                 sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
 
-                // Tell Gameserver to move player back to lobby
+                // Tell game server to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
 
                 kickPlayer(webSocket);
@@ -170,18 +146,10 @@ public class Game {
 
             // Inform players of new project
             JSONObject newTenderEvent = new JSONObject();
-            newTenderEvent.put(EVENT_TYPE, "NEW_TENDER");
+            newTenderEvent.put(EVENT_TYPE, EventType.NEW_TENDER);
 
             // Serialize a project as JSON string
-            JSONObject newTenderJson = new JSONObject();
-            newTenderJson.put("id", project.getId());
-            newTenderJson.put("name", project.getName());
-            newTenderJson.put("totalValue", project.getTotalValue());
-            newTenderJson.put("riskLevel", project.getRiskLevel());
-            newTenderJson.put(EARNED_VALUE, project.getEarnedValue());
-            newTenderJson.put("timeLeftForTender", project.getTenderDeadlineInDays());
-            newTenderEvent.put("tender", newTenderJson);
-
+            newTenderEvent.put("tender", new JSONObject(GSON.toJson(project)));
             sendMessageToAllPlayers(newTenderEvent.toString());
         }
     }
@@ -205,7 +173,7 @@ public class Game {
 
                     // Inform winner with a confirmation message
                     JSONObject wonTenderEvent = new JSONObject();
-                    wonTenderEvent.put(EVENT_TYPE, "PROJECT");
+                    wonTenderEvent.put(EVENT_TYPE, EventType.PROJECT);
                     wonTenderEvent.put("project", projectObject);
 
                     sendMessageToPlayer(project.getInvolvedPlayers().get(0), wonTenderEvent.toString());
@@ -218,9 +186,9 @@ public class Game {
     }
 
     public void immediatelyHideAcceptedProject(Project project) {
-        if (!project.hasTenderProcess() && project.getInvolvedPlayers().size() == 1) {
+        if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
             JSONObject closeTenderEvent = new JSONObject();
-            closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
+            closeTenderEvent.put(EVENT_TYPE, EventType.CLOSE_TENDER);
             closeTenderEvent.put("id", project.getId());
             sendMessageToAllPlayers(closeTenderEvent.toString());
 
@@ -261,7 +229,7 @@ public class Game {
             projectObject.put(EARNED_VALUE, project.getEarnedValue());
 
             JSONObject event = new JSONObject();
-            event.put(EVENT_TYPE, "PROJECT_UPDATED");
+            event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
             event.put("project", projectObject);
 
             // Send update to all involved players
@@ -365,7 +333,7 @@ public class Game {
         return dayOfMonth == 1;
     }
 
-    private int getCurrentTick() {
+    public int getCurrentTick() {
         return currentTick;
     }
 

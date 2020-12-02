@@ -53,7 +53,8 @@ public class Project {
 
     private static int generateVolume() {
         // Generate an integer between 10.000 and 110.000
-        return 10000 + new Random().nextInt(100) * 1000;
+        return 50000;
+        //return 10000 + new Random().nextInt(100) * 1000;
     }
 
     private static String generateProjectName() {
@@ -115,8 +116,8 @@ public class Project {
         setEarnedValue(Math.max(getEarnedValue() + addedValue, 0));
     }
 
-    boolean hasTenderProcess() {
-        return hasTenderProcess;
+    boolean hasNoTenderProcess() {
+        return !hasTenderProcess;
     }
 
     public boolean isCompleted() {

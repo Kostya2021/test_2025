@@ -63,7 +63,7 @@ public class GameServer extends WebSocketServer {
 
             // Close the game session if this was the last player
             if (game.getPlayers().size() == 0) {
-                logger.debug("Shutting down game {}", game);
+                logger.debug("Shutting down empty game.");
                 game.shutdown();
                 games.remove(game);
                 logger.debug("Running games: {}", games.size());
@@ -78,7 +78,7 @@ public class GameServer extends WebSocketServer {
 
         // Handle lobby events here and forward everything else to the game instances
         try {
-            GameEvent event = GSON.fromJson(message, GameEvent.class);
+            GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
 
             // If it's a new player event, create the player and add her to the lobby
             if (event.isOfType(EventType.NEW_PLAYER)) {
@@ -104,8 +104,8 @@ public class GameServer extends WebSocketServer {
 
             // Start a new game session if enough players are waiting in the lobby
             if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
-                GameEvent startEvent = new GameEvent();
-                startEvent.setType(EventType.START_ROUND);
+                GameEvent<Object> startEvent = new GameEvent<>();
+                startEvent.setEventType(EventType.START_ROUND);
                 broadcast(GSON.toJson(startEvent));
 
                 // Create a new game on this server with players from the lobby
@@ -130,7 +130,7 @@ public class GameServer extends WebSocketServer {
             player.put("name", readyPlayer.getName());
             playersList.put(player);
         }
-        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"data\": { \"players\": " + playersList.toString() + "}}");
+        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"payload\": { \"players\": " + playersList.toString() + "}}");
     }
 
     @Override
