@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +29,8 @@ public class Player {
     @JsonProperty
     private final ArrayList<Employee> employees = new ArrayList<>();
 
-    @JsonSerialize
-    private List<Objective> objectives;
+    @JsonIgnore
+    private final ArrayList<Objective> objectives;
 
     Player() {
         this("Unknown player", "Unknown company");
@@ -95,5 +97,37 @@ public class Player {
 
     public UUID getId() {
         return id;
+    }
+
+    public ArrayList<Objective> getObjectives() {
+        return objectives;
+    }
+
+    public GameEvent<Object> createGameEventOfChangedObjectives() {
+        GameEvent<Object> event = new GameEvent<>(EventType.UPDATE_STATE);
+
+        return event.getPayload() != null? null : event;
+    }
+
+    public ArrayList<Objective> getNewObjectivesForThisTick(int tick) {
+        ArrayList<Objective> allObjectives = this.getObjectives();
+        ArrayList<Objective> newObjectivesForThisTick = new ArrayList<>();
+        allObjectives.forEach(objective -> {
+            if (objective.getEarliestOccurrence() == tick) {
+                newObjectivesForThisTick.add(objective);
+            }
+        });
+        return newObjectivesForThisTick;
+    }
+    public ArrayList<Objective> getActiveObjectivesUntilThisTick(int tick) {
+        ArrayList<Objective> allObjectives = getObjectives();
+        ArrayList<Objective> allActiveObjectives = new ArrayList<>();
+        allObjectives.forEach(objective -> {
+            if (objective.getEarliestOccurrence() == 0 ||
+                    objective.getEarliestOccurrence() <= tick) {
+                allActiveObjectives.add(objective);
+            }
+        });
+        return allActiveObjectives;
     }
 }

@@ -7,11 +7,11 @@ import de.andrenitze.softpro.Game;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
+import java.util.ArrayList;
 
 public class Objectives {
     @JsonProperty
-    private List<Objective> objectives;
+    private ArrayList<Objective> objectives;
 
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
@@ -24,11 +24,11 @@ public class Objectives {
         }
     }
 
-    public List<Objective> getObjectives() {
+    public ArrayList<Objective> getObjectives() {
         return objectives;
     }
 
-    public void setObjectives(List<Objective> objectives) {
+    public void setObjectives(ArrayList<Objective> objectives) {
         this.objectives = objectives;
     }
 

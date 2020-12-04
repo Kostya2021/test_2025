@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
+import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import org.java_websocket.WebSocket;
@@ -80,6 +81,9 @@ public class Game {
         checkGameOverConditionsAndKickPlayersPerTick();
         randomlySpawnProjectTendersPerTick();
         assignProjectsPerTick();
+        spawnObjectivesPerTick();
+        //checkObjectivesCriteriaAndSendRewardsPerTick();
+
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
@@ -87,6 +91,22 @@ public class Game {
             logger.debug("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
 
+    }
+
+    private void checkObjectivesCriteriaAndSendRewardsPerTick() {
+
+    }
+
+    private void spawnObjectivesPerTick() {
+        players.forEach((webSocket, player) -> {
+            List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(currentTick);
+            if (!newObjectivesInThisTick.isEmpty()) {
+                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
+                List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+                objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+            }
+        });
     }
 
     private void processSalariesAndAdjustFundsPerTick(Calendar c) {

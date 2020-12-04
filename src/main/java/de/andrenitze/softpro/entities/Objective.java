@@ -3,6 +3,8 @@ package de.andrenitze.softpro.entities;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import de.andrenitze.softpro.Game;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -34,7 +36,8 @@ public class Objective {
      * Earliest occurrence of the objective in days (=game ticks).
      * Will not spawn before that day, even if requirements are met.
      */
-    private int earliestOccurrence = 0;
+    @JsonProperty
+    public int earliestOccurrence;
 
     @JsonProperty
     private String successMessage;
@@ -51,5 +54,10 @@ public class Objective {
 
     public void setCompletedSteps(int completedSteps) {
         this.completedSteps = completedSteps;
+    }
+
+    @JsonIgnore
+    public int getEarliestOccurrence() {
+        return earliestOccurrence;
     }
 }

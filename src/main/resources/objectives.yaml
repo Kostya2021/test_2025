@@ -1,13 +1,11 @@
 objectives:
-  - title:  Hire a new employee
-    order: 1
-    rewardFunds: 25000
-    mission: Getting Started
   - title: Finish two projects
     order: 1
     totalSteps: 2
     mission: Getting Started
-  - title: Unlock all tier 2 technologies
+    earliestOccurrence: 50
+    rewardFunds: 10000
+  - title: This should not appear before day 70
     order: 2
-    earliestOccurrence: 200
+    earliestOccurrence: 70
     mission: Becoming a Pioneer
