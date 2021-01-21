@@ -1,7 +1,10 @@
 package de.andrenitze.softpro;
 
+import com.google.gson.Gson;
+import de.andrenitze.softpro.entities.Objective;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 import org.java_websocket.WebSocket;
-import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,11 +14,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static java.lang.Math.exp;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 100;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
@@ -26,8 +30,9 @@ public class Game {
     private int currentTick;
     private Date currentDate;
     private final ScheduledExecutorService gameLoop;
-    private GameEventHandler eventHandler;
+    private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
+    private static final Gson GSON = new Gson();
 
     // Every GameServer hosts exactly one Game
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
@@ -43,29 +48,10 @@ public class Game {
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
-            // Funds
-            sendFundsUpdateToPlayer(player);
-
-            // Employees
-            JSONObject gameObjectWrapper = new JSONObject();
-            JSONObject initialState = new JSONObject();
-            
-            JSONArray employeesArray = new JSONArray();
-            for (Employee employee : player.getEmployees()) {
-                JSONObject employeeObject = new JSONObject();
-                employeeObject.put("id", employee.getId());
-                employeeObject.put("name", employee.getName());
-                employeeObject.put("age", employee.getAge());
-                employeeObject.put("salary", employee.getSalary());
-                employeeObject.put("experience", employee.getExperienceInDays());
-                employeesArray.put(employeeObject);
-            }
-
-            initialState.put("employees", employeesArray);
-            gameObjectWrapper.put(EVENT_TYPE, "UPDATE_STATE");
-            gameObjectWrapper.put("game", initialState);
             logger.debug("Sending initial state to players");
-            sendMessageToAllPlayers(gameObjectWrapper.toString());
+            GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.UPDATE_STATE);
+            initialPlayerEvent.setPayload(player);
+            sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
 
         // Start running the game time
@@ -96,6 +82,9 @@ public class Game {
         checkGameOverConditionsAndKickPlayersPerTick();
         randomlySpawnProjectTendersPerTick();
         assignProjectsPerTick();
+        spawnObjectivesPerTick();
+        checkObjectivesCriteriaAndSendRewardsPerTick();
+
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
@@ -103,6 +92,45 @@ public class Game {
             logger.debug("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
 
+    }
+
+    private void checkObjectivesCriteriaAndSendRewardsPerTick() {
+        players.forEach((webSocket, player) -> {
+            // Calculate progress for all active objectives
+            for (Objective objective: player.getObjectives()) {
+                // Naive matching approach with exact IDs
+                if (objective.getId() == 1 && !objective.isCompleted()) {
+                    // Were conditions met (= projects finished) after the objective occurred?
+                    // Only check finished projects
+                    ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
+                            .stream()
+                            .filter(project -> project.isCompleted()
+                                    && project.getCompletedTick() > objective.getEarliestOccurrence()
+                                    && project.playerWasInvolved(player))
+                            .collect(Collectors.toList());
+
+                    // The number of relevant projects equals the completed steps
+                    objective.setCompletedSteps(relevantProjects.size());
+
+                    GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
+                    List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+                    objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                    sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+                }
+            }
+        });
+    }
+
+    private void spawnObjectivesPerTick() {
+        players.forEach((webSocket, player) -> {
+            List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(currentTick);
+            if (!newObjectivesInThisTick.isEmpty()) {
+                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
+                List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+                objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+            }
+        });
     }
 
     private void processSalariesAndAdjustFundsPerTick(Calendar c) {
@@ -115,20 +143,35 @@ public class Game {
     }
 
     private void sendFundsUpdateToPlayer(Player player) {
-        JSONObject newStateEvent = new JSONObject();
-        newStateEvent.put(EVENT_TYPE, "NEW_FUNDS");
-        newStateEvent.put("funds", player.getFunds());
-        sendMessageToPlayer(player, newStateEvent.toString());
+        GameEvent<Double> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
+        newFundsEvent.setPayload(player.getFunds());
+        String json = GSON.toJson(newFundsEvent);
+        sendMessageToPlayer(player, json);
     }
 
     private void checkGameOverConditionsAndKickPlayersPerTick() {
         players.forEach((webSocket, player) -> {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
-                JSONObject gameOverEvent = new JSONObject();
-                gameOverEvent.put(EVENT_TYPE, "GAME_OVER");
-                sendMessageToPlayer(player, gameOverEvent.toString());
+                GameEvent<HashMap<String, Integer>> gameOverEvent = new GameEvent<>();
+                gameOverEvent.setEventType(EventType.GAME_OVER);
 
-                // Tell Gameserver to move player back to lobby
+                int deliveredProjects = 0;
+                int projectsVolume = 0;
+                HashMap<String, Integer> stats = new HashMap<>();
+                for (Project project: this.getProjects()) {
+                    if (project.isCompleted() && project.playerWasInvolved(player)) {
+                        deliveredProjects++;
+                        projectsVolume += project.getTotalValue();
+                    }
+                }
+
+                stats.put("deliveredProjects", deliveredProjects);
+                stats.put("projectsVolume", projectsVolume);
+                gameOverEvent.setPayload(stats);
+
+                sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
+
+                // Tell game server to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
 
                 kickPlayer(webSocket);
@@ -147,18 +190,10 @@ public class Game {
 
             // Inform players of new project
             JSONObject newTenderEvent = new JSONObject();
-            newTenderEvent.put(EVENT_TYPE, "NEW_TENDER");
+            newTenderEvent.put(EVENT_TYPE, EventType.NEW_TENDER);
 
             // Serialize a project as JSON string
-            JSONObject newTenderJson = new JSONObject();
-            newTenderJson.put("id", project.getId());
-            newTenderJson.put("name", project.getName());
-            newTenderJson.put("totalValue", project.getTotalValue());
-            newTenderJson.put("riskLevel", project.getRiskLevel());
-            newTenderJson.put(EARNED_VALUE, project.getEarnedValue());
-            newTenderJson.put("timeLeftForTender", project.getTenderDeadlineInDays());
-            newTenderEvent.put("tender", newTenderJson);
-
+            newTenderEvent.put("tender", new JSONObject(GSON.toJson(project)));
             sendMessageToAllPlayers(newTenderEvent.toString());
         }
     }
@@ -182,7 +217,7 @@ public class Game {
 
                     // Inform winner with a confirmation message
                     JSONObject wonTenderEvent = new JSONObject();
-                    wonTenderEvent.put(EVENT_TYPE, "PROJECT");
+                    wonTenderEvent.put(EVENT_TYPE, EventType.PROJECT);
                     wonTenderEvent.put("project", projectObject);
 
                     sendMessageToPlayer(project.getInvolvedPlayers().get(0), wonTenderEvent.toString());
@@ -195,9 +230,9 @@ public class Game {
     }
 
     public void immediatelyHideAcceptedProject(Project project) {
-        if (!project.hasTenderProcess() && project.getInvolvedPlayers().size() == 1) {
+        if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
             JSONObject closeTenderEvent = new JSONObject();
-            closeTenderEvent.put(EVENT_TYPE, "CLOSE_TENDER");
+            closeTenderEvent.put(EVENT_TYPE, EventType.CLOSE_TENDER);
             closeTenderEvent.put("id", project.getId());
             sendMessageToAllPlayers(closeTenderEvent.toString());
 
@@ -220,10 +255,10 @@ public class Game {
             addEarnedValueForEachEmployee(project, employees);
 
             // Finish the project
-            if (project.getEarnedValue() >= project.getTotalValue()) {
+            if (project.isCompleted()) {
                 // Send reward
                 for (Player player : project.getInvolvedPlayers()) {
-                    player.addFunds(Math.round(project.getTotalValue() * 0.3));
+                    player.addFunds(Math.round(project.getTotalValue() * 0.5));
                     sendFundsUpdateToPlayer(player);
                 }
 
@@ -238,7 +273,7 @@ public class Game {
             projectObject.put(EARNED_VALUE, project.getEarnedValue());
 
             JSONObject event = new JSONObject();
-            event.put(EVENT_TYPE, "PROJECT_UPDATED");
+            event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
             event.put("project", projectObject);
 
             // Send update to all involved players
@@ -294,7 +329,7 @@ public class Game {
             employee.increaseExperience(project);
 
             // Increase the project's earnedValue
-            project.addEarnedValue(earnedValue);
+            project.addEarnedValue(earnedValue, this.getCurrentTick());
         }
     }
 
@@ -342,7 +377,7 @@ public class Game {
         return dayOfMonth == 1;
     }
 
-    private int getCurrentTick() {
+    public int getCurrentTick() {
         return currentTick;
     }
 
@@ -404,7 +439,7 @@ public class Game {
         }
     }
 
-    void unassignEmployeeFromAllProjects(Employee employee) {
+    void removeEmployeeFromAllProjects(Employee employee) {
         for (Project project : projects) {
             ArrayList<Employee> employees = projectEmployeesMap.get(project);
             if (!employees.isEmpty()) {
@@ -417,7 +452,7 @@ public class Game {
         }
     }
 
-    void unassignEmployeeFromProject(Employee employee, Project project) {
+    void removeEmployeeFromProject(Employee employee, Project project) {
         // Get current list of employees working on that project
         ArrayList<Employee> employees = projectEmployeesMap.get(project) ;
 

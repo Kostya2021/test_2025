@@ -1,0 +1,8 @@
+objectives:
+  - title: Finish two projects
+    id: 1
+    order: 1
+    totalSteps: 2
+    mission: Getting Started
+    earliestOccurrence: 25
+    rewardFunds: 10000

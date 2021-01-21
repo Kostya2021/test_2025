@@ -1,5 +1,9 @@
 package de.andrenitze.softpro;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -9,6 +13,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
@@ -16,13 +21,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.GameEventHandler.EVENT_TYPE;
-
 public class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     private final HashSet<Game> games = new HashSet<>();
     private final Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private static final Gson GSON = new Gson();
 
     /**
      * Creates a GameServer instance to manage games and players
@@ -59,7 +63,7 @@ public class GameServer extends WebSocketServer {
 
             // Close the game session if this was the last player
             if (game.getPlayers().size() == 0) {
-                logger.debug("Shutting down game {}", game);
+                logger.debug("Shutting down empty game.");
                 game.shutdown();
                 games.remove(game);
                 logger.debug("Running games: {}", games.size());
@@ -72,26 +76,37 @@ public class GameServer extends WebSocketServer {
     public void onMessage(WebSocket webSocket, String message) {
         logger.debug("received message from {}: {}", webSocket.getRemoteSocketAddress(), message);
 
-        // Handle lobby events here and forward everything else to the games
+        // Handle lobby events here and forward everything else to the game instances
         try {
-            JSONObject jsonObject = new JSONObject(message);
+            GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
 
             // If it's a new player event, create the player and add her to the lobby
-            if (jsonObject.get(EVENT_TYPE).equals("NEW_PLAYER")) {
-                JSONObject playerObject = (JSONObject) jsonObject.get("player");
-                Player player = new Player(playerObject.get("name").toString(), playerObject.get("company").toString());
+            if (event.isOfType(EventType.NEW_PLAYER)) {
+                Type payloadType = new TypeToken<GameEvent<Player>>(){}.getType();
+                GameEvent<Player> playerEvent = GSON.fromJson(message, payloadType);
+
+                Player player = playerEvent.getPayload();
                 addPlayer(webSocket, player);
 
                 logger.debug("New player '{}' added. New number of players in lobby: {}",
                         player.getName(),
                         playersAndTheirConnections.size());
+            } else {
+                // Forward all other de.andrenitze.softpro.events to the corresponding game instance
+                // Find out which game the message belongs to by its' Websocket connection
+                // WARNING This is on the critical path, so look for performance issues!
+                for (Game game : games) {
+                    if (game.hasWebSocket(webSocket)) {
+                        game.getEventHandler().handleEvent(webSocket, message);
+                    }
+                }
             }
 
             // Start a new game session if enough players are waiting in the lobby
             if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
-                JSONObject jsonMessage = new JSONObject();
-                jsonMessage.put("type", "START_ROUND");
-                broadcast(jsonMessage.toString());
+                GameEvent<Object> startEvent = new GameEvent<>();
+                startEvent.setEventType(EventType.START_ROUND);
+                broadcast(GSON.toJson(startEvent));
 
                 // Create a new game on this server with players from the lobby
                 games.add(new Game(new ConcurrentHashMap<>(playersAndTheirConnections), this));
@@ -100,15 +115,6 @@ public class GameServer extends WebSocketServer {
                 // Remove all players from the lobby (as everyone waiting should be assigned to a game now)
                 playersAndTheirConnections.clear();
                 broadcastPlayerList();
-            }
-
-            // Forward all game-related events to the corresponding game instance
-            // Find out which game the message belongs to by its' Websocket connection
-            // WARNING This is on the critical path, so look for performance issues!
-            for (Game game : games) {
-                if (game.hasWebSocket(webSocket)) {
-                    game.getEventHandler().handleEvent(webSocket, jsonObject);
-                }
             }
         } catch (JSONException e) {
             logger.error(e.toString());
@@ -124,7 +130,7 @@ public class GameServer extends WebSocketServer {
             player.put("name", readyPlayer.getName());
             playersList.put(player);
         }
-        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"data\": { \"players\": " + playersList.toString() + "}}");
+        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"payload\": { \"players\": " + playersList.toString() + "}}");
     }
 
     @Override
@@ -138,7 +144,7 @@ public class GameServer extends WebSocketServer {
         if (webSocket != null) {
             logger.warn("An error occurred on connection {} : {}", webSocket.getRemoteSocketAddress(), ex.getStackTrace());
         } else {
-            logger.warn("An error occured on a connection. {}", ex.getStackTrace());
+            logger.warn("An error occurred on a connection. {}", ex.getStackTrace());
         }
     }
 

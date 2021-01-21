@@ -1,0 +1,11 @@
+package de.andrenitze.softpro.events;
+
+public enum EventType {
+    ASSIGN_EMPLOYEE,
+    JOIN_TENDER,
+    NEW_PLAYER,
+    START_ROUND,
+    UNASSIGN_EMPLOYEE,
+    GAME_OVER,
+    UPDATE_STATE, NEW_TENDER, NEW_FUNDS, PROJECT, CLOSE_TENDER, UPDATE_OBJECTIVES, PROJECT_UPDATED
+}
