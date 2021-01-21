@@ -31,11 +31,4 @@ public class Objectives {
     public void setObjectives(ArrayList<Objective> objectives) {
         this.objectives = objectives;
     }
-
-    public void calculateCompletedSteps(Game game) {
-        // TODO Do some calculation on completion, then send some update to the player
-        for (Objective objective: objectives) {
-            objective.setCompletedSteps(objective.getCompletedSteps());
-        }
-    }
 }

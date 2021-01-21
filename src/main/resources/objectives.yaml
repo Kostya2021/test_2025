@@ -1,11 +1,8 @@
 objectives:
   - title: Finish two projects
+    id: 1
     order: 1
     totalSteps: 2
     mission: Getting Started
-    earliestOccurrence: 50
+    earliestOccurrence: 25
     rewardFunds: 10000
-  - title: This should not appear before day 70
-    order: 2
-    earliestOccurrence: 70
-    mission: Becoming a Pioneer

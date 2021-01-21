@@ -24,7 +24,7 @@ public class Player {
     private String company;
 
     @JsonProperty
-    private double funds = 5000;
+    private double funds = 50000;
 
     @JsonProperty
     private final ArrayList<Employee> employees = new ArrayList<>();

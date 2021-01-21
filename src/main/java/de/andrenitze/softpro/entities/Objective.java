@@ -56,8 +56,20 @@ public class Objective {
         this.completedSteps = completedSteps;
     }
 
+    public boolean isCompleted() {
+        return (completedSteps == totalSteps);
+    }
+
     @JsonIgnore
     public int getEarliestOccurrence() {
         return earliestOccurrence;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void addCompletedStep() {
+        this.completedSteps++;
     }
 }

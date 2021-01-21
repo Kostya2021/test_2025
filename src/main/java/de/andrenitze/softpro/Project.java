@@ -14,6 +14,7 @@ public class Project {
     private int tenderDeadlineInDays;
     private final int riskLevel;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
+    private int completedTick;
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -32,7 +33,7 @@ public class Project {
     }
 
     private int generateRiskLevel() {
-        return new Random().nextInt(1);
+        return new Random().nextInt(3);
     }
 
     /**
@@ -52,9 +53,7 @@ public class Project {
     }
 
     private static int generateVolume() {
-        // Generate an integer between 10.000 and 110.000
-        return 50000;
-        //return 10000 + new Random().nextInt(100) * 1000;
+        return 10000 + new Random().nextInt(100) * 1000;
     }
 
     private static String generateProjectName() {
@@ -112,8 +111,12 @@ public class Project {
         return id;
     }
 
-    void addEarnedValue(int addedValue) {
+    void addEarnedValue(int addedValue, int tick) {
         setEarnedValue(Math.max(getEarnedValue() + addedValue, 0));
+
+        if (isCompleted()) {
+            setCompletedTick(tick);
+        }
     }
 
     boolean hasNoTenderProcess() {
@@ -121,10 +124,18 @@ public class Project {
     }
 
     public boolean isCompleted() {
-        return (getTotalValue()-getEarnedValue() == 0);
+        return (getTotalValue()-getEarnedValue() <= 0);
     }
 
     public boolean playerWasInvolved(Player player) {
         return getInvolvedPlayers().contains(player);
+    }
+
+    public int getCompletedTick() {
+        return completedTick;
+    }
+
+    public void setCompletedTick(int completedTick) {
+        this.completedTick = completedTick;
     }
 }

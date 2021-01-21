@@ -9,10 +9,8 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 
 class GameEventHandler {
-    public static final String EVENT_TYPE = "type";
     public static final String EMPLOYEE_ID = "employeeId";
     public static final String PROJECT_ID = "projectId";
-    public static final String TENDER_ID = "tenderId";
     private static final Gson GSON = new Gson();
     private final Game game;
 
@@ -78,7 +76,7 @@ class GameEventHandler {
         if (isAssignOperation) {
             game.assignEmployeeToProject(employee, project);
         } else {
-            game.unassignEmployeeFromProject(employee, project);
+            game.removeEmployeeFromProject(employee, project);
         }
     }
 }

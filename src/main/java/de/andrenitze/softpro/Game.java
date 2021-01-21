@@ -14,11 +14,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static java.lang.Math.exp;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 100;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
@@ -82,7 +83,7 @@ public class Game {
         randomlySpawnProjectTendersPerTick();
         assignProjectsPerTick();
         spawnObjectivesPerTick();
-        //checkObjectivesCriteriaAndSendRewardsPerTick();
+        checkObjectivesCriteriaAndSendRewardsPerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -94,7 +95,30 @@ public class Game {
     }
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
+        players.forEach((webSocket, player) -> {
+            // Calculate progress for all active objectives
+            for (Objective objective: player.getObjectives()) {
+                // Naive matching approach with exact IDs
+                if (objective.getId() == 1 && !objective.isCompleted()) {
+                    // Were conditions met (= projects finished) after the objective occurred?
+                    // Only check finished projects
+                    ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
+                            .stream()
+                            .filter(project -> project.isCompleted()
+                                    && project.getCompletedTick() > objective.getEarliestOccurrence()
+                                    && project.playerWasInvolved(player))
+                            .collect(Collectors.toList());
 
+                    // The number of relevant projects equals the completed steps
+                    objective.setCompletedSteps(relevantProjects.size());
+
+                    GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
+                    List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+                    objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                    sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+                }
+            }
+        });
     }
 
     private void spawnObjectivesPerTick() {
@@ -231,10 +255,10 @@ public class Game {
             addEarnedValueForEachEmployee(project, employees);
 
             // Finish the project
-            if (project.getEarnedValue() >= project.getTotalValue()) {
+            if (project.isCompleted()) {
                 // Send reward
                 for (Player player : project.getInvolvedPlayers()) {
-                    player.addFunds(Math.round(project.getTotalValue() * 0.3));
+                    player.addFunds(Math.round(project.getTotalValue() * 0.5));
                     sendFundsUpdateToPlayer(player);
                 }
 
@@ -305,7 +329,7 @@ public class Game {
             employee.increaseExperience(project);
 
             // Increase the project's earnedValue
-            project.addEarnedValue(earnedValue);
+            project.addEarnedValue(earnedValue, this.getCurrentTick());
         }
     }
 
@@ -415,7 +439,7 @@ public class Game {
         }
     }
 
-    void unassignEmployeeFromAllProjects(Employee employee) {
+    void removeEmployeeFromAllProjects(Employee employee) {
         for (Project project : projects) {
             ArrayList<Employee> employees = projectEmployeesMap.get(project);
             if (!employees.isEmpty()) {
@@ -428,7 +452,7 @@ public class Game {
         }
     }
 
-    void unassignEmployeeFromProject(Employee employee, Project project) {
+    void removeEmployeeFromProject(Employee employee, Project project) {
         // Get current list of employees working on that project
         ArrayList<Employee> employees = projectEmployeesMap.get(project) ;
 
