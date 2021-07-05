@@ -1,8 +1,6 @@
 package de.andrenitze.softpro;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class Project {
     private static int lastId = 1;
@@ -15,9 +13,12 @@ public class Project {
     private final int riskLevel;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int completedTick;
-    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,KeyScore,BinAry".split(","));
-    private static final List<String> PROJECT_NAME_SUFFIXE = List.of("Active,Hub,Net,NET,Converse,-X,Services,ix,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Response,".split(","));
+    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
+    private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,-X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
+
+    // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
+    private static Set<String> usedProjectNames = new HashSet<>();
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -60,19 +61,22 @@ public class Project {
     }
 
     private static String generateProjectName() {
-        // Pick some random name
-        String firstPart = PROJECT_NAME_SNIPPETS.get(new Random().nextInt(PROJECT_NAME_SNIPPETS.size()));
-        String projectName = firstPart;
+        String projectName = "";
+        boolean isUniqueName = false;
 
-        // Add variation (how many words, dashes, prefix, suffix etc.) by chance
-        if (new Random().nextInt(100) < 50) {
-            String spacer = PROJECT_NAME_SPACERS.get(new Random().nextInt(PROJECT_NAME_SPACERS.size()));
-            String secondPart = PROJECT_NAME_SUFFIXE.get(new Random().nextInt(PROJECT_NAME_SUFFIXE.size()));
-            projectName += spacer + secondPart;
+        while (!isUniqueName) {
+            // Pick some random name
+            projectName = PROJECT_NAME_SNIPPETS.get(new Random().nextInt(PROJECT_NAME_SNIPPETS.size()));
+
+            // Add variation (how many words, dashes, prefix, suffix etc.) by chance
+            if (new Random().nextInt(100) < 50) {
+                String spacer = PROJECT_NAME_SPACERS.get(new Random().nextInt(PROJECT_NAME_SPACERS.size()));
+                String secondPart = PROJECT_NAME_SUFFIXE.get(new Random().nextInt(PROJECT_NAME_SUFFIXE.size()));
+                projectName += spacer + secondPart;
+            }
+            // Make sure every name is unique
+            isUniqueName = usedProjectNames.add(projectName);
         }
-
-        // TODO Make sure every name is unique
-
 
         return projectName;
     }
