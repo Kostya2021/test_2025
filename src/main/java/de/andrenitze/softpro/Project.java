@@ -1,5 +1,7 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.types.ProjectType;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -15,6 +17,7 @@ public class Project {
     private final int riskLevel;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int completedTick;
+    private final ProjectType type;
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -24,6 +27,7 @@ public class Project {
         ++lastId;
         this.riskLevel = generateRiskLevel();
         this.hasTenderProcess = hasTenderProcess;
+        this.type = ProjectType.INTRODUCTION;
 
         if (hasTenderProcess) {
             this.tenderDeadlineInDays = 14;
