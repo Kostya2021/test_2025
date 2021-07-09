@@ -23,8 +23,8 @@ jobs:
     - name: Build with Maven
       run: mvn clean compile assembly:single
 
- #  - name: Run Junit tests
- #     run: mvn test
+    - name: Run Junit tests
+      run: mvn test
 
  #   - name: Deploy to Azure Web App
  #     uses: azure/webapps-deploy@v1
