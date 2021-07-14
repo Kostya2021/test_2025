@@ -1,5 +1,7 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.types.ProjectType;
+
 import java.util.*;
 
 public class Project {
@@ -13,6 +15,10 @@ public class Project {
     private final int riskLevel;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int completedTick;
+    private final ProjectType type;
+    private static final Random RANDOM = new Random();
+    private static final List<ProjectType> PROJECT_TYPES =
+            List.of(ProjectType.values());
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
     private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
@@ -27,6 +33,7 @@ public class Project {
         this.id = lastId;
         ++lastId;
         this.riskLevel = generateRiskLevel();
+        this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
         this.hasTenderProcess = hasTenderProcess;
 
         if (hasTenderProcess) {
@@ -37,7 +44,7 @@ public class Project {
     }
 
     private int generateRiskLevel() {
-        return new Random().nextInt(3);
+        return RANDOM.nextInt(3);
     }
 
     /**
@@ -57,7 +64,7 @@ public class Project {
     }
 
     private static int generateVolume() {
-        return 10000 + new Random().nextInt(100) * 1000;
+        return 10000 + RANDOM.nextInt(100) * 1000;
     }
 
     private static String generateProjectName() {
