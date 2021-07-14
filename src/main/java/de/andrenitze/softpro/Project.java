@@ -2,9 +2,7 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.types.ProjectType;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class Project {
     private static int lastId = 1;
@@ -18,6 +16,9 @@ public class Project {
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int completedTick;
     private final ProjectType type;
+    private static final Random RANDOM = new Random();
+    private static final List<ProjectType> PROJECT_TYPES =
+            List.of(ProjectType.values());
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -26,8 +27,8 @@ public class Project {
         this.id = lastId;
         ++lastId;
         this.riskLevel = generateRiskLevel();
+        this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
         this.hasTenderProcess = hasTenderProcess;
-        this.type = ProjectType.INTRODUCTION;
 
         if (hasTenderProcess) {
             this.tenderDeadlineInDays = 14;
@@ -37,7 +38,7 @@ public class Project {
     }
 
     private int generateRiskLevel() {
-        return new Random().nextInt(3);
+        return RANDOM.nextInt(3);
     }
 
     /**
@@ -57,7 +58,7 @@ public class Project {
     }
 
     private static int generateVolume() {
-        return 10000 + new Random().nextInt(100) * 1000;
+        return 10000 + RANDOM.nextInt(100) * 1000;
     }
 
     private static String generateProjectName() {
