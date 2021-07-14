@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.types.ProjectType;
+import de.andrenitze.softpro.types.RiskLevel;
 
 import java.util.*;
 
@@ -12,11 +13,13 @@ public class Project {
     private int earnedValue;
     private final boolean hasTenderProcess;
     private int tenderDeadlineInDays;
-    private final int riskLevel;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int completedTick;
-    private final ProjectType type;
     private static final Random RANDOM = new Random();
+    private final RiskLevel risk;
+    private static final List<RiskLevel> RISK_LEVELS =
+            List.of(RiskLevel.values());
+    private final ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES =
             List.of(ProjectType.values());
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
@@ -24,7 +27,7 @@ public class Project {
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
-    private static Set<String> usedProjectNames = new HashSet<>();
+    private static final Set<String> usedProjectNames = new HashSet<>();
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -32,7 +35,7 @@ public class Project {
         this.earnedValue = 0;
         this.id = lastId;
         ++lastId;
-        this.riskLevel = generateRiskLevel();
+        this.risk = RISK_LEVELS.get(RANDOM.nextInt(PROJECT_TYPES.size()));
         this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
         this.hasTenderProcess = hasTenderProcess;
 
@@ -41,10 +44,6 @@ public class Project {
         } else {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
-    }
-
-    private int generateRiskLevel() {
-        return RANDOM.nextInt(3);
     }
 
     /**
@@ -131,8 +130,8 @@ public class Project {
         this.earnedValue = earnedValue;
     }
 
-    int getRiskLevel() {
-        return riskLevel;
+    RiskLevel getRiskLevel() {
+        return risk;
     }
 
     int getId() {
@@ -165,5 +164,9 @@ public class Project {
 
     public void setCompletedTick(int completedTick) {
         this.completedTick = completedTick;
+    }
+
+    public ProjectType getType() {
+        return type;
     }
 }
