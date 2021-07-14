@@ -2,8 +2,8 @@ package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
 import de.andrenitze.softpro.entities.Objective;
-import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.types.EventType;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -294,6 +294,7 @@ public class Game {
             earnedValue /= numberOfParallelProjects + 1;
             switch (numberOfParallelProjects) {
                 case 1:
+                    //noinspection ConstantConditions
                     earnedValue *= 1;
                     break;
                 case 2:

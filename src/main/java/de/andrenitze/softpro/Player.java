@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
-import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 
 import java.util.ArrayList;

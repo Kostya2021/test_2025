@@ -2,8 +2,8 @@ package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.types.EventType;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -17,7 +17,6 @@ import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,10 +37,6 @@ public class GameServer extends WebSocketServer {
         super(new InetSocketAddress(hostname, port));
     }
 
-    void notifyAllClients(String message) {
-        broadcast(message);
-    }
-
     @Override
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
         logger.debug("Client {} connected", webSocket.getRemoteSocketAddress());
@@ -55,9 +50,7 @@ public class GameServer extends WebSocketServer {
         playersAndTheirConnections.remove(webSocket);
 
         // Remove disconnected clients from all running games
-        Iterator<Game> iterator = games.iterator();
-        while (iterator.hasNext()) {
-            Game game = iterator.next();
+        for (Game game : games) {
             game.kickPlayer(webSocket);
             logger.debug("Client left the game ({} players left)", game.getPlayers().size());
 
@@ -130,7 +123,7 @@ public class GameServer extends WebSocketServer {
             player.put("name", readyPlayer.getName());
             playersList.put(player);
         }
-        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"payload\": { \"players\": " + playersList.toString() + "}}");
+        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"payload\": { \"players\": " + playersList + "}}");
     }
 
     @Override
@@ -144,7 +137,7 @@ public class GameServer extends WebSocketServer {
         if (webSocket != null) {
             logger.warn("An error occurred on connection {} : {}", webSocket.getRemoteSocketAddress(), ex.getStackTrace());
         } else {
-            logger.warn("An error occurred on a connection. {}", ex.getStackTrace());
+            logger.warn("An error occurred on a connection. {}", (Object) ex.getStackTrace());
         }
     }
 

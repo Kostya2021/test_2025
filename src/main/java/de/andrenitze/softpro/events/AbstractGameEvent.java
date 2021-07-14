@@ -1,5 +1,7 @@
 package de.andrenitze.softpro.events;
 
+import de.andrenitze.softpro.types.EventType;
+
 import java.util.Objects;
 
 public abstract class AbstractGameEvent {
