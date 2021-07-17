@@ -291,7 +291,7 @@ public class Game {
 
             // Rule #1: Context changes decrease employee productivity
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
-            earnedValue /= numberOfParallelProjects + 1;
+            earnedValue /= numberOfParallelProjects;
             switch (numberOfParallelProjects) {
                 case 1:
                     //noinspection ConstantConditions
@@ -327,7 +327,7 @@ public class Game {
             }
 
             // Increase the employee's experience
-            employee.increaseExperience(project);
+            employee.addExperience(project, earnedValue * 1.0f);
 
             // Increase the project's earnedValue
             project.addEarnedValue(earnedValue, this.getCurrentTick());

@@ -1,5 +1,7 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.types.ProjectType;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -10,15 +12,20 @@ public class Employee {
     private final int salary;
     private final int age;
     private final String name;
-    private final HashMap<Project, Integer> experienceInDays;
+    private final HashMap<Project, Integer> projectExperienceInDays;
+    private final HashMap<ProjectType, Float> experience;
 
     Employee() {
         this.name = generateName();
         this.salary = 3000;
         this.age = 30;
         this.id = lastId;
+        this.experience = new HashMap<ProjectType, Float>();
+        for (ProjectType type : ProjectType.values()) {
+            this.experience.put(type, 0.0f);
+        }
         ++lastId;
-        experienceInDays = new HashMap<>();
+        projectExperienceInDays = new HashMap<>();
     }
 
     private String generateName() {
@@ -39,10 +46,10 @@ public class Employee {
         return age;
     }
 
-    int getExperienceInDays() {
+    int getProjectExperienceInDays() {
         int experience = 0;
-        if (experienceInDays != null){
-            for (Map.Entry<Project, Integer> entry : experienceInDays.entrySet()) {
+        if (projectExperienceInDays != null){
+            for (Map.Entry<Project, Integer> entry : projectExperienceInDays.entrySet()) {
                 Integer experiencePerProject = entry.getValue();
                 experience += experiencePerProject;
             }
@@ -52,8 +59,8 @@ public class Employee {
 
     Integer getExperienceInDays(Project project) {
         Integer experience = 0;
-        if (experienceInDays.get(project) != null) {
-            experience = experienceInDays.get(project);
+        if (projectExperienceInDays.get(project) != null) {
+            experience = projectExperienceInDays.get(project);
         }
         return experience;
     }
@@ -62,16 +69,20 @@ public class Employee {
         return name;
     }
 
-    void increaseExperience(Project project) {
-        Integer experienceToBeAdded = 1;
-
-        // First call; Add the project key and the initial value (1)
-        if (!experienceInDays.containsKey(project)) {
-            experienceInDays.put(project, experienceToBeAdded);
-        } else {
-            // All subsequent calls; Increase the experience
-            Integer newExperience = experienceInDays.get(project) + experienceToBeAdded;
-            experienceInDays.put(project, newExperience);
+    public void addExperience(Project project, Float newDays) {
+        Integer rampUpDays = 0;
+        if (this.projectExperienceInDays.containsKey(project)) {
+            rampUpDays = this.projectExperienceInDays.get(project);
         }
+        this.projectExperienceInDays.put(project, ++rampUpDays);
+
+        if (newDays > 0) {
+            Float existingDays = this.experience.get(project.getType());
+            this.experience.put(project.getType(), existingDays + newDays);
+        }
+    }
+
+    public Float getExperience(ProjectType type) {
+        return experience.get(type);
     }
 }
