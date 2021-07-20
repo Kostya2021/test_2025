@@ -1,7 +1,9 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.types.ProjectDomain;
 import de.andrenitze.softpro.types.ProjectType;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -12,20 +14,29 @@ public class Employee {
     private final int salary;
     private final int age;
     private final String name;
-    private final HashMap<Project, Integer> projectExperienceInDays;
-    private final HashMap<ProjectType, Float> experience;
+    private final HashMap<Project, Integer> projectExperience;
+    private final EnumMap<ProjectType, Integer> projectTypeExperience;
+    private final EnumMap<ProjectDomain, Integer> projectDomainExperience;
+    private final int happiness;
 
     Employee() {
         this.name = generateName();
         this.salary = 3000;
         this.age = 30;
+        this.happiness = 60;
         this.id = lastId;
-        this.experience = new HashMap<ProjectType, Float>();
-        for (ProjectType type : ProjectType.values()) {
-            this.experience.put(type, 0.0f);
-        }
         ++lastId;
-        projectExperienceInDays = new HashMap<>();
+
+        this.projectExperience = new HashMap<>();
+        this.projectTypeExperience = new EnumMap<>(ProjectType.class);
+        for (ProjectType type : ProjectType.values()) {
+            this.projectTypeExperience.put(type, 0);
+        }
+
+        this.projectDomainExperience = new EnumMap<>(ProjectDomain.class);
+        for (ProjectDomain domain : ProjectDomain.values()) {
+            this.projectDomainExperience.put(domain, 0);
+        }
     }
 
     private String generateName() {
@@ -46,10 +57,10 @@ public class Employee {
         return age;
     }
 
-    int getProjectExperienceInDays() {
+    int getProjectExperience() {
         int experience = 0;
-        if (projectExperienceInDays != null){
-            for (Map.Entry<Project, Integer> entry : projectExperienceInDays.entrySet()) {
+        if (projectExperience != null) {
+            for (Map.Entry<Project, Integer> entry : projectExperience.entrySet()) {
                 Integer experiencePerProject = entry.getValue();
                 experience += experiencePerProject;
             }
@@ -57,10 +68,10 @@ public class Employee {
         return experience;
     }
 
-    Integer getExperienceInDays(Project project) {
+    Integer getExperienceInDaysByProject(Project project) {
         Integer experience = 0;
-        if (projectExperienceInDays.get(project) != null) {
-            experience = projectExperienceInDays.get(project);
+        if (projectExperience.get(project) != null) {
+            experience = projectExperience.get(project);
         }
         return experience;
     }
@@ -69,20 +80,31 @@ public class Employee {
         return name;
     }
 
-    public void addExperience(Project project, Float newDays) {
-        Integer rampUpDays = 0;
-        if (this.projectExperienceInDays.containsKey(project)) {
-            rampUpDays = this.projectExperienceInDays.get(project);
-        }
-        this.projectExperienceInDays.put(project, ++rampUpDays);
+    public void gainExperience(Project project, Integer newExperienceInDays) {
 
-        if (newDays > 0) {
-            Float existingDays = this.experience.get(project.getType());
-            this.experience.put(project.getType(), existingDays + newDays);
+        if (newExperienceInDays > 0) {
+            // Project-specific XP (= lower onboarding productivity)
+            Integer rampUpDays = 0;
+            if (this.projectExperience.containsKey(project)) {
+                rampUpDays = this.projectExperience.get(project);
+            }
+            this.projectExperience.put(project, ++rampUpDays);
+
+            // Project-type-specific XP
+            Integer existingExperience = this.projectTypeExperience.getOrDefault(project.getType(), 0);
+            this.projectTypeExperience.put(project.getType(), existingExperience + newExperienceInDays);
+
+            // Domain-specific XP
+            Integer existingDomainExperience = this.projectDomainExperience.getOrDefault(project.getDomain(), 0);
+            this.projectDomainExperience.putIfAbsent(project.getDomain(), existingDomainExperience + newExperienceInDays);
         }
     }
 
-    public Float getExperience(ProjectType type) {
-        return experience.get(type);
+    public Integer getExperienceInDaysByProjectType(ProjectType type) {
+        return projectTypeExperience.get(type);
+    }
+
+    public Integer getHappiness() {
+        return happiness;
     }
 }

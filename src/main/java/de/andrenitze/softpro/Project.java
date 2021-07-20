@@ -1,5 +1,6 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.types.ProjectDomain;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;
 
@@ -16,10 +17,10 @@ public class Project {
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int completedTick;
     private static final Random RANDOM = new Random();
-    private final RiskLevel risk;
+    private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS =
             List.of(RiskLevel.values());
-    private final ProjectType type;
+    private ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES =
             List.of(ProjectType.values());
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
@@ -29,21 +30,32 @@ public class Project {
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
 
+    private ProjectDomain domain;
+
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
         this.totalValue = totalValue;
         this.earnedValue = 0;
         this.id = lastId;
         ++lastId;
-        this.risk = RISK_LEVELS.get(RANDOM.nextInt(PROJECT_TYPES.size()));
+        this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
         this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
         this.hasTenderProcess = hasTenderProcess;
+        this.domain = generateDomain(this.type);
 
         if (hasTenderProcess) {
             this.tenderDeadlineInDays = 14;
         } else {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
+    }
+
+    private ProjectDomain generateDomain(ProjectType type) {
+        EnumMap<ProjectType, ProjectDomain[]> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
+        projectTypeDomainMap.put(type, ProjectDomain.values());
+
+        //return projectTypeDomainMap.get(type)[new Random().nextInt(projectTypeDomainMap.get(type).length)];
+        return ProjectDomain.JAVA;
     }
 
     /**
@@ -168,5 +180,9 @@ public class Project {
 
     public ProjectType getType() {
         return type;
+    }
+
+    public ProjectDomain getDomain() {
+        return domain;
     }
 }

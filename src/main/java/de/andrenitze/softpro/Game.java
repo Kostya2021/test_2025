@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
+import de.andrenitze.softpro.types.ProjectType;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -84,13 +85,18 @@ public class Game {
         assignProjectsPerTick();
         spawnObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
+        updateEmployeeStatePerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
-        if (timeElapsedInMilliseconds >= 1) {
+        if (timeElapsedInMilliseconds >= 2) {
             logger.debug("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
+
+    }
+
+    private void updateEmployeeStatePerTick() {
 
     }
 
@@ -265,6 +271,12 @@ public class Game {
                 // Remove the project from employees map, so that employees are unassigned
                 project.setEarnedValue(project.getTotalValue());
                 iterator.remove();
+
+                for (ProjectType type : ProjectType.values()) {
+                    for (Employee employee : employees) {
+                        logger.debug("{} XP: {} days", type, employee.getExperienceInDaysByProjectType(type));
+                    }
+                }
             }
 
             // Build event for new project state
@@ -314,20 +326,20 @@ public class Game {
                     break;
             }
 
-            // Project experience influences earned value
+            // Project ramp-up time influences earned value
             // Example:
             // 0 days XP = 0% productivity
             // 1 day XP = 10% productivity
             // 10 days XP = 50% productivity
             // 20 days XP = 100% productivity
-            double x = employee.getExperienceInDays(project);
+            double x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 double productivityFactor = 1.022595 - 1.02502 * exp(-0.1399307 * x);
                 earnedValue = (int) (earnedValue * productivityFactor);
             }
 
             // Increase the employee's experience
-            employee.addExperience(project, earnedValue * 1.0f);
+            employee.gainExperience(project, 1);
 
             // Increase the project's earnedValue
             project.addEarnedValue(earnedValue, this.getCurrentTick());
