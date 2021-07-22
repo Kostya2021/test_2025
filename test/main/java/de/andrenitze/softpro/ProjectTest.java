@@ -1,12 +1,11 @@
 package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.Project;
-import de.andrenitze.softpro.types.ProjectDomain;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -21,6 +20,6 @@ public class ProjectTest {
 
     @Test
     public void testProjectDomainGeneration() {
-        when(project.getDomain()).thenReturn(any(ProjectDomain.class));
+        when(project.getDomain()).thenReturn(anyString());
     }
 }

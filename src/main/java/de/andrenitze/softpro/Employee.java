@@ -1,6 +1,5 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.types.ProjectDomain;
 import de.andrenitze.softpro.types.ProjectType;
 
 import java.util.EnumMap;
@@ -16,7 +15,7 @@ public class Employee {
     private final String name;
     private final HashMap<Project, Integer> projectExperience;
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
-    private final EnumMap<ProjectDomain, Integer> projectDomainExperience;
+    private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
     private final int happiness;
 
     Employee() {
@@ -31,11 +30,6 @@ public class Employee {
         this.projectTypeExperience = new EnumMap<>(ProjectType.class);
         for (ProjectType type : ProjectType.values()) {
             this.projectTypeExperience.put(type, 0);
-        }
-
-        this.projectDomainExperience = new EnumMap<>(ProjectDomain.class);
-        for (ProjectDomain domain : ProjectDomain.values()) {
-            this.projectDomainExperience.put(domain, 0);
         }
     }
 
@@ -96,12 +90,16 @@ public class Employee {
 
             // Domain-specific XP
             Integer existingDomainExperience = this.projectDomainExperience.getOrDefault(project.getDomain(), 0);
-            this.projectDomainExperience.putIfAbsent(project.getDomain(), existingDomainExperience + newExperienceInDays);
+            this.projectDomainExperience.put(project.getDomain(), existingDomainExperience + newExperienceInDays);
         }
     }
 
     public Integer getExperienceInDaysByProjectType(ProjectType type) {
         return projectTypeExperience.get(type);
+    }
+
+    public Integer getExperienceInDaysByProjectDomain(String domain) {
+        return projectDomainExperience.get(domain);
     }
 
     public Integer getHappiness() {

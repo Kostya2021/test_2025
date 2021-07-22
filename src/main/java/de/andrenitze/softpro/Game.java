@@ -274,7 +274,12 @@ public class Game {
 
                 for (ProjectType type : ProjectType.values()) {
                     for (Employee employee : employees) {
-                        logger.debug("{} XP: {} days", type, employee.getExperienceInDaysByProjectType(type));
+                        if (employee.getExperienceInDaysByProjectType(project.getType()) > 0) {
+                            logger.debug("{}'s {} XP: {} days", employee.getName(), type, employee.getExperienceInDaysByProjectType(type));
+                        }
+                        if (employee.getExperienceInDaysByProjectDomain(project.getDomain()) > 0) {
+                            logger.debug("{}'s {} Domain XP: {} days", employee.getName(), project.getDomain(), employee.getExperienceInDaysByProjectDomain(project.getDomain()));
+                        }
                     }
                 }
             }
