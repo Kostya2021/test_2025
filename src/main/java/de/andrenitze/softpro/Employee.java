@@ -1,5 +1,8 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.types.ProjectType;
+
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -10,15 +13,24 @@ public class Employee {
     private final int salary;
     private final int age;
     private final String name;
-    private final HashMap<Project, Integer> experienceInDays;
+    private final HashMap<Project, Integer> projectExperience;
+    private final EnumMap<ProjectType, Integer> projectTypeExperience;
+    private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
+    private final int happiness;
 
     Employee() {
         this.name = generateName();
         this.salary = 3000;
         this.age = 30;
+        this.happiness = 60;
         this.id = lastId;
         ++lastId;
-        experienceInDays = new HashMap<>();
+
+        this.projectExperience = new HashMap<>();
+        this.projectTypeExperience = new EnumMap<>(ProjectType.class);
+        for (ProjectType type : ProjectType.values()) {
+            this.projectTypeExperience.put(type, 0);
+        }
     }
 
     private String generateName() {
@@ -39,10 +51,10 @@ public class Employee {
         return age;
     }
 
-    int getExperienceInDays() {
+    int getProjectExperience() {
         int experience = 0;
-        if (experienceInDays != null){
-            for (Map.Entry<Project, Integer> entry : experienceInDays.entrySet()) {
+        if (projectExperience != null) {
+            for (Map.Entry<Project, Integer> entry : projectExperience.entrySet()) {
                 Integer experiencePerProject = entry.getValue();
                 experience += experiencePerProject;
             }
@@ -50,10 +62,10 @@ public class Employee {
         return experience;
     }
 
-    Integer getExperienceInDays(Project project) {
+    Integer getExperienceInDaysByProject(Project project) {
         Integer experience = 0;
-        if (experienceInDays.get(project) != null) {
-            experience = experienceInDays.get(project);
+        if (projectExperience.get(project) != null) {
+            experience = projectExperience.get(project);
         }
         return experience;
     }
@@ -62,16 +74,35 @@ public class Employee {
         return name;
     }
 
-    void increaseExperience(Project project) {
-        Integer experienceToBeAdded = 1;
+    public void gainExperience(Project project, Integer newExperienceInDays) {
 
-        // First call; Add the project key and the initial value (1)
-        if (!experienceInDays.containsKey(project)) {
-            experienceInDays.put(project, experienceToBeAdded);
-        } else {
-            // All subsequent calls; Increase the experience
-            Integer newExperience = experienceInDays.get(project) + experienceToBeAdded;
-            experienceInDays.put(project, newExperience);
+        if (newExperienceInDays > 0) {
+            // Project-specific XP (= lower onboarding productivity)
+            Integer rampUpDays = 0;
+            if (this.projectExperience.containsKey(project)) {
+                rampUpDays = this.projectExperience.get(project);
+            }
+            this.projectExperience.put(project, ++rampUpDays);
+
+            // Project-type-specific XP
+            Integer existingExperience = this.projectTypeExperience.getOrDefault(project.getType(), 0);
+            this.projectTypeExperience.put(project.getType(), existingExperience + newExperienceInDays);
+
+            // Domain-specific XP
+            Integer existingDomainExperience = this.projectDomainExperience.getOrDefault(project.getDomain(), 0);
+            this.projectDomainExperience.put(project.getDomain(), existingDomainExperience + newExperienceInDays);
         }
+    }
+
+    public Integer getExperienceInDaysByProjectType(ProjectType type) {
+        return projectTypeExperience.get(type);
+    }
+
+    public Integer getExperienceInDaysByProjectDomain(String domain) {
+        return projectDomainExperience.get(domain);
+    }
+
+    public Integer getHappiness() {
+        return happiness;
     }
 }

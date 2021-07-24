@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
+import de.andrenitze.softpro.types.ProjectType;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -84,13 +85,18 @@ public class Game {
         assignProjectsPerTick();
         spawnObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
+        updateEmployeeStatePerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
-        if (timeElapsedInMilliseconds >= 5) {
+        if (timeElapsedInMilliseconds >= 2) {
             logger.debug("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
+
+    }
+
+    private void updateEmployeeStatePerTick() {
 
     }
 
@@ -272,6 +278,17 @@ public class Game {
                 // Remove the project from employees map, so that employees are unassigned
                 project.setEarnedValue(project.getTotalValue());
                 iterator.remove();
+
+                for (ProjectType type : ProjectType.values()) {
+                    for (Employee employee : employees) {
+                        if (employee.getExperienceInDaysByProjectType(project.getType()) > 0) {
+                            logger.debug("{}'s {} XP: {} days", employee.getName(), type, employee.getExperienceInDaysByProjectType(type));
+                        }
+                        if (employee.getExperienceInDaysByProjectDomain(project.getDomain()) > 0) {
+                            logger.debug("{}'s {} Domain XP: {} days", employee.getName(), project.getDomain(), employee.getExperienceInDaysByProjectDomain(project.getDomain()));
+                        }
+                    }
+                }
             }
 
             // Build event for new project state
@@ -298,7 +315,7 @@ public class Game {
 
             // Rule #1: Context changes decrease employee productivity
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
-            earnedValue /= numberOfParallelProjects + 1;
+            earnedValue /= numberOfParallelProjects;
             switch (numberOfParallelProjects) {
                 case 1:
                     //noinspection ConstantConditions
@@ -321,20 +338,20 @@ public class Game {
                     break;
             }
 
-            // Project experience influences earned value
+            // Project ramp-up time influences earned value
             // Example:
             // 0 days XP = 0% productivity
             // 1 day XP = 10% productivity
             // 10 days XP = 50% productivity
             // 20 days XP = 100% productivity
-            double x = employee.getExperienceInDays(project);
+            double x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 double productivityFactor = 1.022595 - 1.02502 * exp(-0.1399307 * x);
                 earnedValue = (int) (earnedValue * productivityFactor);
             }
 
             // Increase the employee's experience
-            employee.increaseExperience(project);
+            employee.gainExperience(project, 1);
 
             // Increase the project's earnedValue
             project.addEarnedValue(earnedValue, this.getCurrentTick());

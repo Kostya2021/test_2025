@@ -1,7 +1,6 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.types.ProjectType;
-import de.andrenitze.softpro.types.RiskLevel;
+import de.andrenitze.softpro.types.*;
 
 import java.util.*;
 
@@ -16,18 +15,25 @@ public class Project {
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int completedTick;
     private static final Random RANDOM = new Random();
-    private final RiskLevel risk;
+    private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS =
             List.of(RiskLevel.values());
-    private final ProjectType type;
+    private ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES =
             List.of(ProjectType.values());
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
     private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
+    private static final List<String> PROJECT_DOMAINS_CONSULTING = List.of("ProcessAssessment,TechnologyEvaluation,FeasibilityStudy,SWOTAnalysis".split(","));
+    private static final List<String> PROJECT_DOMAINS_DEVELOPMENT = List.of("JAVA,COBOL,C,dotNET,Python,Swift,Kotlin,JavaScript,Go,PHP,Scala,CSharp".split(","));
+    private static final List<String> PROJECT_DOMAINS_INTRODUCTION = List.of("ProcessAssessment,TechnologyEvaluation,FeasibilityStudy,SWOTAnalysis".split(","));
+    private static final List<String> PROJECT_DOMAINS_CUSTOMIZATION = List.of("S4/MONTANA,Dynamix,TYPOW3".split(","));
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
+
+    private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
+    private final String domain;
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -35,15 +41,25 @@ public class Project {
         this.earnedValue = 0;
         this.id = lastId;
         ++lastId;
-        this.risk = RISK_LEVELS.get(RANDOM.nextInt(PROJECT_TYPES.size()));
+        this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
         this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
         this.hasTenderProcess = hasTenderProcess;
+
+        projectTypeDomainMap.put(ProjectType.CONSULTING, PROJECT_DOMAINS_CONSULTING);
+        projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, PROJECT_DOMAINS_CUSTOMIZATION);
+        projectTypeDomainMap.put(ProjectType.DEVELOPMENT, PROJECT_DOMAINS_DEVELOPMENT);
+        projectTypeDomainMap.put(ProjectType.INTRODUCTION, PROJECT_DOMAINS_INTRODUCTION);
+        this.domain = generateDomain(this.type);
 
         if (hasTenderProcess) {
             this.tenderDeadlineInDays = 14;
         } else {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
+    }
+
+    private static String generateDomain(ProjectType type) {
+        return projectTypeDomainMap.get(type).get(new Random().nextInt(projectTypeDomainMap.get(type).size()));
     }
 
     /**
@@ -168,5 +184,9 @@ public class Project {
 
     public ProjectType getType() {
         return type;
+    }
+
+    public String getDomain() {
+        return domain;
     }
 }
