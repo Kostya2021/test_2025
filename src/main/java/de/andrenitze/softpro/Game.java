@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 import static java.lang.Math.exp;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 250;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
@@ -102,12 +102,15 @@ public class Game {
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
         players.forEach((webSocket, player) -> {
+            GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
+            List<Objective> allActiveObjectives;
+
             // Calculate progress for all active objectives
             for (Objective objective: player.getObjectives()) {
                 // Naive matching approach with exact IDs
                 if (objective.getId() == 1 && !objective.isCompleted()) {
                     // Were conditions met (= projects finished) after the objective occurred?
-                    // Only check finished projects
+                    // Only check relevant (= finished) projects
                     ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
                             .stream()
                             .filter(project -> project.isCompleted()
@@ -115,13 +118,17 @@ public class Game {
                                     && project.playerWasInvolved(player))
                             .collect(Collectors.toList());
 
-                    // The number of relevant projects equals the completed steps
-                    objective.setCompletedSteps(relevantProjects.size());
+                    // Only send when conditions have changed from last time
+                    if (objective.getCompletedSteps() != relevantProjects.size()) {
 
-                    GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
-                    List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
-                    objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                    sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+                        // The number of relevant projects equals the completed steps
+                        objective.setCompletedSteps(relevantProjects.size());
+
+                        // Assemble and send update event
+                        allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+                        objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                        sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+                    }
                 }
             }
         });
