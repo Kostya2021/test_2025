@@ -52,14 +52,14 @@ public class GameServer extends WebSocketServer {
         // Remove disconnected clients from all running games
         for (Game game : games) {
             game.kickPlayer(webSocket);
-            logger.debug("Client left the game ({} players left)", game.getPlayers().size());
+            logger.debug("A player left the game ({} players are left in the game)", game.getPlayers().size());
 
             // Close the game session if this was the last player
             if (game.getPlayers().size() == 0) {
-                logger.debug("Shutting down empty game.");
+                logger.info("Shutting down empty game.");
                 game.shutdown();
                 games.remove(game);
-                logger.debug("Running games: {}", games.size());
+                logger.info("Running games: {}", games.size());
             }
         }
         broadcastPlayerList();

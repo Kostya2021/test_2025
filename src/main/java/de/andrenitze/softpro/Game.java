@@ -45,7 +45,7 @@ public class Game {
         currentDate = new Date();
         projects = new ArrayList<>();
         projectEmployeesMap = new ConcurrentHashMap<>();
-        logger.debug("A new game has started with {} players.", players.size());
+        logger.info("A new game has started with {} players.", players.size());
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
@@ -91,7 +91,7 @@ public class Game {
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
         if (timeElapsedInMilliseconds >= 2) {
-            logger.debug("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+            logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
 
     }
