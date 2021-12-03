@@ -52,7 +52,7 @@ public class Player {
         String subject = subjects[RANDOM.nextInt(subjects.length)];
         subject = subject.substring(0, 1).toUpperCase() + subject.substring(1);
 
-        return adjective + " " + subject;
+        return adjective + subject + RANDOM.nextInt(99);
     }
 
     Player(String name, String company) {
