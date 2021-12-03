@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
     private final HashSet<Game> games = new HashSet<>();
     private final Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -85,8 +85,8 @@ public class GameServer extends WebSocketServer {
                         player.getName(),
                         playersAndTheirConnections.size());
             } else {
-                // Forward all other de.andrenitze.softpro.events to the corresponding game instance
-                // Find out which game the message belongs to by its' Websocket connection
+                // Forward all other events to the corresponding game instance
+                // Find out which game the message belongs to by its Websocket connection
                 // WARNING This is on the critical path, so look for performance issues!
                 for (Game game : games) {
                     if (game.hasWebSocket(webSocket)) {

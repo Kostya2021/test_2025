@@ -2,18 +2,18 @@ package de.andrenitze.softpro;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
-import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.types.EventType;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 public class Player {
+    private static final Random RANDOM = new Random();
+
     @JsonIgnore
     private final UUID id;
 
@@ -33,7 +33,26 @@ public class Player {
     private final ArrayList<Objective> objectives;
 
     Player() {
-        this("Unknown player", "Unknown company");
+        this(generatePlayerName(), generateCompanyName());
+    }
+
+    private static String generateCompanyName() {
+        String[] techyWords = new String[]{"Software","TechNik","Soft","MacroMedium","Midio","SPLNK","MARGO","CouchDemo"};
+        return techyWords[RANDOM.nextInt(techyWords.length)] + " Inc.";
+    }
+
+    private static String generatePlayerName() {
+        String[] adjectives = new String[]{"aggressive","agreeable","ambitious","brave","calm","delightful","eager","faithful","gentle","happy","jolly","kind","lively","nice","obedient","polite","proud","silly","thankful","victorious","witty","wonderful","zealous"};
+        String[] subjects = new String[]{"Giraffe","Woodpecker","Camel","Starfish","Koala","Alligator","Owl","Tiger","Bear","Blue","whale","Coyote","Chimpanzee","Raccoon","Lion","Arctic","Wolf","Crocodile","Dolphin","Elephant","Squirrel","Snake","Kangaroo","Hippopotamus","Elk","Fox","Gorilla","Bat","Hare","Toad","Frog","Deer","Rat","Badger","Lizard","Mole","Hedgehog","Otter","Reindeer"};
+
+        // Capitalize both words to create a full name
+        String adjective = adjectives[RANDOM.nextInt(adjectives.length)];
+        adjective = adjective.substring(0, 1).toUpperCase() + adjective.substring(1);
+
+        String subject = subjects[RANDOM.nextInt(subjects.length)];
+        subject = subject.substring(0, 1).toUpperCase() + subject.substring(1);
+
+        return adjective + " " + subject;
     }
 
     Player(String name, String company) {
