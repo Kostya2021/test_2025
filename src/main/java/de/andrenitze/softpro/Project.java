@@ -52,7 +52,7 @@ public class Project {
         this.domain = generateDomain(this.type);
 
         if (hasTenderProcess) {
-            this.tenderDeadlineInDays = 14;
+            this.tenderDeadlineInDays = 20;
         } else {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
@@ -75,11 +75,11 @@ public class Project {
      * @return Project
      */
     static Project generateRandomProject() {
-        return new Project(generateProjectName(), generateVolume(), false);
+        return new Project(generateProjectName(), generateVolume(), RANDOM.nextBoolean());
     }
 
     private static int generateVolume() {
-        return 10000 + RANDOM.nextInt(100) * 1000;
+        return 10000 + RANDOM.nextInt(1000) * 100;
     }
 
     private static String generateProjectName() {
