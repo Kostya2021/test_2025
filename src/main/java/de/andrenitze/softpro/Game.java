@@ -1,10 +1,16 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
+import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.registry.StandardServiceRegistry;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -25,6 +31,7 @@ public class Game {
     private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private SessionFactory sessionFactory = null;
     private GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
     private final ArrayList<Project> projects;
@@ -54,6 +61,19 @@ public class Game {
             initialPlayerEvent.setPayload(player);
             sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
+
+        // Persist this player's stats to database
+        StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
+                .configure("hibernate.cfg.xml")
+                .build();
+
+        // Initialize database
+        try {
+            sessionFactory = new MetadataSources(registry).buildMetadata().buildSessionFactory();
+        }
+        catch (Exception e) {
+            StandardServiceRegistryBuilder.destroy(registry);
+        }
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -175,6 +195,21 @@ public class Game {
                     if (project.isCompleted() && project.playerWasInvolved(player)) {
                         deliveredProjects++;
                         projectsVolume += project.getTotalValue();
+                    }
+                }
+
+                GameOverStats goStats = new GameOverStats();
+                goStats.setDeliveredProjects(deliveredProjects);
+                goStats.setProjectsVolume(projectsVolume);
+                goStats.setPlayerId(player.getName());
+                goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
+
+                if (sessionFactory != null) {
+                    try (Session session = sessionFactory.openSession()) {
+                        session.beginTransaction();
+                        session.save(goStats);
+                        session.getTransaction().commit();
+                        session.close();
                     }
                 }
 
