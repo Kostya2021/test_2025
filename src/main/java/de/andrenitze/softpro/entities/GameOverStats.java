@@ -1,19 +1,23 @@
 package de.andrenitze.softpro.entities;
 
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
-import java.sql.Time;
+import java.util.Date;
 import java.util.UUID;
 
 @Entity
 public class GameOverStats {
     @Id
+    @GeneratedValue()
     private UUID id;
     private Integer deliveredProjects;
     private Integer projectsVolume;
     private String playerId;
     private String ipAddress;
-    private Time finishedAt;
+    private Date finishedAt;
+    private String gameId;
+    private Integer survivedDays;
 
     public UUID getId() {
         return id;
@@ -55,11 +59,27 @@ public class GameOverStats {
         this.ipAddress = ipAddress;
     }
 
-    public Time getFinishedAt() {
+    public Date getFinishedAt() {
         return finishedAt;
     }
 
-    public void setFinishedAt(Time finishedAt) {
+    public void setFinishedAt(Date finishedAt) {
         this.finishedAt = finishedAt;
+    }
+
+    public String getGameId() {
+        return gameId;
+    }
+
+    public void setGameId(String gameId) {
+        this.gameId = gameId;
+    }
+
+    public Integer getSurvivedDays() {
+        return survivedDays;
+    }
+
+    public void setSurvivedDays(Integer survivedDays) {
+        this.survivedDays = survivedDays;
     }
 }

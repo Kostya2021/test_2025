@@ -202,15 +202,18 @@ public class Game {
                 goStats.setDeliveredProjects(deliveredProjects);
                 goStats.setProjectsVolume(projectsVolume);
                 goStats.setPlayerId(player.getName());
+                goStats.setFinishedAt(new Date());
+                goStats.setGameId(String.valueOf(this.hashCode()));
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
+                goStats.setSurvivedDays(this.getCurrentTick());
 
-                if (sessionFactory != null) {
-                    try (Session session = sessionFactory.openSession()) {
-                        session.beginTransaction();
-                        session.save(goStats);
-                        session.getTransaction().commit();
-                        session.close();
-                    }
+                try (Session session = sessionFactory.openSession()) {
+                    session.beginTransaction();
+                    session.save(goStats);
+                    session.getTransaction().commit();
+                    session.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
 
                 stats.put("deliveredProjects", deliveredProjects);
