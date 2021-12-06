@@ -11,6 +11,7 @@ import org.hibernate.SessionFactory;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.query.NativeQuery;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -201,7 +202,7 @@ public class Game {
                 GameOverStats goStats = new GameOverStats();
                 goStats.setDeliveredProjects(deliveredProjects);
                 goStats.setProjectsVolume(projectsVolume);
-                goStats.setPlayerId(player.getName());
+                goStats.setPlayerName(player.getName());
                 goStats.setFinishedAt(new Date());
                 goStats.setGameId(String.valueOf(this.hashCode()));
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
@@ -225,9 +226,32 @@ public class Game {
                 // Tell game server to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
 
+                // Check if there's a new high-score and broadcast updates in lobby
+                if (isNewHighScore(projectsVolume)) {
+                    gameServer.broadcast("{ \"type\": \"UPDATE_HIGHSCORE\", \"payload\": { \"highscore\": " + GSON.toJson(goStats) + "}}");
+                }
+
                 kickPlayer(webSocket);
             }
         });
+    }
+
+    private boolean isNewHighScore(int projectsVolume) {
+        // Check database to see if this is a new high-score
+        GameOverStats highScore;
+
+        try (Session session = sessionFactory.openSession()) {
+            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `gameoverstats` " +
+                    "WHERE DATE(finishedAt) = CURDATE() " +
+                    "ORDER BY projectsVolume DESC LIMIT 1",
+                    GameOverStats.class);
+            highScore = query.getSingleResult();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        return (projectsVolume >= highScore.getProjectsVolume());
     }
 
     private void randomlySpawnProjectTendersPerTick() {

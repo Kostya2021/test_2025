@@ -13,7 +13,7 @@ public class GameOverStats {
     private UUID id;
     private Integer deliveredProjects;
     private Integer projectsVolume;
-    private String playerId;
+    private String playerName;
     private String ipAddress;
     private Date finishedAt;
     private String gameId;
@@ -43,12 +43,12 @@ public class GameOverStats {
         this.projectsVolume = projectsVolume;
     }
 
-    public String getPlayerId() {
-        return playerId;
+    public String getPlayerName() {
+        return playerName;
     }
 
-    public void setPlayerId(String playerId) {
-        this.playerId = playerId;
+    public void setPlayerName(String playerId) {
+        this.playerName = playerId;
     }
 
     public String getIpAddress() {
