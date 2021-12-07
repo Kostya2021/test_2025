@@ -67,7 +67,15 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
         logger.debug("Client {} connected", webSocket.getRemoteSocketAddress());
-        playersAndTheirConnections.put(webSocket, new Player());
+        Player generatedPlayer = new Player();
+        playersAndTheirConnections.put(webSocket, generatedPlayer);
+
+        // Return generated player to the client
+        GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+        playerUpdateEvent.setEventType(EventType.UPDATE_PLAYER);
+        playerUpdateEvent.setPayload(generatedPlayer);
+        webSocket.send(GSON.toJson(playerUpdateEvent));
+
         broadcastPlayerList();
     }
 
@@ -101,7 +109,7 @@ public class GameServer extends WebSocketServer {
             GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
 
             // If it's a new player event, create the player and add her to the lobby
-            if (event.isOfType(EventType.NEW_PLAYER)) {
+            if (event.isOfType(EventType.START_GAME)) {
                 Type payloadType = new TypeToken<GameEvent<Player>>(){}.getType();
                 GameEvent<Player> playerEvent = GSON.fromJson(message, payloadType);
 
