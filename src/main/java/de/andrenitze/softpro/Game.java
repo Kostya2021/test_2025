@@ -7,11 +7,6 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
 import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.boot.MetadataSources;
-import org.hibernate.boot.registry.StandardServiceRegistry;
-import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.query.NativeQuery;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -32,7 +27,6 @@ public class Game {
     private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private SessionFactory sessionFactory = null;
     private GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
     private final ArrayList<Project> projects;
@@ -62,19 +56,6 @@ public class Game {
             initialPlayerEvent.setPayload(player);
             sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
-
-        // Persist this player's stats to database
-        StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-                .configure("hibernate.cfg.xml")
-                .build();
-
-        // Initialize database
-        try {
-            sessionFactory = new MetadataSources(registry).buildMetadata().buildSessionFactory();
-        }
-        catch (Exception e) {
-            StandardServiceRegistryBuilder.destroy(registry);
-        }
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -208,7 +189,7 @@ public class Game {
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
                 goStats.setSurvivedDays(this.getCurrentTick());
 
-                try (Session session = sessionFactory.openSession()) {
+                try (Session session = this.gameServer.sessionFactory.openSession()) {
                     session.beginTransaction();
                     session.save(goStats);
                     session.getTransaction().commit();
@@ -227,8 +208,8 @@ public class Game {
                 gameServer.addPlayer(webSocket, player);
 
                 // Check if there's a new high-score and broadcast updates in lobby
-                if (isNewHighScore(projectsVolume)) {
-                    gameServer.broadcast("{ \"type\": \"UPDATE_HIGHSCORE\", \"payload\": { \"highscore\": " + GSON.toJson(goStats) + "}}");
+                if (isNewHighScore(goStats)) {
+                    gameServer.setNewHighScore(goStats);
                 }
 
                 kickPlayer(webSocket);
@@ -236,22 +217,14 @@ public class Game {
         });
     }
 
-    private boolean isNewHighScore(int projectsVolume) {
-        // Check database to see if this is a new high-score
+    private boolean isNewHighScore(GameOverStats highScoreCandidate) {
         GameOverStats highScore;
 
-        try (Session session = sessionFactory.openSession()) {
-            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `gameoverstats` " +
-                    "WHERE DATE(finishedAt) = CURDATE() " +
-                    "ORDER BY projectsVolume DESC LIMIT 1",
-                    GameOverStats.class);
-            highScore = query.getSingleResult();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        // Check database to see if this is a new high-score
+        highScore = gameServer.getCurrentHighScore();
+        if (highScore == null) return false;
 
-        return (projectsVolume >= highScore.getProjectsVolume());
+        return (highScoreCandidate.getProjectsVolume() >= highScore.getProjectsVolume());
     }
 
     private void randomlySpawnProjectTendersPerTick() {
