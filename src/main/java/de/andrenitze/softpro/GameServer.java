@@ -2,17 +2,26 @@ package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.registry.StandardServiceRegistry;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.query.NativeQuery;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
+import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.persistence.NoResultException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -21,11 +30,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
     private final HashSet<Game> games = new HashSet<>();
     private final Map<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final Gson GSON = new Gson();
+    private GameOverStats dailyHighScore;
+    public SessionFactory sessionFactory = null;
 
     /**
      * Creates a GameServer instance to manage games and players
@@ -35,12 +46,36 @@ public class GameServer extends WebSocketServer {
      */
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
+
+        // Initialize database session
+        StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
+                .configure("hibernate.cfg.xml")
+                .build();
+
+        try {
+            sessionFactory = new MetadataSources(registry).buildMetadata().buildSessionFactory();
+        } catch (Exception e) {
+            StandardServiceRegistryBuilder.destroy(registry);
+        }
+
+        this.dailyHighScore = getCurrentHighScore();
+        if (this.dailyHighScore != null) {
+            logger.info("Current high-score fetched from database");
+        }
     }
 
     @Override
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
         logger.debug("Client {} connected", webSocket.getRemoteSocketAddress());
-        playersAndTheirConnections.put(webSocket, new Player());
+        Player generatedPlayer = new Player();
+        playersAndTheirConnections.put(webSocket, generatedPlayer);
+
+        // Return generated player to the client
+        GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+        playerUpdateEvent.setEventType(EventType.UPDATE_PLAYER);
+        playerUpdateEvent.setPayload(generatedPlayer);
+        webSocket.send(GSON.toJson(playerUpdateEvent));
+
         broadcastPlayerList();
     }
 
@@ -52,14 +87,14 @@ public class GameServer extends WebSocketServer {
         // Remove disconnected clients from all running games
         for (Game game : games) {
             game.kickPlayer(webSocket);
-            logger.debug("Client left the game ({} players left)", game.getPlayers().size());
+            logger.debug("A player left the game ({} players are left in the game)", game.getPlayers().size());
 
             // Close the game session if this was the last player
             if (game.getPlayers().size() == 0) {
-                logger.debug("Shutting down empty game.");
+                logger.info("Shutting down empty game.");
                 game.shutdown();
                 games.remove(game);
-                logger.debug("Running games: {}", games.size());
+                logger.info("Running games: {}", games.size());
             }
         }
         broadcastPlayerList();
@@ -74,7 +109,7 @@ public class GameServer extends WebSocketServer {
             GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
 
             // If it's a new player event, create the player and add her to the lobby
-            if (event.isOfType(EventType.NEW_PLAYER)) {
+            if (event.isOfType(EventType.START_GAME)) {
                 Type payloadType = new TypeToken<GameEvent<Player>>(){}.getType();
                 GameEvent<Player> playerEvent = GSON.fromJson(message, payloadType);
 
@@ -85,8 +120,8 @@ public class GameServer extends WebSocketServer {
                         player.getName(),
                         playersAndTheirConnections.size());
             } else {
-                // Forward all other de.andrenitze.softpro.events to the corresponding game instance
-                // Find out which game the message belongs to by its' Websocket connection
+                // Forward all other events to the corresponding game instance
+                // Find out which game the message belongs to by its Websocket connection
                 // WARNING This is on the critical path, so look for performance issues!
                 for (Game game : games) {
                     if (game.hasWebSocket(webSocket)) {
@@ -123,7 +158,18 @@ public class GameServer extends WebSocketServer {
             player.put("name", readyPlayer.getName());
             playersList.put(player);
         }
-        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"payload\": { \"players\": " + playersList + "}}");
+
+        // Anonymize highscore before sending
+        GameOverStats anonymizedHighScore = new GameOverStats();
+        if (dailyHighScore != null) {
+            anonymizedHighScore.setPlayerName(dailyHighScore.getPlayerName());
+            anonymizedHighScore.setDeliveredProjects(dailyHighScore.getDeliveredProjects());
+            anonymizedHighScore.setProjectsVolume(dailyHighScore.getProjectsVolume());
+            anonymizedHighScore.setFinishedAt(dailyHighScore.getFinishedAt());
+        }
+
+        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"payload\": { \"players\": " + playersList +
+                ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
     }
 
     @Override
@@ -149,5 +195,26 @@ public class GameServer extends WebSocketServer {
     void addPlayer(WebSocket webSocket, Player player) {
         playersAndTheirConnections.put(webSocket, player);
         broadcastPlayerList();
+    }
+
+    public void setNewHighScore(GameOverStats gameOverStats) {
+        this.dailyHighScore = gameOverStats;
+    }
+
+    @Nullable GameOverStats getCurrentHighScore() {
+        GameOverStats highScore;
+        try (Session session = sessionFactory.openSession()) {
+            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `gameoverstats` " +
+                    "WHERE DATE(finishedAt) = CURDATE() " +
+                    "ORDER BY projectsVolume DESC LIMIT 1",
+                    GameOverStats.class);
+            highScore = query.getSingleResult();
+        } catch (NoResultException e) {
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return highScore;
     }
 }

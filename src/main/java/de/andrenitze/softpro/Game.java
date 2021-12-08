@@ -1,10 +1,12 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
+import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
+import org.hibernate.Session;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -35,7 +37,7 @@ public class Game {
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private static final Gson GSON = new Gson();
 
-    // Every GameServer hosts exactly one Game
+    // Every GameServer can host multiple Games
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
         // Every game consists of players and a world in a specific state
         this.players = players;
@@ -45,7 +47,7 @@ public class Game {
         currentDate = new Date();
         projects = new ArrayList<>();
         projectEmployeesMap = new ConcurrentHashMap<>();
-        logger.debug("A new game has started with {} players.", players.size());
+        logger.info("A new game has started with {} players.", players.size());
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
@@ -91,7 +93,7 @@ public class Game {
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
         if (timeElapsedInMilliseconds >= 2) {
-            logger.debug("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+            logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
 
     }
@@ -178,6 +180,24 @@ public class Game {
                     }
                 }
 
+                GameOverStats goStats = new GameOverStats();
+                goStats.setDeliveredProjects(deliveredProjects);
+                goStats.setProjectsVolume(projectsVolume);
+                goStats.setPlayerName(player.getName());
+                goStats.setFinishedAt(new Date());
+                goStats.setGameId(String.valueOf(this.hashCode()));
+                goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
+                goStats.setSurvivedDays(this.getCurrentTick());
+
+                try (Session session = this.gameServer.sessionFactory.openSession()) {
+                    session.beginTransaction();
+                    session.save(goStats);
+                    session.getTransaction().commit();
+                    session.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 stats.put("deliveredProjects", deliveredProjects);
                 stats.put("projectsVolume", projectsVolume);
                 gameOverEvent.setPayload(stats);
@@ -187,9 +207,24 @@ public class Game {
                 // Tell game server to move player back to lobby
                 gameServer.addPlayer(webSocket, player);
 
+                // Check if there's a new high-score and broadcast updates in lobby
+                if (isNewHighScore(goStats)) {
+                    gameServer.setNewHighScore(goStats);
+                }
+
                 kickPlayer(webSocket);
             }
         });
+    }
+
+    private boolean isNewHighScore(GameOverStats highScoreCandidate) {
+        GameOverStats highScore;
+
+        // Check database to see if this is a new high-score
+        highScore = gameServer.getCurrentHighScore();
+        if (highScore == null) return false;
+
+        return (highScoreCandidate.getProjectsVolume() >= highScore.getProjectsVolume());
     }
 
     private void randomlySpawnProjectTendersPerTick() {

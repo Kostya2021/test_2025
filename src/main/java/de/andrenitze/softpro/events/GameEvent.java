@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 import de.andrenitze.softpro.types.EventType;
 
 public class GameEvent<T> extends AbstractGameEvent {
-    @SerializedName(value = "payload", alternate = {"player", "tender", "project", "employee", "tenderId"})
+    @SerializedName(value = "payload", alternate = {"player", "tender", "project", "employee", "tenderId", "gameOverStats"})
     private T payload;
 
     public GameEvent(EventType eventType) {

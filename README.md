@@ -19,4 +19,6 @@ See test folder
 ### Load Tests
 1) Install Artillery: ```npm install -g artillery```
 2) Check the target URL of the running server in the config: ```/test/loadtest.yml```.
-3) Start the load test: ```artillery run test\loadtest.yml```
+3) Start the load test: ```artillery run test\loadtest.yml -o loadTestResults.json```
+4) (Optional) Generate HTML report: ```artillery report loadTestResults.json``` 
+F

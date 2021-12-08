@@ -1,16 +1,21 @@
 config:
-    target: "ws://172.17.252.65/lobby"
-    phases:
-      - duration: 20  # Test for 20 seconds
-        arrivalRate: 10 # Every second, add y users
-        rampTo: 100 # Ramp it up to x users over the "duration"
-        name: "Ramping up the load"
-    ws:
-      # Ignore SSL certificate errors
-      # - useful in *development* with self-signed certs
-      rejectUnauthorized: false
+  target: "ws://172.16.36.2:8070"
+  phases:
+    - duration: 20  # Test for 20 seconds
+      arrivalRate: 4 # Every second, add y users
+      rampTo: 20 # Ramp it up to x users over the "duration"
+      name: "Ramping up the load"
+  ws:
+    # Ignore SSL certificate errors
+    # - useful in *development* with self-signed certs
+    rejectUnauthorized: false
 scenarios:
-  - engine: "ws"
+  - name: Basic Game Engine Load Test
+    engine: "ws"
     flow:
-      - send: '{"type": "NEW_PLAYER", "player": {"name": "Rob the Bot", "company": "Robotic Enterprises"}}'
+      #      - send:
+      #          type: "NEW_PLAYER"
+      #          player:
+      #            name: "Rob the Bot"
+      #            company: "Robotic Enterprises"
       - think: 30 # Let the game engine run for a while
