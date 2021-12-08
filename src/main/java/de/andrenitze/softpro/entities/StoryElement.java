@@ -1,9 +1,15 @@
 package de.andrenitze.softpro.entities;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIdentityReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 public class StoryElement {
     @JsonProperty
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
+    @JsonIdentityReference(alwaysAsId = true)
     private Integer id;
 
     @JsonProperty
@@ -38,5 +44,9 @@ public class StoryElement {
 
     public Integer getId() {
         return id;
+    }
+
+    public String[] getLines() {
+        return lines;
     }
 }

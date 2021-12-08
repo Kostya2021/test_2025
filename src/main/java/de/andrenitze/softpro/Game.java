@@ -35,7 +35,7 @@ public class Game {
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private static final Gson GSON = new Gson();
-    private final ArrayList<StoryElement> storyElements;
+    private ArrayList<StoryElement> storyElements;
 
     // Every GameServer can host multiple Games
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
@@ -49,8 +49,7 @@ public class Game {
         projectEmployeesMap = new ConcurrentHashMap<>();
         logger.info("A new game has started with {} players.", players.size());
 
-        // Load all story elements into memory
-        storyElements = loadStoryElements();
+        loadStoryElementsFromFile();
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
@@ -72,12 +71,10 @@ public class Game {
 
     }
 
-    private ArrayList<StoryElement> loadStoryElements() {
-        final ArrayList<StoryElement> storyElements;
+    private void loadStoryElementsFromFile() {
         StoryElements elements = new StoryElements();
         elements.loadStoryElementsFromYamlFile();
-        storyElements = elements.getStoryElements();
-        return storyElements;
+        this.storyElements = elements.getStoryElements();
     }
 
     private void progressGameTime() {
@@ -112,6 +109,14 @@ public class Game {
     }
 
     private void sendStoryElementsPerTick() {
+        // See if there's a story element for today
+        this.storyElements.forEach(storyElement -> {
+            if (storyElement.getEarliestOccurrence() == currentTick) {
+                // If yes, send it to the players
+                logger.info(Arrays.toString(storyElement.getLines()));
+            }
+        });
+
         players.forEach((webSocket, player) -> {
             GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
             List<StoryElement> allStoryElements;
