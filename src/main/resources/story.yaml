@@ -1,6 +1,6 @@
 storyElements:
   - id: 1
-    avatar: advisor
+    avatar: ADVISOR
     earliestOccurrence: 1
     lines:
       - Congratulations to your promotion! Now let's show them how to get projects done, shall we?
@@ -8,13 +8,13 @@ storyElements:
       - There's lots of dialogue to write for this game and it ain't gonna write itself! Any ideas for a compelling plot that stretches across 7 levels and is about managing software projects?
       - No? Huh... too bad. Then let's just get into the groove and see what comes out.
   - id: 2
-    avatar: advisor
+    avatar: ADVISOR
     afterObjective: 1
     medium: MESSENGER
     lines:
       - Excellent work, as usual! 😃 \uD83D\uDE03
   - id: 3
-    avatar: bad-guy
+    avatar: BAD_GUY
     earliestOccurrence: 100
     lines:
       - Heyho! I'm the bad guy arriving in level 2! But I'm not doing anything yet. See you later, my friend...

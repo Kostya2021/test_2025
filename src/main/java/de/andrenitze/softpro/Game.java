@@ -1,7 +1,10 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
-import de.andrenitze.softpro.entities.*;
+import de.andrenitze.softpro.entities.GameOverStats;
+import de.andrenitze.softpro.entities.Objective;
+import de.andrenitze.softpro.entities.StoryElement;
+import de.andrenitze.softpro.entities.StoryElements;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
@@ -109,18 +112,40 @@ public class Game {
     }
 
     private void sendStoryElementsPerTick() {
-        // See if there's a story element for today
+        // Check if there's a story element for today
+        List<StoryElement> relevantStoryElements = new ArrayList<>();
         this.storyElements.forEach(storyElement -> {
             if (storyElement.getEarliestOccurrence() == currentTick) {
-                // If yes, send it to the players
-                logger.info(Arrays.toString(storyElement.getLines()));
+                relevantStoryElements.add(storyElement);
             }
         });
 
+        if (relevantStoryElements.size() == 0) {
+            return;
+        }
+
         players.forEach((webSocket, player) -> {
+            //ArrayList<Objective> activeObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
             GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
-            List<StoryElement> allStoryElements;
-            //newStoryElementEvent.setPayload();
+            List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
+
+            // Compile a list of all relevant story elements
+            relevantStoryElements.forEach(storyElement -> {
+                // Check if there are any required objectives before sending
+                if (storyElement.getAfterObjective() != 0) {
+                    player.getCompletedObjectives().forEach(objective -> {
+                        if (storyElement.getAfterObjective() == objective.getId()) {
+                            thisPlayersStoryElements.add(storyElement);
+                        }
+                    });
+                } else {
+                    thisPlayersStoryElements.add(storyElement);
+                }
+            });
+
+            // Send the compiled list to the player
+            newStoryElementEvent.setPayload(thisPlayersStoryElements);
+            sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
         });
     }
 
