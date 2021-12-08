@@ -1,8 +1,7 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
-import de.andrenitze.softpro.entities.GameOverStats;
-import de.andrenitze.softpro.entities.Objective;
+import de.andrenitze.softpro.entities.*;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
@@ -36,6 +35,7 @@ public class Game {
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private static final Gson GSON = new Gson();
+    private final ArrayList<StoryElement> storyElements;
 
     // Every GameServer can host multiple Games
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
@@ -48,6 +48,9 @@ public class Game {
         projects = new ArrayList<>();
         projectEmployeesMap = new ConcurrentHashMap<>();
         logger.info("A new game has started with {} players.", players.size());
+
+        // Load all story elements into memory
+        storyElements = loadStoryElements();
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
@@ -66,6 +69,15 @@ public class Game {
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
         }, 0, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
+
+    }
+
+    private ArrayList<StoryElement> loadStoryElements() {
+        final ArrayList<StoryElement> storyElements;
+        StoryElements elements = new StoryElements();
+        elements.loadStoryElementsFromYamlFile();
+        storyElements = elements.getStoryElements();
+        return storyElements;
     }
 
     private void progressGameTime() {
@@ -88,6 +100,7 @@ public class Game {
         spawnObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
         updateEmployeeStatePerTick();
+        sendStoryElementsPerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -96,6 +109,14 @@ public class Game {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
 
+    }
+
+    private void sendStoryElementsPerTick() {
+        players.forEach((webSocket, player) -> {
+            GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
+            List<StoryElement> allStoryElements;
+            //newStoryElementEvent.setPayload();
+        });
     }
 
     private void updateEmployeeStatePerTick() {
