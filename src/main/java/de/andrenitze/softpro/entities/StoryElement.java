@@ -22,7 +22,7 @@ public class StoryElement {
      * Will not spawn before that day, even if requirements are met.
      */
     @JsonProperty
-    public int earliestOccurrence;
+    public int earliestOccurrence = 1;
 
     /**
      * Line will be shown after the referenced objective is completed.
@@ -39,6 +39,8 @@ public class StoryElement {
 
     @JsonProperty
     private String[] lines;
+
+    private boolean sent;
 
     public int getEarliestOccurrence() {
         return earliestOccurrence;
@@ -62,5 +64,13 @@ public class StoryElement {
 
     public AvatarType getAvatar() {
         return avatar;
+    }
+
+    public boolean isSent() {
+        return sent;
+    }
+
+    public void setSent(boolean sent) {
+        this.sent = sent;
     }
 }

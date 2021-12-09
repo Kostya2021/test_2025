@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 import static java.lang.Math.exp;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 250;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 200;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
@@ -114,9 +114,11 @@ public class Game {
     private void sendStoryElementsPerTick() {
         // Check if there's a story element for today
         List<StoryElement> relevantStoryElements = new ArrayList<>();
-        this.storyElements.forEach(storyElement -> {
-            if (storyElement.getEarliestOccurrence() == currentTick) {
-                relevantStoryElements.add(storyElement);
+        this.storyElements.forEach(element -> {
+            // Relevant = Has not been sent AND (is scheduled earliest for this tick OR has an objective precondition)
+            if (!element.isSent() && (element.getEarliestOccurrence() == currentTick ||
+                    element.getAfterObjective() != 0)) {
+                relevantStoryElements.add(element);
             }
         });
 
@@ -132,10 +134,12 @@ public class Game {
             // Compile a list of all relevant story elements
             relevantStoryElements.forEach(storyElement -> {
                 // Check if there are any required objectives before sending
+                ArrayList<Objective> completedObjectives = player.getCompletedObjectives();
                 if (storyElement.getAfterObjective() != 0) {
-                    player.getCompletedObjectives().forEach(objective -> {
+                    completedObjectives.forEach(objective -> {
                         if (storyElement.getAfterObjective() == objective.getId()) {
                             thisPlayersStoryElements.add(storyElement);
+                            storyElement.setSent(true);
                         }
                     });
                 } else {
@@ -143,9 +147,11 @@ public class Game {
                 }
             });
 
-            // Send the compiled list to the player
-            newStoryElementEvent.setPayload(thisPlayersStoryElements);
-            sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
+            if (thisPlayersStoryElements.size() != 0) {
+                // Send the compiled list to the player
+                newStoryElementEvent.setPayload(thisPlayersStoryElements);
+                sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
+            }
         });
     }
 

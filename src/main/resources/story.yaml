@@ -1,7 +1,6 @@
 storyElements:
   - id: 1
     avatar: ADVISOR
-    earliestOccurrence: 1
     lines:
       - Congratulations to your promotion! Now let's show them how to get projects done, shall we?
       - 😃 \uD83D\uDE03
