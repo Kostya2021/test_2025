@@ -54,13 +54,12 @@ public class GameServer extends WebSocketServer {
 
         try {
             sessionFactory = new MetadataSources(registry).buildMetadata().buildSessionFactory();
+            this.dailyHighScore = getCurrentHighScore();
+            if (this.dailyHighScore != null) {
+                logger.info("Current high-score fetched from database");
+            }
         } catch (Exception e) {
             StandardServiceRegistryBuilder.destroy(registry);
-        }
-
-        this.dailyHighScore = getCurrentHighScore();
-        if (this.dailyHighScore != null) {
-            logger.info("Current high-score fetched from database");
         }
     }
 
