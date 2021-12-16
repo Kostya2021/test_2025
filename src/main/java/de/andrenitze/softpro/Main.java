@@ -10,7 +10,7 @@ public class Main {
 
     public static void main(String[] args) {
         logger.trace("Starting server...");
-        int port = 8070;
+        int port = 80;
         try {
             GameServer server = new GameServer(InetAddress.getLocalHost().getHostAddress(), port);
             logger.info(InetAddress.getLocalHost().getHostAddress()+":"+port);
