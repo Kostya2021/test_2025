@@ -3,3 +3,7 @@
 logs
 softpro.iml
 target
+/simulation-java-backend.iml
+/out/artifacts/MeinSpiel_jar/MeinSpiel.jar
+/loadTestResults.json
+/loadTestResults.json.html

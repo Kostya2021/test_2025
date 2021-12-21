@@ -3,6 +3,8 @@ package de.andrenitze.softpro;
 import com.google.gson.Gson;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.Objective;
+import de.andrenitze.softpro.entities.StoryElement;
+import de.andrenitze.softpro.entities.StoryElements;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
@@ -22,7 +24,7 @@ import java.util.stream.Collectors;
 import static java.lang.Math.exp;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 250;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 200;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
     private static final String EARNED_VALUE = "earnedValue";
@@ -36,6 +38,7 @@ public class Game {
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private static final Gson GSON = new Gson();
+    private ArrayList<StoryElement> storyElements;
 
     // Every GameServer can host multiple Games
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
@@ -48,6 +51,8 @@ public class Game {
         projects = new ArrayList<>();
         projectEmployeesMap = new ConcurrentHashMap<>();
         logger.info("A new game has started with {} players.", players.size());
+
+        loadStoryElementsFromFile();
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
@@ -66,6 +71,13 @@ public class Game {
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
         }, 0, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
+
+    }
+
+    private void loadStoryElementsFromFile() {
+        StoryElements elements = new StoryElements();
+        elements.loadStoryElementsFromYamlFile();
+        this.storyElements = elements.getStoryElements();
     }
 
     private void progressGameTime() {
@@ -88,6 +100,7 @@ public class Game {
         spawnObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
         updateEmployeeStatePerTick();
+        sendStoryElementsPerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -96,6 +109,50 @@ public class Game {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
 
+    }
+
+    private void sendStoryElementsPerTick() {
+        // Check if there's a story element for today
+        List<StoryElement> relevantStoryElements = new ArrayList<>();
+        this.storyElements.forEach(element -> {
+            // Relevant = Has not been sent AND (is scheduled earliest for this tick OR has an objective precondition)
+            if (!element.isSent() && (element.getEarliestOccurrence() == currentTick ||
+                    element.getAfterObjective() != 0)) {
+                relevantStoryElements.add(element);
+            }
+        });
+
+        if (relevantStoryElements.size() == 0) {
+            return;
+        }
+
+        players.forEach((webSocket, player) -> {
+            //ArrayList<Objective> activeObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+            GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
+            List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
+
+            // Compile a list of all relevant story elements
+            relevantStoryElements.forEach(storyElement -> {
+                // Check if there are any required objectives before sending
+                ArrayList<Objective> completedObjectives = player.getCompletedObjectives();
+                if (storyElement.getAfterObjective() != 0) {
+                    completedObjectives.forEach(objective -> {
+                        if (storyElement.getAfterObjective() == objective.getId()) {
+                            thisPlayersStoryElements.add(storyElement);
+                            storyElement.setSent(true);
+                        }
+                    });
+                } else {
+                    thisPlayersStoryElements.add(storyElement);
+                }
+            });
+
+            if (thisPlayersStoryElements.size() != 0) {
+                // Send the compiled list to the player
+                newStoryElementEvent.setPayload(thisPlayersStoryElements);
+                sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
+            }
+        });
     }
 
     private void updateEmployeeStatePerTick() {

@@ -149,4 +149,14 @@ public class Player {
         });
         return allActiveObjectives;
     }
+
+    public ArrayList<Objective> getCompletedObjectives() {
+        ArrayList<Objective> completedObjectives = new ArrayList<>();
+        getObjectives().forEach(objective -> {
+            if (objective.isCompleted()) {
+                completedObjectives.add(objective);
+            }
+        });
+        return completedObjectives;
+    }
 }

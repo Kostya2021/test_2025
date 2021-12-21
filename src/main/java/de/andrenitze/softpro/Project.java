@@ -75,7 +75,8 @@ public class Project {
      * @return Project
      */
     static Project generateRandomProject() {
-        return new Project(generateProjectName(), generateVolume(), RANDOM.nextBoolean());
+        boolean hasTender = (Math.round(RANDOM.nextFloat()+0.4) < 1);
+        return new Project(generateProjectName(), generateVolume(), hasTender);
     }
 
     private static int generateVolume() {
