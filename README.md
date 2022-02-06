@@ -12,6 +12,11 @@ To build a ```*.jar``` with all dependencies in the "/target" folder:
 
 The server will be waiting for incoming connection requests via HTTP port 80. It will upgrade all valid requests to a WebSocket connection (HTTP 101 - Switching Protocols) on the same port.
 
+## Development
+Generate TypeScript interfaces in *target/typescript-generator*:
+
+```mvn typescript-generator:generate```
+
 ## Test Suite
 ### Unit Tests
 See test folder
@@ -20,5 +25,4 @@ See test folder
 1) Install Artillery: ```npm install -g artillery```
 2) Check the target URL of the running server in the config: ```/test/loadtest.yml```.
 3) Start the load test: ```artillery run test\loadtest.yml -o loadTestResults.json```
-4) (Optional) Generate HTML report: ```artillery report loadTestResults.json``` 
-F
+4) (Optional) Generate HTML report: ```artillery report loadTestResults.json```

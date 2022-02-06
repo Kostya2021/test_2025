@@ -71,7 +71,7 @@ public class GameServer extends WebSocketServer {
 
         // Return generated player to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-        playerUpdateEvent.setEventType(EventType.UPDATE_PLAYER);
+        playerUpdateEvent.setType(EventType.UPDATE_PLAYER);
         playerUpdateEvent.setPayload(generatedPlayer);
         webSocket.send(GSON.toJson(playerUpdateEvent));
 
@@ -132,7 +132,7 @@ public class GameServer extends WebSocketServer {
             // Start a new game session if enough players are waiting in the lobby
             if (playersAndTheirConnections.size() >= PLAYERS_NEEDED_FOR_GAME_START) {
                 GameEvent<Object> startEvent = new GameEvent<>();
-                startEvent.setEventType(EventType.START_ROUND);
+                startEvent.setType(EventType.START_ROUND);
                 broadcast(GSON.toJson(startEvent));
 
                 // Create a new game on this server with players from the lobby
@@ -167,7 +167,7 @@ public class GameServer extends WebSocketServer {
             anonymizedHighScore.setFinishedAt(dailyHighScore.getFinishedAt());
         }
 
-        broadcast("{ \"type\": \"UPDATE_LOBBY\", \"payload\": { \"players\": " + playersList +
+        broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { \"players\": " + playersList +
                 ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
     }
 

@@ -279,17 +279,51 @@
                         </deployment>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.1</version>
+                    <configuration>
+                        <source>9</source>
+                        <target>9</target>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>cz.habarta.typescript-generator</groupId>
+                    <artifactId>typescript-generator-maven-plugin</artifactId>
+                    <version>2.34.976</version>
+                    <executions>
+                        <execution>
+                            <id>generate</id>
+                            <goals>
+                                <goal>generate</goal>
+                            </goals>
+                            <phase>process-classes</phase>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <jsonLibrary>jackson2</jsonLibrary>
+                        <classes>
+                            <class>de.andrenitze.softpro.events.AbstractGameEvent</class>
+                            <class>de.andrenitze.softpro.events.GameEvent</class>
+                            <class>de.andrenitze.softpro.entities.Objective</class>
+                            <class>de.andrenitze.softpro.entities.GameOverStats</class>
+                            <class>de.andrenitze.softpro.entities.Objectives</class>
+                            <class>de.andrenitze.softpro.entities.StoryElement</class>
+                            <class>de.andrenitze.softpro.entities.StoryElements</class>
+                            <class>de.andrenitze.softpro.Player</class>
+                            <class>de.andrenitze.softpro.Employee</class>
+                            <class>de.andrenitze.softpro.Project</class>
+                            <class>de.andrenitze.softpro.types.AvatarType</class>
+                            <class>de.andrenitze.softpro.types.EventType</class>
+                            <class>de.andrenitze.softpro.types.ProjectType</class>
+                            <class>de.andrenitze.softpro.types.DeliveryMediumType</class>
+                            <class>de.andrenitze.softpro.types.RiskLevel</class>
+                        </classes>
+                        <outputKind>module</outputKind>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>9</source>
-                    <target>9</target>
-                </configuration>
-            </plugin>
-        </plugins>
     </build>
 </project>

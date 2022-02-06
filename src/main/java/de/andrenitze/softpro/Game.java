@@ -66,7 +66,7 @@ public class Game {
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
-            this.sendMessageToAllPlayers("{ \""+EVENT_TYPE+"\": \"T\", \"t\": " + getCurrentTick() + "}");
+            this.sendMessageToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+"\", \"payload\": " + getCurrentTick() + "}");
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
@@ -225,7 +225,7 @@ public class Game {
         players.forEach((webSocket, player) -> {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 GameEvent<HashMap<String, Integer>> gameOverEvent = new GameEvent<>();
-                gameOverEvent.setEventType(EventType.GAME_OVER);
+                gameOverEvent.setType(EventType.GAME_OVER);
 
                 int deliveredProjects = 0;
                 int projectsVolume = 0;

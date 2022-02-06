@@ -16,4 +16,6 @@ public enum EventType {
     PROJECT_UPDATED,
     UPDATE_PLAYER,
     NEW_STORY_ELEMENT,
+    UPDATE_LOBBY,
+    T,
 }

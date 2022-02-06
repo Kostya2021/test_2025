@@ -21,7 +21,7 @@ class GameEventHandler {
     void handleEvent(WebSocket websocket, String message) {
         GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
 
-        switch (event.getEventType()) {
+        switch (event.getType()) {
             case JOIN_TENDER:
                 // Fancy way to parse the "tenderId" int out of the message
                 Type payloadType = new TypeToken<GameEvent<Integer>>(){}.getType();
