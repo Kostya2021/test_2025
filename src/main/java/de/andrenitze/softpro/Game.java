@@ -54,6 +54,11 @@ public class Game {
 
         loadStoryElementsFromFile();
 
+        // Start the round for all players
+        GameEvent<Object> startEvent = new GameEvent<>();
+        startEvent.setType(EventType.ROUND_STARTED);
+        sendMessageToAllPlayers(GSON.toJson(startEvent));
+
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
             logger.debug("Sending initial state to players");

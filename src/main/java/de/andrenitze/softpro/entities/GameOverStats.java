@@ -11,13 +11,13 @@ public class GameOverStats {
     @Id
     @GeneratedValue()
     private UUID id;
-    private Integer deliveredProjects;
-    private Integer projectsVolume;
+    private Integer deliveredProjects = 0;
+    private Integer projectsVolume = 0;
     private String playerName;
     private String ipAddress;
     private Date finishedAt;
     private String gameId;
-    private Integer survivedDays;
+    private Integer survivedDays = 0;
 
     public UUID getId() {
         return id;

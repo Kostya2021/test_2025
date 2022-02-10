@@ -3,8 +3,8 @@ package de.andrenitze.softpro.types;
 public enum EventType {
     ASSIGN_EMPLOYEE,
     JOIN_TENDER,
-    START_GAME,
-    START_ROUND,
+    PLAYER_READY,
+    ROUND_STARTED,
     UNASSIGN_EMPLOYEE,
     GAME_OVER,
     UPDATE_STATE,

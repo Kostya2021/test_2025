@@ -32,6 +32,9 @@ public class Player {
     @JsonIgnore
     private final ArrayList<Objective> objectives;
 
+    @JsonIgnore
+    private boolean ready;
+
     Player() {
         this(generatePlayerName(), generateCompanyName());
     }
@@ -59,6 +62,7 @@ public class Player {
         this.id = UUID.randomUUID();
         this.name = name;
         this.company = company;
+        this.ready = false;
 
         employees.add(new Employee());
         employees.add(new Employee());
@@ -158,5 +162,13 @@ public class Player {
             }
         });
         return completedObjectives;
+    }
+
+    public boolean isReady() {
+        return ready;
+    }
+
+    public void setReady(boolean ready) {
+        this.ready = ready;
     }
 }
