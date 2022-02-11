@@ -166,7 +166,7 @@ public class Game {
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
         players.forEach((webSocket, player) -> {
-            GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
+            GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
             List<Objective> allActiveObjectives;
 
             // Calculate progress for all active objectives
@@ -202,7 +202,7 @@ public class Game {
         players.forEach((webSocket, player) -> {
             List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(currentTick);
             if (!newObjectivesInThisTick.isEmpty()) {
-                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.UPDATE_OBJECTIVES);
+                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                 List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
                 objectivesUpdatedEvent.setPayload(allActiveObjectives);
                 sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
@@ -222,8 +222,7 @@ public class Game {
     private void sendFundsUpdateToPlayer(Player player) {
         GameEvent<Double> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
         newFundsEvent.setPayload(player.getFunds());
-        String json = GSON.toJson(newFundsEvent);
-        sendMessageToPlayer(player, json);
+        sendMessageToPlayer(player, GSON.toJson(newFundsEvent));
     }
 
     private void checkGameOverConditionsAndKickPlayersPerTick() {
@@ -298,13 +297,12 @@ public class Game {
             // Initialize project-employee map
             projectEmployeesMap.put(project, new ArrayList<>());
 
-            // Inform players of new project
-            JSONObject newTenderEvent = new JSONObject();
-            newTenderEvent.put(EVENT_TYPE, EventType.NEW_TENDER);
-
-            // Serialize a project as JSON string
-            newTenderEvent.put("tender", new JSONObject(GSON.toJson(project)));
-            sendMessageToAllPlayers(newTenderEvent.toString());
+            // Inform players about the new tender
+            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
+            newTenderEvent.setPayload(project);
+            logger.debug(String.valueOf(newTenderEvent));
+            logger.debug(GSON.toJson(newTenderEvent));
+            sendMessageToAllPlayers(GSON.toJson(newTenderEvent));
         }
     }
 
