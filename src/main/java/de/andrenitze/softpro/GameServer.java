@@ -70,7 +70,7 @@ public class GameServer extends WebSocketServer {
 
         // Return generated player to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-        playerUpdateEvent.setType(EventType.UPDATE_PLAYER);
+        playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(generatedPlayer);
         webSocket.send(GSON.toJson(playerUpdateEvent));
 
@@ -177,7 +177,7 @@ public class GameServer extends WebSocketServer {
 
         // Anonymize highscore before sending
         GameOverStats anonymizedHighScore = new GameOverStats();
-        if (dailyHighScore != null && anonymizedHighScore.getDeliveredProjects() > 0) {
+        if (dailyHighScore != null && dailyHighScore.getDeliveredProjects() > 0) {
             anonymizedHighScore.setPlayerName(dailyHighScore.getPlayerName());
             anonymizedHighScore.setDeliveredProjects(dailyHighScore.getDeliveredProjects());
             anonymizedHighScore.setProjectsVolume(dailyHighScore.getProjectsVolume());

@@ -27,7 +27,6 @@ public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 200;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
-    private static final String EARNED_VALUE = "earnedValue";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
@@ -132,7 +131,6 @@ public class Game {
         }
 
         players.forEach((webSocket, player) -> {
-            //ArrayList<Objective> activeObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
             GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
             List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
 
@@ -300,8 +298,6 @@ public class Game {
             // Inform players about the new tender
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
             newTenderEvent.setPayload(project);
-            logger.debug(String.valueOf(newTenderEvent));
-            logger.debug(GSON.toJson(newTenderEvent));
             sendMessageToAllPlayers(GSON.toJson(newTenderEvent));
         }
     }
@@ -315,20 +311,12 @@ public class Game {
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
                     logger.debug("Found project {} with a deadline", project.getName());
-                    // Serialize project as JSONObject
-                    JSONObject projectObject = new JSONObject();
-                    projectObject.put("id", project.getId());
-                    projectObject.put("name", project.getName());
-                    projectObject.put("totalValue", project.getTotalValue());
-                    projectObject.put(EARNED_VALUE, project.getEarnedValue());
-                    projectObject.put("riskLevel", project.getRiskLevel());
 
                     // Inform winner with a confirmation message
-                    JSONObject wonTenderEvent = new JSONObject();
-                    wonTenderEvent.put(EVENT_TYPE, EventType.PROJECT);
-                    wonTenderEvent.put("project", projectObject);
-
-                    sendMessageToPlayer(project.getInvolvedPlayers().get(0), wonTenderEvent.toString());
+                    GameEvent<Project> wonTenderEvent = new GameEvent<>();
+                    wonTenderEvent.setType(EventType.PROJECT_RECEIVED);
+                    wonTenderEvent.setPayload(project);
+                    sendMessageToPlayer(project.getInvolvedPlayers().get(0), GSON.toJson(wonTenderEvent));
                 }
             } else if (project.getTenderDeadlineInDays() != 0 && project.getTenderDeadlineInDays() != -1) {
                 // Regular case: Just decrease the time left for tender participation
@@ -339,10 +327,9 @@ public class Game {
 
     public void immediatelyHideAcceptedProject(Project project) {
         if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
-            JSONObject closeTenderEvent = new JSONObject();
-            closeTenderEvent.put(EVENT_TYPE, EventType.CLOSE_TENDER);
-            closeTenderEvent.put("id", project.getId());
-            sendMessageToAllPlayers(closeTenderEvent.toString());
+            GameEvent<Integer> closeTenderEvent = new GameEvent<>(EventType.TENDER_CLOSED);
+            closeTenderEvent.setPayload(project.getId());
+            sendMessageToAllPlayers(GSON.toJson(closeTenderEvent));
 
             // Make it appear in the next evaluation of assignProjectsPerTick()
             project.setTenderDeadlineInDays(0);
@@ -386,18 +373,17 @@ public class Game {
                 }
             }
 
-            // Build event for new project state
+            // Build a small custom event to just send new project progress
             JSONObject projectObject = new JSONObject();
             projectObject.put("id", project.getId());
-            projectObject.put(EARNED_VALUE, project.getEarnedValue());
+            projectObject.put("earnedValue", project.getEarnedValue());
 
             JSONObject event = new JSONObject();
             event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
-            event.put("project", projectObject);
+            event.put("payload", projectObject);
 
             // Send update to all involved players
-            List<Player> involvedPlayers = project.getInvolvedPlayers();
-            for (Player player : involvedPlayers) {
+            for (Player player : project.getInvolvedPlayers()) {
                 sendMessageToPlayer(player, event.toString());
             }
         }

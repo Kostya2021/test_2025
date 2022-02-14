@@ -32,7 +32,7 @@ Configutation:
       AppenderRef:
         - ref: Console_Appender
     Logger:
-      - name: guru.springframework.blog.log4j2yaml
+      - name: de.andrenitze.log4j2yaml
         additivity: false
         level: debug
         AppenderRef:
