@@ -2,17 +2,41 @@ storyElements:
   - id: 1
     avatar: ADVISOR
     lines:
-      - Congratulations to your promotion! Now let's show them how to get projects done, shall we?
-      - There's lots of dialogue to write for this game and it ain't gonna write itself! Any ideas for a compelling plot that stretches across 7 levels and is about managing software projects?
-      - No? Huh... too bad. Then let's just get into the groove and see what comes out.
+      - Congratulations to your new role as Junior Project Manager!
+      - Now let's show them how to get projects done, shall we?
+      - For a beginning, just ACCEPT some low-risk projects from the PROJECT MARKET!
   - id: 2
     avatar: ADVISOR
     afterObjective: 1
     medium: MESSENGER
     lines:
       - Excellent work! 😃👍
+      - The CEO is pleased with your bottom line. You received an additional 75K budget to build up your team!
   - id: 3
-    avatar: BAD_GUY
-    earliestOccurrence: 100
+    avatar: BADGUY
+    afterObjective: 1
+    earliestOccurrence: 150
     lines:
-      - Heyho! I'm the bad guy arriving in level 2! But I'm not doing anything yet. See you later, my friend...
+      - Ha! You think you're the best because you finished some easy-peasy projects, huh?
+      - Better watch your back...
+  - id: 4
+    avatar: ADVISOR
+    afterObjective: 1
+    earliestOccurrence: 170
+    lines:
+      - Being successful will always attract envious people.
+      - Don't worry! She probably won't do anything crazy to stop you. At least for now...
+  - id: 5
+    avatar: ADVISOR
+    earliestOccurrence: 500
+    lines:
+      - Hey! You still here?
+      - Seriously, you should get outside!
+  - id: 6
+    avatar: ADVISOR
+    earliestOccurrence: 700
+    lines:
+      - Nothing is happening here anymore, so...
+      - Maybe go back to the survey...?
+      - Yes, definitely go back to the survey, now!
+      - You've probably set a new high score already.
