@@ -28,7 +28,7 @@ Configutation:
           max: 30
   Loggers:
     Root:
-      level: debug
+      level: info
       AppenderRef:
         - ref: Console_Appender
     Logger:

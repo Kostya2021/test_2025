@@ -27,10 +27,10 @@ public class Player {
     private double funds = 50000;
 
     @JsonProperty
-    private final ArrayList<Employee> employees = new ArrayList<>();
+    private ArrayList<Employee> employees = new ArrayList<>();
 
     @JsonIgnore
-    private final ArrayList<Objective> objectives;
+    private ArrayList<Objective> objectives;
 
     @JsonIgnore
     private boolean ready;
@@ -170,5 +170,22 @@ public class Player {
 
     public void setReady(boolean ready) {
         this.ready = ready;
+    }
+
+    public void resetBeforeNewRound() {
+        setReady(false);
+        setFunds(50000);
+
+        this.employees = new ArrayList<>();
+        this.employees.add(new Employee());
+        this.employees.add(new Employee());
+
+        Objectives objectives = new Objectives();
+        objectives.loadObjectivesFromYamlFile();
+        this.objectives = objectives.getObjectives();
+    }
+
+    private void setFunds(int funds) {
+        this.funds = funds;
     }
 }
