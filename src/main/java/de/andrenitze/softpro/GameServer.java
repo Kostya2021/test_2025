@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
@@ -40,7 +41,7 @@ public class GameServer extends WebSocketServer {
      * Creates a GameServer instance to manage games and players
      *
      * @param hostname String  Host name (IP for clients to connect to)
-     * @param port int          Port number (default: 8887)
+     * @param port int          Port number
      */
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
@@ -64,7 +65,7 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
         // When a new WebSocket connection is opened, it's a player joining the lobby
-        logger.debug("Client {} connected", webSocket.getRemoteSocketAddress());
+        logger.info("Client {} connected", webSocket.getRemoteSocketAddress());
         Player generatedPlayer = new Player();
         playersAndTheirConnections.put(webSocket, generatedPlayer);
 
@@ -76,7 +77,7 @@ public class GameServer extends WebSocketServer {
 
         broadcastPlayerList();
 
-        logger.debug("New player '{}' added. New number of players in lobby: {}",
+        logger.info("New player '{}' added. New number of players in lobby: {}",
                 generatedPlayer.getName(),
                 playersAndTheirConnections.size());
     }
@@ -88,13 +89,10 @@ public class GameServer extends WebSocketServer {
 
         // Remove disconnected clients from all running games
         for (Game game : games) {
-            game.kickPlayer(webSocket);
+            game.removePlayerFromGame(webSocket);
             logger.debug("A player left the game ({} players are left in the game)", game.getPlayers().size());
 
-            // Close the game session if this was the last player
-            if (game.getPlayers().size() == 0) {
-                logger.info("Shutting down empty game.");
-                game.shutdown();
+            if (game.closeIfEmpty()) {
                 games.remove(game);
                 logger.info("Running games: {}", games.size());
             }
@@ -153,14 +151,14 @@ public class GameServer extends WebSocketServer {
                     if (readyPlayersAndTheirConnections.size() == PLAYERS_NEEDED_FOR_GAME_START) {
                         // Create a new game instance on this server for this group of ready players
                         games.add(new Game(readyPlayersAndTheirConnections, this));
-                        logger.debug("Running games: {}", games.size());
-                        logger.debug("Players in the lobby: {}", playersAndTheirConnections.size());
+                        logger.info("Running games: {}", games.size());
+                        logger.info("Players in the lobby: {}", playersAndTheirConnections.size());
                         broadcastPlayerList();
                     }
                 }
             }
-        } catch (JSONException e) {
-            logger.error(e.toString());
+        } catch (JSONException | JsonSyntaxException e) {
+            logger.error("Received invalid websocket message: {}", e.getMessage());
         }
     }
 
@@ -208,7 +206,7 @@ public class GameServer extends WebSocketServer {
         logger.info("Server started successfully");
     }
 
-    void addPlayer(WebSocket webSocket, Player player) {
+    void addPlayerToLobby(WebSocket webSocket, Player player) {
         playersAndTheirConnections.put(webSocket, player);
         broadcastPlayerList();
     }

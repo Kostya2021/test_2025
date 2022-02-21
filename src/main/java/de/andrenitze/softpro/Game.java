@@ -263,15 +263,19 @@ public class Game {
 
                 sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
 
+                // Keep connection and name but reset other player attributes
+                player.resetBeforeNewRound();
+
                 // Tell game server to move player back to lobby
-                gameServer.addPlayer(webSocket, player);
+                gameServer.addPlayerToLobby(webSocket, player);
 
                 // Check if there's a new high-score and broadcast updates in lobby
                 if (isNewHighScore(goStats)) {
                     gameServer.setNewHighScore(goStats);
                 }
 
-                kickPlayer(webSocket);
+                // Remove player from the current game
+                removePlayerFromGame(webSocket);
             }
         });
     }
@@ -487,22 +491,14 @@ public class Game {
         return currentTick;
     }
 
-    void kickPlayer(WebSocket conn) {
+    void removePlayerFromGame(WebSocket conn) {
         players.remove(conn);
-
-        // Close game session if this was the last player
-        if (players.size() == 0) {
-            shutdown();
-        }
+        closeIfEmpty();
     }
+
 
     Map<WebSocket, Player> getPlayers() {
         return players;
-    }
-
-    void shutdown() {
-        gameServer = null;
-        gameLoop.shutdownNow();
     }
 
     boolean hasWebSocket(WebSocket conn) {
@@ -567,5 +563,17 @@ public class Game {
             projectEmployeesMap.put(project, employees);
             logger.debug("{} unassigned from {}", employee.getName(), project.getName());
         }
+    }
+
+    public boolean closeIfEmpty() {
+        // Close game session if this was the last player
+        if (players.size() == 0) {
+            logger.info("Shutting down empty game.");
+
+            gameServer = null;
+            gameLoop.shutdownNow();
+            return true;
+        }
+        return false;
     }
 }

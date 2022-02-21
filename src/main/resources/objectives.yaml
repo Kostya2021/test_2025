@@ -4,5 +4,5 @@ objectives:
     order: 1
     totalSteps: 10
     mission: "Getting Started"
-    earliestOccurrence: 25
+    earliestOccurrence: 15
     rewardFunds: 75000
