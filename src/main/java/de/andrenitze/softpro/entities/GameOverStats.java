@@ -13,6 +13,7 @@ public class GameOverStats {
     private UUID id;
     private Integer deliveredProjects = 0;
     private Integer projectsVolume = 0;
+    private String report = "";
     private String playerName;
     private String ipAddress;
     private Date finishedAt;
@@ -81,5 +82,13 @@ public class GameOverStats {
 
     public void setSurvivedDays(Integer survivedDays) {
         this.survivedDays = survivedDays;
+    }
+
+    public String getReport() {
+        return report;
+    }
+
+    public void setReport(String report) {
+        this.report = report;
     }
 }
