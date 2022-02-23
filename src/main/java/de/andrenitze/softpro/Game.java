@@ -70,7 +70,8 @@ public class Game {
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
-            this.sendMessageToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+"\", \"payload\": " + getCurrentTick() + "}");
+            this.sendMessageToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
+                    "\", \"payload\": " + getCurrentTick() + "}");
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
@@ -225,13 +226,24 @@ public class Game {
 
     private void checkGameOverConditionsAndKickPlayersPerTick() {
         players.forEach((webSocket, player) -> {
+            boolean gameIsOver = false;
+            boolean playerHasWon = false;
+
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
-                GameEvent<HashMap<String, Integer>> gameOverEvent = new GameEvent<>();
-                gameOverEvent.setType(EventType.GAME_OVER);
+                // Game Over condition #1: Bankruptcy
+                gameIsOver = true;
+            } else if (player.getObjectives().size() != 0 &&
+                    player.getObjectives().size() == player.getCompletedObjectives().size()) {
+                // Game Over condition #2: All objectives completed
+                gameIsOver = true;
+                playerHasWon = true;
+            }
+
+            if (gameIsOver) {
+                GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
 
                 int deliveredProjects = 0;
                 int projectsVolume = 0;
-                HashMap<String, Integer> stats = new HashMap<>();
                 for (Project project: this.getProjects()) {
                     if (project.isCompleted() && project.playerWasInvolved(player)) {
                         deliveredProjects++;
@@ -242,11 +254,29 @@ public class Game {
                 GameOverStats goStats = new GameOverStats();
                 goStats.setDeliveredProjects(deliveredProjects);
                 goStats.setProjectsVolume(projectsVolume);
+                goStats.setSurvivedDays(this.getCurrentTick());
+
+                if (playerHasWon) {
+                    goStats.setReport("Great work! You succeeded to manage the company through rough times!\n\n" +
+                            "Here's your performance report:");
+                } else {
+                    goStats.setReport("Yikes! That didn't go well...\nYou ran out of money!");
+                }
+
+                gameOverEvent.setPayload(goStats);
+                sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
+
+                // Keep connection and name but reset other player attributes
+                player.resetBeforeNewRound();
+
+                // Tell game server to move player back to lobby
+                gameServer.addPlayerToLobby(webSocket, player);
+
+                // Complete the infos for the database
                 goStats.setPlayerName(player.getName());
                 goStats.setFinishedAt(new Date());
                 goStats.setGameId(String.valueOf(this.hashCode()));
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
-                goStats.setSurvivedDays(this.getCurrentTick());
 
                 try (Session session = this.gameServer.sessionFactory.openSession()) {
                     session.beginTransaction();
@@ -256,18 +286,6 @@ public class Game {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
-                stats.put("deliveredProjects", deliveredProjects);
-                stats.put("projectsVolume", projectsVolume);
-                gameOverEvent.setPayload(stats);
-
-                sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
-
-                // Keep connection and name but reset other player attributes
-                player.resetBeforeNewRound();
-
-                // Tell game server to move player back to lobby
-                gameServer.addPlayerToLobby(webSocket, player);
 
                 // Check if there's a new high-score and broadcast updates in lobby
                 if (isNewHighScore(goStats)) {
@@ -368,10 +386,12 @@ public class Game {
                 for (ProjectType type : ProjectType.values()) {
                     for (Employee employee : employees) {
                         if (employee.getExperienceInDaysByProjectType(project.getType()) > 0) {
-                            logger.debug("{}'s {} XP: {} days", employee.getName(), type, employee.getExperienceInDaysByProjectType(type));
+                            logger.debug("{}'s {} XP: {} days", employee.getName(), type,
+                                    employee.getExperienceInDaysByProjectType(type));
                         }
                         if (employee.getExperienceInDaysByProjectDomain(project.getDomain()) > 0) {
-                            logger.debug("{}'s {} Domain XP: {} days", employee.getName(), project.getDomain(), employee.getExperienceInDaysByProjectDomain(project.getDomain()));
+                            logger.debug("{}'s {} Domain XP: {} days", employee.getName(), project.getDomain(),
+                                    employee.getExperienceInDaysByProjectDomain(project.getDomain()));
                         }
                     }
                 }
@@ -495,7 +515,6 @@ public class Game {
         players.remove(conn);
         closeIfEmpty();
     }
-
 
     Map<WebSocket, Player> getPlayers() {
         return players;
