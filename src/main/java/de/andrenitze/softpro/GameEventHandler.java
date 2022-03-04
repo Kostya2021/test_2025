@@ -1,8 +1,11 @@
 package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.serialization.ProjectPartyExclusionStrategy;
+import de.andrenitze.softpro.types.EventType;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
@@ -35,8 +38,17 @@ class GameEventHandler {
                             Player player = game.getPlayerByWebSocket(websocket);
                             project.addParty(player);
 
+                            // Broadcast this player's participation in the tender
+                            Gson gson = new GsonBuilder()
+                                    .setExclusionStrategies(new ProjectPartyExclusionStrategy())
+                                    .create();
+                            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                            projectUpdatedEvent.setPayload(project);
+                            game.sendMessageToAllPlayers(gson.toJson(projectUpdatedEvent));
+
+                            // If there is no tender, just assign it
                             if (project.hasNoTenderProcess()) {
-                                game.immediatelyHideAcceptedProject(project);
+                                game.immediatelyCloseTender(project);
                             }
                             break;
                         }

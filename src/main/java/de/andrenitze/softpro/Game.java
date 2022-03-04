@@ -347,7 +347,7 @@ public class Game {
         }
     }
 
-    public void immediatelyHideAcceptedProject(Project project) {
+    public void immediatelyCloseTender(Project project) {
         if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
             GameEvent<Integer> closeTenderEvent = new GameEvent<>(EventType.TENDER_CLOSED);
             closeTenderEvent.setPayload(project.getId());
@@ -476,7 +476,7 @@ public class Game {
         return numberOfProjects;
     }
 
-    private void sendMessageToAllPlayers(String message) {
+    protected void sendMessageToAllPlayers(String message) {
         // Send the message to all players
         players.forEach((webSocket, player) -> webSocket.send(message));
     }
