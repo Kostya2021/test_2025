@@ -14,6 +14,8 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -22,9 +24,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.Math.exp;
+import static java.time.LocalDate.now;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 200;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -32,7 +35,7 @@ public class Game {
     private final ConcurrentHashMap<WebSocket, Player> players;
     private final ArrayList<Project> projects;
     private int currentTick;
-    private Date currentDate;
+    private LocalDate currentDate;
     private final ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
@@ -46,7 +49,7 @@ public class Game {
         this.gameServer = gameServer;
         this.eventHandler = new GameEventHandler(this);
         currentTick = 0;
-        currentDate = new Date();
+        currentDate = now();
         projects = new ArrayList<>();
         projectEmployeesMap = new ConcurrentHashMap<>();
         logger.info("A new game has started with {} players.", players.size());
@@ -89,16 +92,14 @@ public class Game {
         ++currentTick;
 
         // Progress calendar date
-        Calendar c = Calendar.getInstance();
-        c.setTime(currentDate);
-        c.add(Calendar.DAY_OF_MONTH, 1);
-        currentDate = c.getTime();
+        currentDate = now();
+        currentDate = currentDate.plusDays(currentTick);
 
         long startTime = System.nanoTime();
         // Execute these things each "tick" (naming convention: methodNamePerTick)
         // This is important because player interactions alter the state between ticks
         conductWorkOnAllProjectsPerTick();
-        processSalariesAndAdjustFundsPerTick(c);
+        processSalariesAndAdjustFundsPerTick(currentDate);
         checkGameOverConditionsAndKickPlayersPerTick();
         randomlySpawnProjectTendersPerTick();
         assignProjectsPerTick();
@@ -209,8 +210,8 @@ public class Game {
         });
     }
 
-    private void processSalariesAndAdjustFundsPerTick(Calendar c) {
-        if (isFirstDayOfMonth(c)) {
+    private void processSalariesAndAdjustFundsPerTick(LocalDate d) {
+        if (d.getDayOfMonth() == 1) {
             players.forEach((webSocket, player) -> {
                 player.calculateAndSubtractSalaries();
                 sendFundsUpdateToPlayer(player);
@@ -359,6 +360,11 @@ public class Game {
     }
 
     private void conductWorkOnAllProjectsPerTick() {
+        // No work on weekends
+        if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            return;
+        }
+
         // For all projects that have employees assigned
         Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator();
         while (iterator.hasNext()) {
