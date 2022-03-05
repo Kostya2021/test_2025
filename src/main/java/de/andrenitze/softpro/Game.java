@@ -408,6 +408,10 @@ public class Game {
             projectObject.put("id", project.getId());
             projectObject.put("earnedValue", project.getEarnedValue());
 
+            if (project.isCompleted()) {
+                projectObject.put("completedTick", currentTick);
+            }
+
             JSONObject event = new JSONObject();
             event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
             event.put("payload", projectObject);
