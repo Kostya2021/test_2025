@@ -8,7 +8,10 @@ import java.util.Map;
 import java.util.Random;
 
 public class Employee {
+    public static final float SICK_DAY_PROBABILITY = 0.51f;
     private static int lastId = 1;
+    public static final int MINIMUM_SICK_DAYS = 4;
+    public static final int MAXIMUM_SICK_DAYS = 22;
     private final Integer id;
     private final int salary;
     private final int age;
@@ -17,6 +20,10 @@ public class Employee {
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
     private final int happiness;
+    private int annualSickDays;
+    private boolean isSick = false;
+    private int lastSickDay = -1;
+    private float health = 0.0f;
 
     Employee() {
         this.name = generateName();
@@ -24,6 +31,7 @@ public class Employee {
         this.age = 30;
         this.happiness = 60;
         this.id = lastId;
+        initializeSickDays();
         ++lastId;
 
         this.projectExperience = new HashMap<>();
@@ -104,5 +112,57 @@ public class Employee {
 
     public Integer getHappiness() {
         return happiness;
+    }
+
+    public int getSickDays() {
+        return annualSickDays;
+    }
+
+    public void haveSickLeaveDay(int currentTick) {
+        --annualSickDays;
+        health += new Random().nextFloat();
+
+        if (health >= 1) {
+            setSick(false);
+            setLastSickDay(currentTick);
+        }
+    }
+
+    public boolean isSick() {
+        return isSick;
+    }
+
+    public void setSick(boolean sick) {
+        isSick = sick;
+
+        if (sick) {
+            health = 0;
+        }
+    }
+
+    public void beAtWork(int currentTick) {
+        if (!this.isSick()) {
+            if (this.annualSickDays > 0 && new Random().nextDouble() <= SICK_DAY_PROBABILITY) {
+                this.setSick(true);
+            }
+        } else {
+            haveSickLeaveDay(currentTick);
+        }
+    }
+
+    public void initializeSickDays() {
+        this.annualSickDays = MINIMUM_SICK_DAYS + new Random().nextInt(MAXIMUM_SICK_DAYS - MINIMUM_SICK_DAYS);
+    }
+
+    public boolean hasFirstDayAfterSickLeave(int currentTick) {
+        return getLastSickDay() == currentTick-1;
+    }
+
+    public int getLastSickDay() {
+        return lastSickDay;
+    }
+
+    public void setLastSickDay(int lastSickDay) {
+        this.lastSickDay = lastSickDay;
     }
 }

@@ -30,6 +30,7 @@ public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -10000;
     private static final String EVENT_TYPE = "type";
+    public static final double PROJECT_SPAWN_PROBABILITY = 0.05;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
@@ -105,7 +106,7 @@ public class Game {
         assignProjectsPerTick();
         spawnObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
-        updateEmployeeStatePerTick();
+        simulateEmployeeLifePerTick();
         sendStoryElementsPerTick();
 
         long endTime = System.nanoTime();
@@ -160,8 +161,24 @@ public class Game {
         });
     }
 
-    private void updateEmployeeStatePerTick() {
+    private void simulateEmployeeLifePerTick() {
+        players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
+            employee.beAtWork(currentTick);
 
+            if (employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick)) {
+                sendEmployeeUpdate(player, employee);
+            }
+
+            if (currentTick % 365 == 0) {
+                employee.initializeSickDays();
+            }
+        }));
+    }
+
+    private void sendEmployeeUpdate(Player player, Employee employee) {
+        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+        employeeUpdateEvent.setPayload(employee);
+        sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
     }
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
@@ -310,7 +327,7 @@ public class Game {
     }
 
     private void randomlySpawnProjectTendersPerTick() {
-        if (new Random().nextFloat() >= 0.95) {
+        if (new Random().nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
             // Generate a new project
             Project project = Project.generateRandomProject();
             projects.add(project);
@@ -426,6 +443,11 @@ public class Game {
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {
         int earnedValue;
         for (Employee employee : employees) {
+            if (employee.isSick()) {
+                logger.debug("Employee {} is sick in a project.", employee.getName());
+                continue; // Go to next employee
+            }
+
             earnedValue = 500;
 
             // Rule #1: Context changes decrease employee productivity

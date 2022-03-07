@@ -18,4 +18,5 @@ public enum EventType {
     NEW_STORY_ELEMENT,
     UPDATE_LOBBY,
     T,
+    EMPLOYEE_UPDATED,
 }
