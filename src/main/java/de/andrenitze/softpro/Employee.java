@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Random;
 
 public class Employee {
-    public static final float SICK_DAY_PROBABILITY = 0.51f;
+    public static final float SICK_DAY_PROBABILITY = 0.02f;
     private static int lastId = 1;
     public static final int MINIMUM_SICK_DAYS = 4;
     public static final int MAXIMUM_SICK_DAYS = 22;
