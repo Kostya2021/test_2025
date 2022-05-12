@@ -195,7 +195,7 @@ public class Game {
                     ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
                             .stream()
                             .filter(project -> project.isCompleted()
-                                    && project.getCompletedTick() > objective.getEarliestOccurrence()
+                                    && project.getCompletedAt() > objective.getEarliestOccurrence()
                                     && project.playerWasInvolved(player))
                             .collect(Collectors.toList());
 
@@ -352,6 +352,9 @@ public class Game {
                 if (project.getInvolvedPlayers().size() == 1) {
                     logger.debug("Found project {} with a deadline", project.getName());
 
+                    // Remember acquisition date
+                    project.setAcquiredAt(currentTick);
+
                     // Inform winner with a confirmation message
                     GameEvent<Project> wonTenderEvent = new GameEvent<>();
                     wonTenderEvent.setType(EventType.PROJECT_RECEIVED);
@@ -398,7 +401,18 @@ public class Game {
             if (project.isCompleted()) {
                 // Send reward
                 for (Player player : project.getInvolvedPlayers()) {
-                    player.addFunds(Math.round(project.getTotalValue() * 0.5));
+                    int profit = (int) Math.round(project.getTotalValue() * 0.6);
+
+                    float overduePenaltyMultiplier = 1;
+                    int daysLeft = project.getAcquiredAt() + project.getDeadline() - currentTick;
+                    if (daysLeft < 0) {
+                        // Per 1% delayed delivery, return 2% less win margin
+                        overduePenaltyMultiplier = 1 - ((float) Math.abs(daysLeft) / project.getDeadline() * 2);
+                        logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", profit * (1 - overduePenaltyMultiplier));
+                    }
+                    profit = (int) (profit * overduePenaltyMultiplier);
+
+                    player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
                 }
 
@@ -426,7 +440,7 @@ public class Game {
             projectObject.put("earnedValue", project.getEarnedValue());
 
             if (project.isCompleted()) {
-                projectObject.put("completedTick", currentTick);
+                projectObject.put("completedAt", currentTick);
             }
 
             JSONObject event = new JSONObject();
@@ -530,15 +544,6 @@ public class Game {
                 .findFirst().orElse(null);
     }
 
-    private boolean isFirstDayOfMonth(Calendar calendar) {
-        if (calendar == null) {
-            throw new IllegalArgumentException("Calendar cannot be null.");
-        }
-
-        int dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH);
-        return dayOfMonth == 1;
-    }
-
     public int getCurrentTick() {
         return currentTick;
     }
@@ -577,7 +582,7 @@ public class Game {
         return null;
     }
 
-    void assignEmployeeToProject(Employee employee, Project project) {
+    boolean assignEmployeeToProject(Employee employee, Project project) {
         // Get current list of employees working on that project
         try {
             ArrayList<Employee> employees = projectEmployeesMap.get(project);
@@ -586,10 +591,14 @@ public class Game {
                 employees.add(employee);
                 projectEmployeesMap.put(project, employees);
                 logger.debug("{} assigned to {}", employee.getName(), project.getName());
+                return true;
+            } else {
+                return false;
             }
         } catch (NullPointerException e) {
             logger.error(e.toString());
         }
+        return false;
     }
 
     void removeEmployeeFromAllProjects(Employee employee) {
@@ -605,7 +614,7 @@ public class Game {
         }
     }
 
-    void removeEmployeeFromProject(Employee employee, Project project) {
+    boolean removeEmployeeFromProject(Employee employee, Project project) {
         // Get current list of employees working on that project
         ArrayList<Employee> employees = projectEmployeesMap.get(project) ;
 
@@ -613,7 +622,9 @@ public class Game {
             employees.remove(employee);
             projectEmployeesMap.put(project, employees);
             logger.debug("{} unassigned from {}", employee.getName(), project.getName());
+            return true;
         }
+        return false;
     }
 
     public boolean closeIfEmpty() {

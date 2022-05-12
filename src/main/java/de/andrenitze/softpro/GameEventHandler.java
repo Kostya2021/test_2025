@@ -61,34 +61,34 @@ class GameEventHandler {
                 payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>(){}.getType();
                 GameEvent<HashMap<String, Integer>> assignmentEvent = GSON.fromJson(message, payloadType);
 
-                changeEmployeeAssignment(websocket,
-                        assignmentEvent.getPayload().get(EMPLOYEE_ID),
-                        assignmentEvent.getPayload().get(PROJECT_ID),
-                        true);
+                int employeeId = assignmentEvent.getPayload().get(EMPLOYEE_ID);
+                int projectId = assignmentEvent.getPayload().get(PROJECT_ID);
+
+                changeEmployeeAssignment(websocket, employeeId, projectId, true);
                 break;
             case UNASSIGN_EMPLOYEE:
-                payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
-                assignmentEvent = GSON.fromJson(message, payloadType);
+                payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>(){}.getType();
+                GameEvent<HashMap<String, Integer>> unassignmentEvent = GSON.fromJson(message, payloadType);
 
-                changeEmployeeAssignment(websocket,
-                        assignmentEvent.getPayload().get(EMPLOYEE_ID),
-                        assignmentEvent.getPayload().get(PROJECT_ID),
-                        false);
+                employeeId = unassignmentEvent.getPayload().get(EMPLOYEE_ID);
+                projectId = unassignmentEvent.getPayload().get(PROJECT_ID);
+
+                changeEmployeeAssignment(websocket, employeeId, projectId,false);
                 break;
             default:
                 break;
         }
     }
 
-    private void changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
+    private boolean changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
         Player player = game.getPlayerByWebSocket(websocket);
         Employee employee = player.getEmployeeById(employeeId);
         Project project = game.getProjectById(projectId);
 
         if (isAssignOperation) {
-            game.assignEmployeeToProject(employee, project);
+            return game.assignEmployeeToProject(employee, project);
         } else {
-            game.removeEmployeeFromProject(employee, project);
+            return game.removeEmployeeFromProject(employee, project);
         }
     }
 }

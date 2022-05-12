@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.types.*;
+import de.andrenitze.softpro.types.ProjectType;
+import de.andrenitze.softpro.types.RiskLevel;
 
 import java.util.*;
 
@@ -12,8 +13,9 @@ public class Project {
     private int earnedValue;
     private final boolean hasTenderProcess;
     private int tenderDeadlineInDays;
+    private int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
-    private int completedTick;
+    private int completedAt;
     private static final Random RANDOM = new Random();
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS =
@@ -34,6 +36,7 @@ public class Project {
 
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
     private final String domain;
+    private int acquiredAt;
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -56,6 +59,8 @@ public class Project {
         } else {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
+
+        this.deadline = Math.round(totalValue / 400f);
     }
 
     private static String generateDomain(ProjectType type) {
@@ -159,7 +164,7 @@ public class Project {
         setEarnedValue(Math.max(getEarnedValue() + addedValue, 0));
 
         if (isCompleted()) {
-            setCompletedTick(tick);
+            setCompletedAt(tick);
         }
     }
 
@@ -175,12 +180,12 @@ public class Project {
         return getInvolvedPlayers().contains(player);
     }
 
-    public int getCompletedTick() {
-        return completedTick;
+    public int getCompletedAt() {
+        return completedAt;
     }
 
-    public void setCompletedTick(int completedTick) {
-        this.completedTick = completedTick;
+    public void setCompletedAt(int completedAt) {
+        this.completedAt = completedAt;
     }
 
     public ProjectType getType() {
@@ -189,5 +194,17 @@ public class Project {
 
     public String getDomain() {
         return domain;
+    }
+
+    public int getDeadline() {
+        return deadline;
+    }
+
+    public int getAcquiredAt() {
+        return acquiredAt;
+    }
+
+    public void setAcquiredAt(int acquiredAt) {
+        this.acquiredAt = acquiredAt;
     }
 }
