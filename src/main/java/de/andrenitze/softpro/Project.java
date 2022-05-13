@@ -15,7 +15,7 @@ public class Project {
     private int tenderDeadlineInDays;
     private int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
-    private int completedAt;
+    private int completedAt = 0;
     private static final Random RANDOM = new Random();
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS =
