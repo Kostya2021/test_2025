@@ -13,6 +13,7 @@ public class Main {
         int port = 8070;
         try {
             GameServer server = new GameServer(InetAddress.getLocalHost().getHostAddress(), port);
+            server.setConnectionLostTimeout(5);
             logger.info(InetAddress.getLocalHost().getHostAddress()+":"+port);
             logger.info(InetAddress.getLocalHost().getHostName());
             server.run();
