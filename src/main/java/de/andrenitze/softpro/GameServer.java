@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
+    public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final HashSet<Game> games = new HashSet<>();
     private final ConcurrentHashMap<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -128,18 +129,23 @@ public class GameServer extends WebSocketServer {
                 GameEvent<Player> updatedPlayerEvent = GSON.fromJson(message, payloadType);
                 Player updatedPlayer = updatedPlayerEvent.getPayload();
 
-                Player player = this.playersAndTheirConnections.get(webSocket);
-                logger.info("{} changed name to {}", player.getName(), updatedPlayer.getName());
-                player.setName(updatedPlayer.getName());
+                // Sanitize string
+                String newName = updatedPlayer.getName();
+                newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^A-Za-z0-9]","").trim();
+                if (newName.length() >= 2) {
+                    Player player = this.playersAndTheirConnections.get(webSocket);
+                    player.setName(newName);
 
-                // Confirm successful name change
-                GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-                playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
-                playerUpdateEvent.setPayload(player);
-                webSocket.send(GSON.toJson(playerUpdateEvent));
+                    // Confirm successful name change
+                    GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+                    playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+                    playerUpdateEvent.setPayload(player);
+                    webSocket.send(GSON.toJson(playerUpdateEvent));
 
-                // Notify everyone in the lobby
-                broadcastPlayerList();
+                    // Notify everyone in the lobby
+                    broadcastPlayerList();
+                    logger.info("{} changed name to {}", player.getName(), newName);
+                }
             } else {
                 // Forward all other events to the corresponding game instance
                 // Find out which game the message belongs to by its Websocket connection
