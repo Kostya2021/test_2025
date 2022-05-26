@@ -19,4 +19,5 @@ public enum EventType {
     UPDATE_LOBBY,
     T,
     EMPLOYEE_UPDATED,
+    PLAYER_NAME_UPDATED,
 }

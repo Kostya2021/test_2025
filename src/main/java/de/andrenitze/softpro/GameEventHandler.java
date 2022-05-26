@@ -44,7 +44,7 @@ class GameEventHandler {
                                     .create();
                             GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                             projectUpdatedEvent.setPayload(project);
-                            game.sendMessageToAllPlayers(gson.toJson(projectUpdatedEvent));
+                            game.broadcastToAllPlayers(gson.toJson(projectUpdatedEvent));
 
                             // If there is no tender, just assign it
                             if (project.hasNoTenderProcess()) {

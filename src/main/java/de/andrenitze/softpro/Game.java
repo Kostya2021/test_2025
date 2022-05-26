@@ -60,7 +60,7 @@ public class Game {
         // Start the round for all players
         GameEvent<Object> startEvent = new GameEvent<>();
         startEvent.setType(EventType.ROUND_STARTED);
-        sendMessageToAllPlayers(GSON.toJson(startEvent));
+        broadcastToAllPlayers(GSON.toJson(startEvent));
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
@@ -74,7 +74,7 @@ public class Game {
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleAtFixedRate(() -> {
             // Notify all clients of current time
-            this.sendMessageToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
+            this.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
                     "\", \"payload\": " + getCurrentTick() + "}");
 
             // Progress game time and calculate the world's state for each tick
@@ -338,7 +338,7 @@ public class Game {
             // Inform players about the new tender
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
             newTenderEvent.setPayload(project);
-            sendMessageToAllPlayers(GSON.toJson(newTenderEvent));
+            broadcastToAllPlayers(GSON.toJson(newTenderEvent));
         }
     }
 
@@ -372,7 +372,7 @@ public class Game {
         if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
             GameEvent<Integer> closeTenderEvent = new GameEvent<>(EventType.TENDER_CLOSED);
             closeTenderEvent.setPayload(project.getId());
-            sendMessageToAllPlayers(GSON.toJson(closeTenderEvent));
+            broadcastToAllPlayers(GSON.toJson(closeTenderEvent));
 
             // Make it appear in the next evaluation of assignProjectsPerTick()
             project.setTenderDeadlineInDays(0);
@@ -522,7 +522,7 @@ public class Game {
         return numberOfProjects;
     }
 
-    protected void sendMessageToAllPlayers(String message) {
+    protected void broadcastToAllPlayers(String message) {
         // Send the message to all players
         players.forEach((webSocket, player) -> webSocket.send(message));
     }

@@ -2,6 +2,7 @@ package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
@@ -22,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.persistence.NoResultException;
+import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
@@ -30,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServer extends WebSocketServer {
     private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
+    public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final HashSet<Game> games = new HashSet<>();
     private final ConcurrentHashMap<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -119,6 +122,29 @@ public class GameServer extends WebSocketServer {
                     broadcastPlayerList();
                 } catch (Exception e) {
                     logger.error("Websocket message was malformed!");
+                }
+            } else if (genericGameEvent.isOfType(EventType.PLAYER_NAME_UPDATED)) {
+                // Allow name changes in the lobby
+                Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
+                GameEvent<Player> updatedPlayerEvent = GSON.fromJson(message, payloadType);
+                Player updatedPlayer = updatedPlayerEvent.getPayload();
+
+                // Sanitize string
+                String newName = updatedPlayer.getName();
+                newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^A-Za-z0-9]","").trim();
+                if (newName.length() >= 2) {
+                    Player player = this.playersAndTheirConnections.get(webSocket);
+                    player.setName(newName);
+
+                    // Confirm successful name change
+                    GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+                    playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+                    playerUpdateEvent.setPayload(player);
+                    webSocket.send(GSON.toJson(playerUpdateEvent));
+
+                    // Notify everyone in the lobby
+                    broadcastPlayerList();
+                    logger.info("{} changed name to {}", player.getName(), newName);
                 }
             } else {
                 // Forward all other events to the corresponding game instance
@@ -219,8 +245,8 @@ public class GameServer extends WebSocketServer {
         GameOverStats highScore;
         try (Session session = sessionFactory.openSession()) {
             NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `gameoverstats` " +
-                    "WHERE DATE(finishedAt) = CURDATE() " +
-                    "ORDER BY projectsVolume DESC LIMIT 1",
+                            "WHERE DATE(finishedAt) = CURDATE() " +
+                            "ORDER BY projectsVolume DESC LIMIT 1",
                     GameOverStats.class);
             highScore = query.getSingleResult();
         } catch (NoResultException e) {
