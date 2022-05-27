@@ -131,7 +131,7 @@ public class GameServer extends WebSocketServer {
 
                 // Sanitize string
                 String newName = updatedPlayer.getName();
-                newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^A-Za-z0-9]","").trim();
+                newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^A-Za-z0-9 ]","").trim();
                 if (newName.length() >= 2) {
                     Player player = this.playersAndTheirConnections.get(webSocket);
                     player.setName(newName);
