@@ -1,7 +1,10 @@
 # Software Project Simulator
 This is the central game server that can be deployed to and run in an infrastructure as a standard Java 11 application.
 
-## Run the game server
+## Requirements
+The game server requires a local MySQL database. The connection details are defined in ```resources/hibernate.cfg.xml```
+
+## Run the Game Server
 To run the server:
 
 ```mvn clean package```
@@ -19,7 +22,7 @@ Generate TypeScript interfaces in *target/typescript-generator*:
 
 ## Test Suite
 ### Unit Tests
-See test folder
+Should be written rather sooner than later for new features to get all the side effects sorted out and get your thinking as clear as water.
 
 ### Load Tests
 1) Install Artillery: ```npm install -g artillery```
