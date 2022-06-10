@@ -301,8 +301,10 @@ public class Game {
                     session.save(goStats);
                     session.getTransaction().commit();
                     session.close();
+                    logger.info("Game stats of player {} saved successfully.", player.getName());
                 } catch (Exception e) {
                     e.printStackTrace();
+                    logger.warn("Game stats of player {} could not be saved! Database up?", player.getName());
                 }
 
                 // Check if there's a new high-score and broadcast updates in lobby
