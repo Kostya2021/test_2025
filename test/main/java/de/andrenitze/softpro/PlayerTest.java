@@ -1,8 +1,8 @@
 package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.Player;
-import org.junit.After;
-import org.junit.Test;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -22,7 +22,7 @@ public class PlayerTest {
         assertEquals(110000, player.addFunds(additionalFunds), 0);
     }
 
-    @After
+    @AfterTest
     public void validate() {
         validateMockitoUsage();
     }

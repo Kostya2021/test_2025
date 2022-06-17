@@ -1,8 +1,8 @@
 package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.Project;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 import org.mockito.Mock;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -13,7 +13,7 @@ public class ProjectTest {
     @Mock
     private Project project;
 
-    @Before
+    @BeforeTest
     public void setUp() {
         initMocks(this);
     }
