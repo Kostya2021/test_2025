@@ -28,7 +28,7 @@ import static java.time.LocalDate.now;
 
 public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
-    private static final int BANKRUPTCY_THRESHOLD = -10000;
+    private static final int BANKRUPTCY_THRESHOLD = -25000;
     private static final String EVENT_TYPE = "type";
     public static final double PROJECT_SPAWN_PROBABILITY = 0.05;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -285,7 +285,7 @@ public class Game {
                 sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
 
                 // Keep connection and name but reset other player attributes
-                player.resetBeforeNewRound();
+                player.initializeBeforeRound();
 
                 // Tell game server to move player back to lobby
                 gameServer.addPlayerToLobby(webSocket, player);
@@ -416,6 +416,11 @@ public class Game {
 
                     player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
+
+                    // After project completion, send gained XP of employees to player
+                    for (Employee employee : employees) {
+                        sendEmployeeUpdate(player, employee);
+                    }
                 }
 
                 // Remove the project from employees map, so that employees are unassigned
@@ -437,7 +442,7 @@ public class Game {
             }
 
             // Build a small custom event to just send new project progress
-            JSONObject projectObject = new JSONObject();
+            var projectObject = new JSONObject();
             projectObject.put("id", project.getId());
             projectObject.put("earnedValue", project.getEarnedValue());
 
@@ -470,25 +475,14 @@ public class Game {
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
             earnedValue /= numberOfParallelProjects;
             switch (numberOfParallelProjects) {
-                case 1:
-                    //noinspection ConstantConditions
-                    earnedValue *= 1;
-                    break;
-                case 2:
-                    earnedValue *= 0.4;
-                    break;
-                case 3:
-                    earnedValue *= 0.2;
-                    break;
-                case 4:
-                    earnedValue *= 0.1;
-                    break;
-                case 5:
-                    earnedValue *= 0.05;
-                    break;
-                default:
-                    earnedValue = 1;
-                    break;
+                case 1 ->
+                        //noinspection ConstantConditions
+                        earnedValue *= 1;
+                case 2 -> earnedValue *= 0.4;
+                case 3 -> earnedValue *= 0.2;
+                case 4 -> earnedValue *= 0.1;
+                case 5 -> earnedValue *= 0.05;
+                default -> earnedValue = 1;
             }
 
             // Project ramp-up time influences earned value

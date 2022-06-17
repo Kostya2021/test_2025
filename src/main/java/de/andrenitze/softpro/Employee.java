@@ -16,7 +16,7 @@ public class Employee {
     private final int salary;
     private final int age;
     private final String name;
-    private final HashMap<Project, Integer> projectExperience;
+    private final transient HashMap<Project, Integer> projectExperience;
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
     private final int happiness;
@@ -174,5 +174,9 @@ public class Employee {
 
     public void setLastSickDay(int lastSickDay) {
         this.lastSickDay = lastSickDay;
+    }
+
+    public String getGender() {
+        return gender;
     }
 }

@@ -13,6 +13,7 @@ import java.util.UUID;
 
 public class Player {
     private static final Random RANDOM = new Random();
+    public static final int INITIAL_FUNDS = 100000;
 
     @JsonIgnore
     private final UUID id;
@@ -24,7 +25,7 @@ public class Player {
     private String company;
 
     @JsonProperty
-    private double funds = 50000;
+    private double funds = INITIAL_FUNDS;
 
     @JsonProperty
     private ArrayList<Employee> employees = new ArrayList<>();
@@ -172,9 +173,9 @@ public class Player {
         this.ready = ready;
     }
 
-    public void resetBeforeNewRound() {
+    public void initializeBeforeRound() {
         setReady(false);
-        setFunds(50000);
+        setFunds(INITIAL_FUNDS);
 
         this.employees = new ArrayList<>();
         this.employees.add(new Employee());
