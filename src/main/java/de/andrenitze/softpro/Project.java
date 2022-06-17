@@ -44,14 +44,21 @@ public class Project {
         this.earnedValue = 0;
         this.id = lastId;
         ++lastId;
+
+        // Assign random risk level
         this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
+
+        // Assign random project type
         this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
         this.hasTenderProcess = hasTenderProcess;
 
+        // Set matching candidates for project types (e. g., "Development") and domains (e. g., "COBOL")
         projectTypeDomainMap.put(ProjectType.CONSULTING, PROJECT_DOMAINS_CONSULTING);
         projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, PROJECT_DOMAINS_CUSTOMIZATION);
         projectTypeDomainMap.put(ProjectType.DEVELOPMENT, PROJECT_DOMAINS_DEVELOPMENT);
         projectTypeDomainMap.put(ProjectType.INTRODUCTION, PROJECT_DOMAINS_INTRODUCTION);
+
+        // Based on the project type, assign a matching domain
         this.domain = generateDomain(this.type);
 
         if (hasTenderProcess) {

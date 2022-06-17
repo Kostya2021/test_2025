@@ -28,17 +28,19 @@ Configutation:
           max: 30
   Loggers:
     Root:
-      level: info
+      level: debug
       AppenderRef:
         - ref: Console_Appender
+        - ref: File_Appender
+        - ref: RollingFile_Appender
     Logger:
       - name: de.andrenitze.log4j2yaml
         additivity: false
         level: debug
         AppenderRef:
           - ref: Console_Appender
-            level: error
-          - ref: File_Appender
-            level: error
-          - ref: RollingFile_Appender
             level: debug
+          - ref: File_Appender
+            level: info
+          - ref: RollingFile_Appender
+            level: info
