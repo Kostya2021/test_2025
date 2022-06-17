@@ -13,13 +13,13 @@ public class PlayerTest {
         Player player = mock(Player.class);
         double additionalFunds = 10000;
 
-        when(player.getFunds()).thenReturn((double) 50000);
+        when(player.getFunds()).thenReturn((double) 100000);
 
-        when(player.addFunds(additionalFunds)).thenReturn((double) 60000);
-        assertEquals(60000, player.addFunds(additionalFunds), 0);
+        when(player.addFunds(additionalFunds)).thenReturn((double) 110000);
+        assertEquals(110000, player.addFunds(additionalFunds), 0);
 
-        when(player.addFunds(additionalFunds)).thenReturn((double) 60000);
-        assertEquals(60000, player.addFunds(additionalFunds), 0);
+        when(player.addFunds(additionalFunds)).thenReturn((double) 110000);
+        assertEquals(110000, player.addFunds(additionalFunds), 0);
     }
 
     @After
