@@ -244,7 +244,7 @@ public class GameServer extends WebSocketServer {
     @Nullable GameOverStats getCurrentHighScore() {
         GameOverStats highScore;
         try (Session session = sessionFactory.openSession()) {
-            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `gameoverstats` " +
+            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `GameOverStats` " +
                             "WHERE DATE(finishedAt) = CURDATE() " +
                             "ORDER BY projectsVolume DESC LIMIT 1",
                     GameOverStats.class);
