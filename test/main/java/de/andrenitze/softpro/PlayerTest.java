@@ -11,14 +11,14 @@ public class PlayerTest {
     @Test
     public void testPlayerFundsAfterCreation() {
         Player player = mock(Player.class);
-        double additionalFunds = 10000;
+        float additionalFunds = 10000;
 
-        when(player.getFunds()).thenReturn((double) 100000);
+        when(player.getFunds()).thenReturn((float) 100000);
 
-        when(player.addFunds(additionalFunds)).thenReturn((double) 110000);
+        when(player.addFunds(additionalFunds)).thenReturn((float) 110000);
         assertEquals(110000, player.addFunds(additionalFunds), 0);
 
-        when(player.addFunds(additionalFunds)).thenReturn((double) 110000);
+        when(player.addFunds(additionalFunds)).thenReturn((float) 110000);
         assertEquals(110000, player.addFunds(additionalFunds), 0);
     }
 
