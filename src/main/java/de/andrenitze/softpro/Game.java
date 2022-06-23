@@ -21,7 +21,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static java.lang.Math.exp;
 import static java.time.LocalDate.now;
@@ -196,8 +195,7 @@ public class Game {
                             .stream()
                             .filter(project -> project.isCompleted()
                                     && project.getCompletedAt() > objective.getEarliestOccurrence()
-                                    && project.playerWasInvolved(player))
-                            .collect(Collectors.toList());
+                                    && project.playerWasInvolved(player)).toList();
 
                     // Only send when conditions have changed from last time
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
@@ -446,19 +444,12 @@ public class Game {
                     float projectSkillMultiplier;
                     var projectTypeXP = employee.getExperienceInDaysByProjectType(project.getType());
 
-                    if (projectTypeXP < 90) {
-                        // None - Low XP: Employee is trained-on-the-job and not doing any actual work
-                        projectSkillMultiplier = 0.5f;
-                    } else if (projectTypeXP < 300) {
-                        // Low - Medium XP: Employee contributes meaningful work
-                        projectSkillMultiplier = 1;
-                    } else if (projectTypeXP < 600) {
-                        // Medium - High XP: Employee is skilled and provides substantial contributions
-                        projectSkillMultiplier = 1.2f;
-                    } else {
-                        // > High XP: Employee is highly skilled for this kind of project
-                        projectSkillMultiplier = 4f;
-                    }
+                    // Rule: Employee skill increases with experience
+                    // LaGrange interpolation from:
+                    // 0 days of experience = 0% skill
+                    // 720 days (= 2 years) of experience = 100% skill
+                    // 2700 days (= 6 years) of experience = 200% skill
+                    projectSkillMultiplier = (7 * projectTypeXP / 4380f) - (projectTypeXP * projectTypeXP / 3197400f);
 
                     // Remember for average calculation
                     skillMultipliers.put(employee, projectSkillMultiplier);
@@ -478,9 +469,9 @@ public class Game {
                 // Quality is the average of each employees' individual skill for this project weighted by the amount of work (= contribution)
                 AtomicReference<Float> totalProjectQuality = new AtomicReference<>((float) 0);
                 skillMultipliers.forEach((employee, skill) ->
-                        totalProjectQuality.updateAndGet(v -> v + skill * weightedProjectContributions.get(employee)));
+                        totalProjectQuality.updateAndGet(quality -> quality + skill * weightedProjectContributions.get(employee)));
 
-                projectQuality = (int) (totalProjectQuality.get() / employees.size() * 100);
+                projectQuality = (int) (totalProjectQuality.get() * 100);
                 logger.debug("Project overall quality: {}/100", projectQuality);
 
                 project.setQuality(projectQuality);
