@@ -206,6 +206,7 @@ public class GameServer extends WebSocketServer {
             anonymizedHighScore.setDeliveredProjects(dailyHighScore.getDeliveredProjects());
             anonymizedHighScore.setProjectsVolume(dailyHighScore.getProjectsVolume());
             anonymizedHighScore.setFinishedAt(dailyHighScore.getFinishedAt());
+            anonymizedHighScore.setSurvivedDays(dailyHighScore.getSurvivedDays());
         }
 
         broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { \"players\": " + playersList +
