@@ -13,9 +13,14 @@ public class Project {
     private int earnedValue;
     private final boolean hasTenderProcess;
     private int tenderDeadlineInDays;
-    private int deadline;
+    private final int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
+    private int acquiredAt;
+    private int startedAt;
     private int completedAt = 0;
+    private int quality;
+    private float penalty;
+    private float profit;
     private static final Random RANDOM = new Random();
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS =
@@ -36,7 +41,6 @@ public class Project {
 
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
     private final String domain;
-    private int acquiredAt;
 
     public Project(String name, int totalValue, boolean hasTenderProcess) {
         this.name = name;
@@ -213,5 +217,37 @@ public class Project {
 
     public void setAcquiredAt(int acquiredAt) {
         this.acquiredAt = acquiredAt;
+    }
+
+    public int getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(int startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public int getQuality() {
+        return quality;
+    }
+
+    public void setQuality(int quality) {
+        this.quality = quality;
+    }
+
+    public float getPenalty() {
+        return penalty;
+    }
+
+    public void setPenalty(float penalty) {
+        this.penalty = penalty;
+    }
+
+    public float getProfit() {
+        return profit;
+    }
+
+    public void setProfit(float profit) {
+        this.profit = profit;
     }
 }

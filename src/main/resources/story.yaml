@@ -28,15 +28,7 @@ storyElements:
       - Don't worry! She probably won't do anything crazy to stop you. At least for now...
   - id: 5
     avatar: ADVISOR
-    earliestOccurrence: 500
+    earliestOccurrence: 1000
     lines:
       - Hey! You still here?
       - Seriously, you should get outside!
-  - id: 6
-    avatar: ADVISOR
-    earliestOccurrence: 700
-    lines:
-      - Nothing is happening here anymore, so...
-      - Maybe go back to the survey...?
-      - Yes, definitely go back to the survey, now!
-      - You've probably set a new high score already.

@@ -206,6 +206,7 @@ public class GameServer extends WebSocketServer {
             anonymizedHighScore.setDeliveredProjects(dailyHighScore.getDeliveredProjects());
             anonymizedHighScore.setProjectsVolume(dailyHighScore.getProjectsVolume());
             anonymizedHighScore.setFinishedAt(dailyHighScore.getFinishedAt());
+            anonymizedHighScore.setSurvivedDays(dailyHighScore.getSurvivedDays());
         }
 
         broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { \"players\": " + playersList +
@@ -244,7 +245,7 @@ public class GameServer extends WebSocketServer {
     @Nullable GameOverStats getCurrentHighScore() {
         GameOverStats highScore;
         try (Session session = sessionFactory.openSession()) {
-            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `gameoverstats` " +
+            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `GameOverStats` " +
                             "WHERE DATE(finishedAt) = CURDATE() " +
                             "ORDER BY projectsVolume DESC LIMIT 1",
                     GameOverStats.class);

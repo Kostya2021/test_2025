@@ -7,7 +7,6 @@ import de.andrenitze.softpro.entities.StoryElement;
 import de.andrenitze.softpro.entities.StoryElements;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
-import de.andrenitze.softpro.types.ProjectType;
 import org.hibernate.Session;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
@@ -21,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.Math.exp;
 import static java.time.LocalDate.now;
@@ -30,7 +29,7 @@ public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -25000;
     private static final String EVENT_TYPE = "type";
-    public static final double PROJECT_SPAWN_PROBABILITY = 0.05;
+    public static final float PROJECT_SPAWN_PROBABILITY = 0.05f;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
@@ -196,8 +195,7 @@ public class Game {
                             .stream()
                             .filter(project -> project.isCompleted()
                                     && project.getCompletedAt() > objective.getEarliestOccurrence()
-                                    && project.playerWasInvolved(player))
-                            .collect(Collectors.toList());
+                                    && project.playerWasInvolved(player)).toList();
 
                     // Only send when conditions have changed from last time
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
@@ -237,7 +235,7 @@ public class Game {
     }
 
     private void sendFundsUpdateToPlayer(Player player) {
-        GameEvent<Double> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
+        GameEvent<Float> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
         newFundsEvent.setPayload(player.getFunds());
         sendMessageToPlayer(player, GSON.toJson(newFundsEvent));
     }
@@ -275,8 +273,10 @@ public class Game {
                 goStats.setSurvivedDays(this.getCurrentTick());
 
                 if (playerHasWon) {
-                    goStats.setReport("Great work! You succeeded to manage the company through rough times!\n\n" +
-                            "Here's your performance report:");
+                    goStats.setReport("""
+                            Great work! You succeeded to manage the company through rough times!
+
+                            Here's your performance report:""");
                 } else {
                     goStats.setReport("Yikes! That didn't go well...\nYou ran out of money!");
                 }
@@ -372,6 +372,7 @@ public class Game {
 
     public void immediatelyCloseTender(Project project) {
         if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
+            project.setStartedAt(currentTick);
             GameEvent<Integer> closeTenderEvent = new GameEvent<>(EventType.TENDER_CLOSED);
             closeTenderEvent.setPayload(project.getId());
             broadcastToAllPlayers(GSON.toJson(closeTenderEvent));
@@ -399,6 +400,10 @@ public class Game {
 
             addEarnedValueForEachEmployee(project, employees);
 
+            JSONObject event = new JSONObject();
+            event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
+            var projectObject = new JSONObject();
+
             // Finish the project
             if (project.isCompleted()) {
                 // Send reward
@@ -410,9 +415,14 @@ public class Game {
                     if (daysLeft < 0) {
                         // Per 1% delayed delivery, return 2% less win margin
                         overduePenaltyMultiplier = 1 - ((float) Math.abs(daysLeft) / project.getDeadline() * 2);
-                        logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", profit * (1 - overduePenaltyMultiplier));
+                        float penalty = profit * (1 - overduePenaltyMultiplier);
+                        projectObject.put("penalty", penalty);
+                        project.setPenalty(penalty);
+                        logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
                     }
                     profit = (int) (profit * overduePenaltyMultiplier);
+                    projectObject.put("profit", profit);
+                    project.setProfit(profit);
 
                     player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
@@ -423,26 +433,56 @@ public class Game {
                     }
                 }
 
+                // Calculate project result quality (0-100)
+                // Low employee skill = low project quality
+                int projectQuality;
+                HashMap<Employee, Integer> projectExperience = new HashMap<>(10);
+                Integer totalDaysWorkedOnProject = 0;
+                var skillMultipliers = new HashMap<Employee, Float>();
+
+                for (Employee employee : employees) {
+                    float projectSkillMultiplier;
+                    var projectTypeXP = employee.getExperienceInDaysByProjectType(project.getType());
+
+                    // Rule: Employee skill increases with experience
+                    // LaGrange interpolation from:
+                    // 0 days of experience = 0% skill
+                    // 720 days (= 2 years) of experience = 100% skill
+                    // 2700 days (= 6 years) of experience = 200% skill
+                    projectSkillMultiplier = (7 * projectTypeXP / 4380f) - (projectTypeXP * projectTypeXP / 3197400f);
+
+                    // Remember for average calculation
+                    skillMultipliers.put(employee, projectSkillMultiplier);
+                    projectExperience.put(employee, employee.getExperienceInDaysByProject(project));
+                    totalDaysWorkedOnProject += employee.getExperienceInDaysByProject(project);
+                }
+
+                // Average of all employees' skills weighted by days worked in the project
+                var weightedProjectContributions = new HashMap<Employee, Float>();
+                Integer finalTotalDaysWorkedOnProject = totalDaysWorkedOnProject;
+                projectExperience.forEach((employee, XP) -> {
+                    var contribution = (float) XP / (float) finalTotalDaysWorkedOnProject;
+                    weightedProjectContributions.put(employee, contribution);
+                    logger.debug("Project work done by {}: {}%", employee.getName(), weightedProjectContributions.get(employee)*100);
+                });
+
+                // Quality is the average of each employees' individual skill for this project weighted by the amount of work (= contribution)
+                AtomicReference<Float> totalProjectQuality = new AtomicReference<>((float) 0);
+                skillMultipliers.forEach((employee, skill) ->
+                        totalProjectQuality.updateAndGet(quality -> quality + skill * weightedProjectContributions.get(employee)));
+
+                projectQuality = (int) (totalProjectQuality.get() * 100);
+                logger.debug("Project overall quality: {}/100", projectQuality);
+
+                project.setQuality(projectQuality);
+                projectObject.put("quality", projectQuality);
+
                 // Remove the project from employees map, so that employees are unassigned
                 project.setEarnedValue(project.getTotalValue());
                 iterator.remove();
-
-                for (ProjectType type : ProjectType.values()) {
-                    for (Employee employee : employees) {
-                        if (employee.getExperienceInDaysByProjectType(project.getType()) > 0) {
-                            logger.debug("{}'s {} XP: {} days", employee.getName(), type,
-                                    employee.getExperienceInDaysByProjectType(type));
-                        }
-                        if (employee.getExperienceInDaysByProjectDomain(project.getDomain()) > 0) {
-                            logger.debug("{}'s {} Domain XP: {} days", employee.getName(), project.getDomain(),
-                                    employee.getExperienceInDaysByProjectDomain(project.getDomain()));
-                        }
-                    }
-                }
             }
 
-            // Build a small custom event to just send new project progress
-            var projectObject = new JSONObject();
+            // Build a small custom event to just send new project progress and success metrics
             projectObject.put("id", project.getId());
             projectObject.put("earnedValue", project.getEarnedValue());
 
@@ -450,8 +490,6 @@ public class Game {
                 projectObject.put("completedAt", currentTick);
             }
 
-            JSONObject event = new JSONObject();
-            event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
             event.put("payload", projectObject);
 
             // Send update to all involved players
@@ -491,9 +529,9 @@ public class Game {
             // 1 day XP = 10% productivity
             // 10 days XP = 50% productivity
             // 20 days XP = 100% productivity
-            double x = employee.getExperienceInDaysByProject(project);
+            float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
-                double productivityFactor = 1.022595 - 1.02502 * exp(-0.1399307 * x);
+                float productivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
                 earnedValue = (int) (earnedValue * productivityFactor);
             }
 
