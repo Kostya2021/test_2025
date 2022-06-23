@@ -1,25 +1,24 @@
 package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.Project;
+import org.mockito.Mock;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-import org.mockito.Mock;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
+import static org.mockito.MockitoAnnotations.openMocks;
 
 public class ProjectTest {
     @Mock
-    private Project project;
+    private Project projectMock;
 
     @BeforeTest
     public void setUp() {
-        initMocks(this);
+        openMocks(this);
     }
 
     @Test
     public void testProjectDomainGeneration() {
-        when(project.getDomain()).thenReturn(anyString());
+        when(projectMock.getDomain()).thenReturn(null);
     }
 }
