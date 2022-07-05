@@ -25,7 +25,7 @@ public class Player {
     private String company;
 
     @JsonProperty
-    private double funds = INITIAL_FUNDS;
+    private float funds = INITIAL_FUNDS;
 
     @JsonProperty
     private ArrayList<Employee> employees = new ArrayList<>();
@@ -85,16 +85,16 @@ public class Player {
         this.company = company;
     }
 
-    public double addFunds(double additionalFunds) {
+    public float addFunds(float additionalFunds) {
         this.funds += additionalFunds;
         return funds;
     }
 
-    private void subtractFunds(double fundsToSubtract) {
+    private void subtractFunds(float fundsToSubtract) {
         this.funds -= fundsToSubtract;
     }
 
-    public double getFunds() {
+    public float getFunds() {
         return funds;
     }
 
