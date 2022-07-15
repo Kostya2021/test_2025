@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public class Player {
     private static final Random RANDOM = new Random();
-    public static final int INITIAL_FUNDS = 100000;
+    public static final float INITIAL_FUNDS = 100000;
 
     @JsonIgnore
     private final UUID id;
@@ -186,7 +186,7 @@ public class Player {
         this.objectives = objectives.getObjectives();
     }
 
-    private void setFunds(int funds) {
+    private void setFunds(float funds) {
         this.funds = funds;
     }
 }

@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static java.lang.Math.exp;
 import static java.time.LocalDate.now;
@@ -195,7 +196,8 @@ public class Game {
                             .stream()
                             .filter(project -> project.isCompleted()
                                     && project.getCompletedAt() > objective.getEarliestOccurrence()
-                                    && project.playerWasInvolved(player)).toList();
+                                    && project.playerWasInvolved(player))
+                            .collect(Collectors.toList());
 
                     // Only send when conditions have changed from last time
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
@@ -633,19 +635,6 @@ public class Game {
             logger.error(e.toString());
         }
         return false;
-    }
-
-    void removeEmployeeFromAllProjects(Employee employee) {
-        for (Project project : projects) {
-            ArrayList<Employee> employees = projectEmployeesMap.get(project);
-            if (!employees.isEmpty()) {
-                for (Employee assignedEmployee : employees) {
-                    if (assignedEmployee.equals(employee)) {
-                        employees.remove(employee);
-                    }
-                }
-            }
-        }
     }
 
     boolean removeEmployeeFromProject(Employee employee, Project project) {
