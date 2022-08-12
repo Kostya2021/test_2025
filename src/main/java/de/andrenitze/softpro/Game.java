@@ -21,7 +21,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static java.lang.Math.exp;
 import static java.time.LocalDate.now;
@@ -196,8 +195,7 @@ public class Game {
                             .stream()
                             .filter(project -> project.isCompleted()
                                     && project.getCompletedAt() > objective.getEarliestOccurrence()
-                                    && project.playerWasInvolved(player))
-                            .collect(Collectors.toList());
+                                    && project.playerWasInvolved(player)).toList();
 
                     // Only send when conditions have changed from last time
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
@@ -425,9 +423,24 @@ public class Game {
                     profit = (int) (profit * overduePenaltyMultiplier);
                     projectObject.put("profit", profit);
                     project.setProfit(profit);
-
                     player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
+
+                    // Calculate player's XP points gained in this project
+                    // Riskier and larger projects yield more XP
+                    float xp = project.getTotalValue() / 100f;
+                    switch (project.getRiskLevel()) {
+                        case low -> xp *= 0.75;
+                        case medium -> xp *= 1;
+                        case high -> xp *= 2;
+                        case extreme -> xp *= 4;
+                    }
+                    player.addXp((int) xp);
+
+                    GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+                    playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+                    playerUpdateEvent.setPayload(player);
+                    sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
 
                     // After project completion, send gained XP of employees to player
                     for (Employee employee : employees) {

@@ -20,6 +20,13 @@ Generate TypeScript interfaces in *target/typescript-generator*:
 
 ```mvn typescript-generator:generate```
 
+### Simple development flow example
+For the feature "Player gains experience (XP)", the following steps are needed:
+* Add a new Integer field *"xp"* to the *Player* class with getters and setters. Make sure the *@JsonProperty* annotation is there for it to be serialized correctly.
+* Extend the code where projects are finished to increment the player's xp. Create a helper method *addXP()* in Player class. 
+* Add notificaiton code for the frontend
+* Extend the frontend to include the new data.
+
 ## Test Suite
 ### Unit Tests
 Should be written rather sooner than later for new features to get all the side effects sorted out and get your thinking as clear as water.

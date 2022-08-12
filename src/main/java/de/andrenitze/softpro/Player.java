@@ -36,6 +36,9 @@ public class Player {
     @JsonIgnore
     private boolean ready;
 
+    @JsonProperty
+    private Integer xp = 0;
+
     Player() {
         this(generatePlayerName(), generateCompanyName());
     }
@@ -175,7 +178,6 @@ public class Player {
 
     public void initializeBeforeRound() {
         setReady(false);
-        setFunds(INITIAL_FUNDS);
 
         this.employees = new ArrayList<>();
         this.employees.add(new Employee());
@@ -185,8 +187,8 @@ public class Player {
         objectives.loadObjectivesFromYamlFile();
         this.objectives = objectives.getObjectives();
     }
-
-    private void setFunds(float funds) {
-        this.funds = funds;
+    
+    public void addXp(Integer XpToAdd) {
+        this.xp += XpToAdd;
     }
 }
