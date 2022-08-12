@@ -187,7 +187,7 @@ public class Player {
         objectives.loadObjectivesFromYamlFile();
         this.objectives = objectives.getObjectives();
     }
-    
+
     public void addXp(Integer XpToAdd) {
         this.xp += XpToAdd;
     }
