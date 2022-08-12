@@ -22,10 +22,10 @@ public class Project {
     private float penalty;
     private float profit;
     private static final Random RANDOM = new Random();
-    private RiskLevel risk;
+    private final RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS =
             List.of(RiskLevel.values());
-    private ProjectType type;
+    private final ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES =
             List.of(ProjectType.values());
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
@@ -35,6 +35,7 @@ public class Project {
     private static final List<String> PROJECT_DOMAINS_DEVELOPMENT = List.of("JAVA,COBOL,C,dotNET,Python,Swift,Kotlin,JavaScript,Go,PHP,Scala,CSharp".split(","));
     private static final List<String> PROJECT_DOMAINS_INTRODUCTION = List.of("ProcessAssessment,TechnologyEvaluation,FeasibilityStudy,SWOTAnalysis".split(","));
     private static final List<String> PROJECT_DOMAINS_CUSTOMIZATION = List.of("S4/MONTANA,Dynamix,TYPOW3".split(","));
+    private static final List<String> PROJECT_DOMAINS_MAINTENANCE = List.of("PlatformMigration,Refactoring,QualityEvaluation,DataMigration".split(","));
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
@@ -42,9 +43,19 @@ public class Project {
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
     private final String domain;
 
-    public Project(String name, int totalValue, boolean hasTenderProcess) {
-        this.name = name;
-        this.totalValue = totalValue;
+    /**
+     * Generates a project with a random name and volume
+     *
+     * Projects can be used in several stages. The first stage is a "tender".
+     * All players can participate in tenders.
+     *
+     * After a tender is won by a player, work on the project can get started.
+     * Work on the project increases the earnedValue. When earnedValue has reached
+     * totalValue, the project is fully delivered.
+     */
+    public Project() {
+        this.name = generateProjectName();
+        this.totalValue = generateVolume();
         this.earnedValue = 0;
         this.id = lastId;
         ++lastId;
@@ -54,13 +65,16 @@ public class Project {
 
         // Assign random project type
         this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
-        this.hasTenderProcess = hasTenderProcess;
+
+        // +40% chance of a tender process
+        this.hasTenderProcess = (Math.round(RANDOM.nextFloat()+0.4) < 1);
 
         // Set matching candidates for project types (e. g., "Development") and domains (e. g., "COBOL")
         projectTypeDomainMap.put(ProjectType.CONSULTING, PROJECT_DOMAINS_CONSULTING);
         projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, PROJECT_DOMAINS_CUSTOMIZATION);
         projectTypeDomainMap.put(ProjectType.DEVELOPMENT, PROJECT_DOMAINS_DEVELOPMENT);
         projectTypeDomainMap.put(ProjectType.INTRODUCTION, PROJECT_DOMAINS_INTRODUCTION);
+        projectTypeDomainMap.put(ProjectType.MAINTENANCE, PROJECT_DOMAINS_MAINTENANCE);
 
         // Based on the project type, assign a matching domain
         this.domain = generateDomain(this.type);
@@ -78,23 +92,6 @@ public class Project {
         return projectTypeDomainMap.get(type).get(new Random().nextInt(projectTypeDomainMap.get(type).size()));
     }
 
-    /**
-     * Generates a project with a random name and volume
-     *
-     * Projects can be used in several stages. The first stage is a "tender".
-     * All players can participate in tenders.
-     *
-     * After a tender is won by a player, work on the project can get started.
-     * Work on the project increases the earnedValue. When earnedValue has reached
-     * totalValue, the project is fully delivered.
-     *
-     * @return Project
-     */
-    static Project generateRandomProject() {
-        boolean hasTender = (Math.round(RANDOM.nextFloat()+0.4) < 1);
-        return new Project(generateProjectName(), generateVolume(), hasTender);
-    }
-
     private static int generateVolume() {
         return 10000 + RANDOM.nextInt(1000) * 100;
     }
@@ -104,7 +101,7 @@ public class Project {
         boolean isUniqueName = false;
 
         while (!isUniqueName) {
-            // Pick some random name
+            // Pick a random name
             projectName = PROJECT_NAME_SNIPPETS.get(new Random().nextInt(PROJECT_NAME_SNIPPETS.size()));
 
             // Add variation (how many words, dashes, prefix, suffix etc.) by chance

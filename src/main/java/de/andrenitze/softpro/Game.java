@@ -333,7 +333,7 @@ public class Game {
     private void randomlySpawnProjectTendersPerTick() {
         if (new Random().nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
             // Generate a new project
-            Project project = Project.generateRandomProject();
+            Project project = new Project();
             projects.add(project);
 
             // Initialize project-employee map
