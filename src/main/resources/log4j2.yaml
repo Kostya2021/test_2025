@@ -23,7 +23,7 @@ Configutation:
           pattern: "[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n"
         Policies:
           SizeBasedTriggeringPolicy:
-            size: 1 KB
+            size: 10 KB
         DefaultRollOverStrategy:
           max: 30
   Loggers:
@@ -31,7 +31,6 @@ Configutation:
       level: debug
       AppenderRef:
         - ref: Console_Appender
-        - ref: File_Appender
         - ref: RollingFile_Appender
     Logger:
       - name: de.andrenitze.log4j2yaml
@@ -40,7 +39,5 @@ Configutation:
         AppenderRef:
           - ref: Console_Appender
             level: debug
-          - ref: File_Appender
-            level: info
           - ref: RollingFile_Appender
-            level: info
+            level: warn

@@ -1,8 +1,8 @@
 objectives:
-  - title: "Finish 10 projects"
+  - title: Finish 10 projects
     id: 1
     order: 1
     totalSteps: 10
-    mission: "Getting Started"
+    mission: Getting Started
     earliestOccurrence: 15
     rewardFunds: 75000

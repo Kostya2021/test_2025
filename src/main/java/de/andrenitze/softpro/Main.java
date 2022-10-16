@@ -6,13 +6,15 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 
 public class Main {
-    private static Logger logger = LoggerFactory.getLogger(Main.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
 
     public static void main(String[] args) {
         logger.trace("Starting server...");
-        int port = 8070;
         try {
-            GameServer server = new GameServer(InetAddress.getLocalHost().getHostAddress(), port);
+            String hostAddress = InetAddress.getLocalHost().getHostAddress();
+            int port = 8070;
+
+            GameServer server = new GameServer(hostAddress, port);
             server.setConnectionLostTimeout(5);
             logger.info(InetAddress.getLocalHost().getHostAddress()+":"+port);
             logger.info(InetAddress.getLocalHost().getHostName());
