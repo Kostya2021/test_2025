@@ -27,12 +27,13 @@ import static java.lang.Math.exp;
 import static java.time.LocalDate.now;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 200;
     private static final int BANKRUPTCY_THRESHOLD = -25000;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.05f;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private GameServer gameServer;
+    private boolean isRunning;
+    private final GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
     private final ArrayList<Project> projects;
     private int currentTick;
@@ -40,10 +41,18 @@ public class Game {
     private final ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
-    private static final Gson GSON = new Gson();
+    public static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements;
 
-    // Every GameServer can host multiple Games
+    /**
+     * Creates a new Game with the provided Players within the GameServer.
+     * <p>
+     * A ThreadPool with a single Thread is used to run the game logic in a loop.
+     * Changes in the game's state can be sent to the players as GameEvents.
+     *
+     * @param players Players in this game instance
+     * @param gameServer The GameServer that this game is running in
+     */
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
         // Every game consists of players and a world in a specific state
         this.players = players;
@@ -58,6 +67,7 @@ public class Game {
         loadStoryElementsFromFile();
 
         // Start the round for all players
+        isRunning = true;
         GameEvent<Object> startEvent = new GameEvent<>();
         startEvent.setType(EventType.ROUND_STARTED);
         broadcastToAllPlayers(GSON.toJson(startEvent));
@@ -72,15 +82,14 @@ public class Game {
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
-        gameLoop.scheduleAtFixedRate(() -> {
-            // Notify all clients of current time
-            this.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
-                    "\", \"payload\": " + getCurrentTick() + "}");
+        gameLoop.scheduleWithFixedDelay(() -> {
+                // Notify all clients of current time
+                this.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
+                        "\", \"payload\": " + getCurrentTick() + "}");
 
-            // Progress game time and calculate the world's state for each tick
-            progressGameTime();
+                // Progress game time and calculate the world's state for each tick
+                progressGameTime();
         }, 0, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
-
     }
 
     private void loadStoryElementsFromFile() {
@@ -91,6 +100,11 @@ public class Game {
 
     private void progressGameTime() {
         ++currentTick;
+
+        // Stop if the game is over
+        if (!isRunning) {
+            gameLoop.shutdownNow();
+        }
 
         // Progress calendar date
         currentDate = now();
@@ -112,7 +126,7 @@ public class Game {
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
-        if (timeElapsedInMilliseconds >= 2) {
+        if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
 
@@ -215,18 +229,6 @@ public class Game {
         });
     }
 
-    private void spawnObjectivesPerTick() {
-        players.forEach((webSocket, player) -> {
-            List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(currentTick);
-            if (!newObjectivesInThisTick.isEmpty()) {
-                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-                List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
-                objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
-            }
-        });
-    }
-
     private void processSalariesAndAdjustFundsPerTick(LocalDate d) {
         if (d.getDayOfMonth() == 1) {
             players.forEach((webSocket, player) -> {
@@ -235,14 +237,7 @@ public class Game {
             });
         }
     }
-
-    private void sendFundsUpdateToPlayer(Player player) {
-        GameEvent<Float> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
-        newFundsEvent.setPayload(player.getFunds());
-        sendMessageToPlayer(player, GSON.toJson(newFundsEvent));
-    }
-
-    private void checkGameOverConditionsAndKickPlayersPerTick() {
+    void checkGameOverConditionsAndKickPlayersPerTick() {
         players.forEach((webSocket, player) -> {
             boolean gameIsOver = false;
             boolean playerHasWon = false;
@@ -258,11 +253,11 @@ public class Game {
             }
 
             if (gameIsOver) {
-                GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
+                GameEvent<GameOverStats> gameOverEvent = new GameEvent<GameOverStats>(EventType.GAME_OVER);
 
                 int deliveredProjects = 0;
                 int projectsVolume = 0;
-                for (Project project: this.getProjects()) {
+                for (Project project : getProjects()) {
                     if (project.isCompleted() && project.playerWasInvolved(player)) {
                         deliveredProjects++;
                         projectsVolume += project.getTotalValue();
@@ -272,7 +267,7 @@ public class Game {
                 GameOverStats goStats = new GameOverStats();
                 goStats.setDeliveredProjects(deliveredProjects);
                 goStats.setProjectsVolume(projectsVolume);
-                goStats.setSurvivedDays(this.getCurrentTick());
+                goStats.setSurvivedDays(getCurrentTick());
 
                 if (playerHasWon) {
                     goStats.setReport("""
@@ -284,13 +279,13 @@ public class Game {
                 }
 
                 gameOverEvent.setPayload(goStats);
-                sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
+                sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
 
                 // Keep connection and name but reset other player attributes
                 player.initializeBeforeRound();
 
                 // Tell game server to move player back to lobby
-                gameServer.addPlayerToLobby(webSocket, player);
+                this.gameServer.addPlayerToLobby(webSocket, player);
 
                 // Complete the infos for the database
                 goStats.setPlayerName(player.getName());
@@ -311,13 +306,37 @@ public class Game {
 
                 // Check if there's a new high-score and broadcast updates in lobby
                 if (isNewHighScore(goStats)) {
-                    gameServer.setNewHighScore(goStats);
+                    this.gameServer.setNewHighScore(goStats);
                 }
 
                 // Remove player from the current game
                 removePlayerFromGame(webSocket);
+
+                // If the game is empty, stop progressing the game time
+                // Actually redundant code, because this check is done from the "outside" of the game as well
+                if (getPlayers().size() == 0) {
+                    this.stop();
+                }
             }
         });
+    }
+
+    void spawnObjectivesPerTick() {
+        players.forEach((webSocket, player) -> {
+            List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(getCurrentTick());
+            if (!newObjectivesInThisTick.isEmpty()) {
+                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<List<Objective>>(EventType.OBJECTIVES_UPDATED);
+                List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(getCurrentTick());
+                objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                sendMessageToPlayer(player, Game.GSON.toJson(objectivesUpdatedEvent));
+            }
+        });
+    }
+
+    private void sendFundsUpdateToPlayer(Player player) {
+        GameEvent<Float> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
+        newFundsEvent.setPayload(player.getFunds());
+        sendMessageToPlayer(player, GSON.toJson(newFundsEvent));
     }
 
     private boolean isNewHighScore(GameOverStats highScoreCandidate) {
@@ -337,11 +356,12 @@ public class Game {
             projects.add(project);
 
             // Initialize project-employee map
-            projectEmployeesMap.put(project, new ArrayList<>());
+            projectEmployeesMap.put(project, new ArrayList<>(2));
 
             // Inform players about the new tender
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
             newTenderEvent.setPayload(project);
+            
             broadcastToAllPlayers(GSON.toJson(newTenderEvent));
         }
     }
@@ -578,7 +598,7 @@ public class Game {
         players.forEach((webSocket, player) -> webSocket.send(message));
     }
 
-    private void sendMessageToPlayer(Player player, String message) {
+    void sendMessageToPlayer(Player player, String message) {
         // Get the WebSocket connection of the player
         WebSocket webSocket = getWebSocketByPlayer(players, player);
 
@@ -634,10 +654,11 @@ public class Game {
     }
 
     boolean assignEmployeeToProject(Employee employee, Project project) {
-        // Get current list of employees working on that project
         try {
+            // Get current list of employees working on that project
             ArrayList<Employee> employees = projectEmployeesMap.get(project);
 
+            // Add employee to project if not already assigned
             if (!employees.contains(employee)) {
                 employees.add(employee);
                 projectEmployeesMap.put(project, employees);
@@ -666,14 +687,31 @@ public class Game {
     }
 
     public boolean closeIfEmpty() {
-        // Close game session if this was the last player
-        if (players.size() == 0) {
-            logger.info("Shutting down empty game.");
+        int numberOfPlayers = players.size();
 
-            gameServer = null;
-            gameLoop.shutdownNow();
+        // Close game session if this was the last player
+        if (numberOfPlayers == 0) {
+            logger.info("Shutting down empty game with {} players.", numberOfPlayers);
+
+            // Stop the game loop to make sure the thread can be interrupted
+            logger.debug("Game has no players left. Stopping game loop.");
+            isRunning = false;
+
+            // TODO Das scheint nicht zu funktionieren. Der Thread bleibt "running".
+            gameLoop.shutdown();
+            try {
+                if (!gameLoop.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+                    gameLoop.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                gameLoop.shutdownNow();
+            }
             return true;
         }
         return false;
+    }
+
+    public void stop() {
+        isRunning = false;
     }
 }
