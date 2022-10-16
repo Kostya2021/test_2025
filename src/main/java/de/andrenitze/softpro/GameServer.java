@@ -49,6 +49,10 @@ public class GameServer extends WebSocketServer {
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
+        fetchHighscore();
+    }
+
+    private void fetchHighscore() {
         // Initialize database session
         StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
                 .configure("hibernate.cfg.xml")
@@ -57,8 +61,10 @@ public class GameServer extends WebSocketServer {
         try {
             sessionFactory = new MetadataSources(registry).buildMetadata().buildSessionFactory();
             this.dailyHighScore = getCurrentHighScore();
-            if (this.dailyHighScore != null) {
-                logger.info("Current high-score fetched from database");
+            if (this.dailyHighScore != null && this.dailyHighScore.getProjectsVolume() > 0) {
+                logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
+            } else {
+                logger.info("No high-score set for today, yet.");
             }
         } catch (Exception e) {
             StandardServiceRegistryBuilder.destroy(registry);
@@ -78,7 +84,7 @@ public class GameServer extends WebSocketServer {
         playerUpdateEvent.setPayload(generatedPlayer);
         webSocket.send(GSON.toJson(playerUpdateEvent));
 
-        broadcastPlayerList();
+        broadcastLobbyState();
 
         logger.info("New player '{}' added. New number of players in lobby: {}",
                 generatedPlayer.getName(),
@@ -100,7 +106,7 @@ public class GameServer extends WebSocketServer {
                 logger.info("Running games: {}", games.size());
             }
         }
-        broadcastPlayerList();
+        broadcastLobbyState();
     }
 
     @Override
@@ -119,7 +125,7 @@ public class GameServer extends WebSocketServer {
 
                     Player player = playersAndTheirConnections.get(webSocket);
                     player.setReady(true);
-                    broadcastPlayerList();
+                    broadcastLobbyState();
                 } catch (Exception e) {
                     logger.error("Websocket message was malformed!");
                 }
@@ -143,7 +149,7 @@ public class GameServer extends WebSocketServer {
                     webSocket.send(GSON.toJson(playerUpdateEvent));
 
                     // Notify everyone in the lobby
-                    broadcastPlayerList();
+                    broadcastLobbyState();
                     logger.info("{} changed name to {}", player.getName(), newName);
                 }
             } else {
@@ -179,7 +185,7 @@ public class GameServer extends WebSocketServer {
                         games.add(new Game(readyPlayersAndTheirConnections, this));
                         logger.info("Running games: {}", games.size());
                         logger.info("Players in the lobby: {}", playersAndTheirConnections.size());
-                        broadcastPlayerList();
+                        broadcastLobbyState();
                     }
                 }
             }
@@ -188,7 +194,7 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    private void broadcastPlayerList() {
+    protected void broadcastLobbyState() {
         JSONArray playersList = new JSONArray();
         for (Map.Entry<WebSocket, Player> entry : playersAndTheirConnections.entrySet()) {
             Player readyPlayer = entry.getValue();
@@ -235,7 +241,7 @@ public class GameServer extends WebSocketServer {
 
     void addPlayerToLobby(WebSocket webSocket, Player player) {
         playersAndTheirConnections.put(webSocket, player);
-        broadcastPlayerList();
+        broadcastLobbyState();
     }
 
     public void setNewHighScore(GameOverStats gameOverStats) {
@@ -246,7 +252,7 @@ public class GameServer extends WebSocketServer {
         GameOverStats highScore;
         try (Session session = sessionFactory.openSession()) {
             NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `GameOverStats` " +
-                            "WHERE DATE(finishedAt) = CURDATE() " +
+                            "WHERE DATE(finishedAt) BETWEEN CURRENT_DATE AND CURRENT_DATE " +
                             "ORDER BY projectsVolume DESC LIMIT 1",
                     GameOverStats.class);
             highScore = query.getSingleResult();

@@ -312,6 +312,7 @@ public class Game {
                 // Check if there's a new high-score and broadcast updates in lobby
                 if (isNewHighScore(goStats)) {
                     gameServer.setNewHighScore(goStats);
+                    gameServer.broadcastLobbyState();
                 }
 
                 // Remove player from the current game
