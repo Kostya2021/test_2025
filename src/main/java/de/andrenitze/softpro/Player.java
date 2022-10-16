@@ -63,17 +63,10 @@ public class Player {
     }
 
     Player(String name, String company) {
-        this.id = UUID.randomUUID();
         this.name = name;
         this.company = company;
-        this.ready = false;
-
-        employees.add(new Employee());
-        employees.add(new Employee());
-
-        Objectives objectives = new Objectives();
-        objectives.loadObjectivesFromYamlFile();
-        this.objectives = objectives.getObjectives();
+        this.id = UUID.randomUUID();
+        initializeBeforeRound();
     }
 
     String getName() {
@@ -178,6 +171,7 @@ public class Player {
 
     public void initializeBeforeRound() {
         setReady(false);
+        this.funds = INITIAL_FUNDS;
 
         this.employees = new ArrayList<>();
         this.employees.add(new Employee());
