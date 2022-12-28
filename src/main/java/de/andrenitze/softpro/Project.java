@@ -6,6 +6,7 @@ import de.andrenitze.softpro.types.RiskLevel;
 import java.util.*;
 
 public class Project {
+    public static final float DAILY_EARNED_VALUE_TO_FINISH_PROJECT_ON_TIME = 400f;
     private static int lastId = 1;
     private final Integer id;
     private final String name;
@@ -45,13 +46,11 @@ public class Project {
 
     /**
      * Generates a project with a random name and volume
-     *
      * Projects can be used in several stages. The first stage is a "tender".
      * All players can participate in tenders.
-     *
      * After a tender is won by a player, work on the project can get started.
      * Work on the project increases the earnedValue. When earnedValue has reached
-     * totalValue, the project is fully delivered.
+     * totalValue, the project is fully delivered or "completed".
      */
     public Project() {
         this.name = generateProjectName();
@@ -85,7 +84,7 @@ public class Project {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
 
-        this.deadline = Math.round(totalValue / 400f);
+        this.deadline = Math.round(totalValue / DAILY_EARNED_VALUE_TO_FINISH_PROJECT_ON_TIME);
     }
 
     private static String generateDomain(ProjectType type) {
@@ -138,7 +137,6 @@ public class Project {
     }
     /**
      * Several companies can be associated with the same project.
-     *
      * Several companies can take part in the tender process.
      * After the tender, several companies can work on the project together.
      *
@@ -216,35 +214,46 @@ public class Project {
         this.acquiredAt = acquiredAt;
     }
 
-    public int getStartedAt() {
-        return startedAt;
-    }
-
     public void setStartedAt(int startedAt) {
         this.startedAt = startedAt;
-    }
-
-    public int getQuality() {
-        return quality;
     }
 
     public void setQuality(int quality) {
         this.quality = quality;
     }
 
-    public float getPenalty() {
-        return penalty;
-    }
-
     public void setPenalty(float penalty) {
         this.penalty = penalty;
     }
 
-    public float getProfit() {
-        return profit;
-    }
-
     public void setProfit(float profit) {
         this.profit = profit;
+    }
+
+    public boolean hasOnboardingEmployees(ArrayList<Employee> employees) {
+        // After "safe period": Does any of the employees need on-boarding?
+        int safePeriodInDays = (int) (SimulationParameters.SAFE_PERIOD_PERCENT * getScheduledDuration())
+                + SimulationParameters.ASSIGNMENT_TIME_IN_DAYS;
+        for (Employee employee : employees) {
+            // Employee has no experience in this project and needs to be trained
+            if (employee.getExperienceInDaysByProject(this) <= safePeriodInDays) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected boolean isRampingUp(int currentTick) {
+        // No extra on-boarding effort is assigned at the beginning of the project for the beginning of a project
+        // (time to allocate staff to project, also general ramp-up, s. Rule #2)
+        // Safe period (10%). No training required.
+        return currentTick <= (getScheduledDuration() * SimulationParameters.SAFE_PERIOD_PERCENT
+                + getAcquiredAt()
+                + SimulationParameters.ASSIGNMENT_TIME_IN_DAYS);
+    }
+
+    public int getScheduledDuration() {
+        return getDeadline() - getAcquiredAt();
     }
 }
