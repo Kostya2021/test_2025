@@ -697,6 +697,7 @@ public class Game {
     boolean assignEmployeeToProject(Employee employee, Project project) {
         // Get current list of employees working on that project
         try {
+            projectEmployeesMap.putIfAbsent(project, new ArrayList<>());
             ArrayList<Employee> employees = projectEmployeesMap.get(project);
 
             if (!employees.contains(employee)) {
