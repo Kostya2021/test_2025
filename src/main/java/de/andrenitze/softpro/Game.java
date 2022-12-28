@@ -39,7 +39,7 @@ public class Game {
     private LocalDate currentDate;
     private final ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
-    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
+    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements;
 
@@ -51,8 +51,18 @@ public class Game {
         this.eventHandler = new GameEventHandler(this);
         currentTick = 0;
         currentDate = now();
+
+        // Spawn some projects to get going
         projects = new ArrayList<>();
-        projectEmployeesMap = new ConcurrentHashMap<>();
+        for (int i = 0; i<4; i++) {
+            Project project = new Project();
+            projects.add(project);
+            projectEmployeesMap.put(project, new ArrayList<>());
+            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
+            newTenderEvent.setPayload(project);
+            broadcastToAllPlayers(GSON.toJson(newTenderEvent));
+        }
+
         logger.info("A new game has started with {} players.", players.size());
 
         loadStoryElementsFromFile();
@@ -375,7 +385,6 @@ public class Game {
 
     public void immediatelyCloseTender(Project project) {
         if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
-            project.setStartedAt(currentTick);
             GameEvent<Integer> closeTenderEvent = new GameEvent<>(EventType.TENDER_CLOSED);
             closeTenderEvent.setPayload(project.getId());
             broadcastToAllPlayers(GSON.toJson(closeTenderEvent));
@@ -519,12 +528,25 @@ public class Game {
 
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {
         int earnedValue;
+
+        // Rule #3: Adding people to a late software project makes it later (Brooks' law)
+        // New employees will decrease the whole team's productivity for on-boarding and training
+        float onboardingFactor;
+        if (!project.isRampingUp(currentTick)
+                && project.hasOnboardingEmployees(employees)) {
+            onboardingFactor = calculateOnboardingFactor(project, employees);
+            logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", onboardingFactor);
+        } else {
+            // No onboarding required (safe period or no new employees
+            onboardingFactor = 1;
+        }
+
         for (Employee employee : employees) {
             if (employee.isSick()) {
-                logger.debug("Employee {} is sick in a project.", employee.getName());
                 continue; // Go to next employee
             }
 
+            // Fixed imaginary number
             earnedValue = 500;
 
             // Rule #1: Context changes decrease employee productivity
@@ -532,7 +554,7 @@ public class Game {
             earnedValue /= numberOfParallelProjects;
             switch (numberOfParallelProjects) {
                 case 1 ->
-                        //noinspection ConstantConditions
+                    //noinspection ConstantConditions
                         earnedValue *= 1;
                 case 2 -> earnedValue *= 0.4;
                 case 3 -> earnedValue *= 0.2;
@@ -541,7 +563,7 @@ public class Game {
                 default -> earnedValue = 1;
             }
 
-            // Project ramp-up time influences earned value
+            // Rule #2: Productivity ramp-up: New staff needs some time to get fully productive
             // Example:
             // 0 days XP = 0% productivity
             // 1 day XP = 10% productivity
@@ -550,15 +572,53 @@ public class Game {
             float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 float productivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue = (int) (earnedValue * productivityFactor);
+                earnedValue *= productivityFactor;
             }
 
             // Increase the employee's experience
             employee.gainExperience(project, 1);
 
-            // Increase the project's earnedValue
+            earnedValue *= onboardingFactor;
+
+            if (project.getEarnedValue() == 0 && earnedValue > 0) {
+                project.setStartedAt(currentTick);
+            }
+
+            // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
         }
+    }
+
+    private float calculateOnboardingFactor(Project project, ArrayList<Employee> employees) {
+        ArrayList<Float> onboardingFactors = new ArrayList<>();
+
+        for (Employee employee : employees) {
+            // FIXED: 30,4 (10% of a 304 day project)
+            float onboardingDays = SimulationParameters.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
+
+            // VARIABLE (depending on employees' experience): 4 days / 30,4 days = 0,1333%
+            float onboardingProgress = employee.getExperienceInDaysByProject(project) / onboardingDays;
+            if (onboardingProgress >= 1) {
+                continue; // Onboarding completed. Ignore this employee for calculation.
+            }
+
+            // productivity factor = (1 - 0,1333) * 0,15 * 100 = 13% decrease
+            // Example 0: 0% onboardingProgress => 15% productivity decrease
+            // Example 1: 10% onboardingProgress => 13,5% productivity decrease
+            // Example 2: 50% onboardingProgress => 7,5% productivity decrease
+            // Example 3: 100% onboardingProgress => 0% productivity decrease
+            float onboardingFactor = 1 - (1 - onboardingProgress) * SimulationParameters.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
+            onboardingFactors.add(onboardingFactor);
+
+            logger.debug("{} is being on-boarded in project {}: {} productivity factor, {}/{} days",
+                    employee.getName(), project.getName(), onboardingFactor,
+                    employee.getExperienceInDaysByProject(project), onboardingDays);
+        }
+
+        // Return average of all onboarding factors
+        return (float) onboardingFactors.stream()
+                .mapToDouble(d -> d)
+                .reduce(1, (a, b) -> a * b);
     }
 
     private int getNumberOfParallelProjectsForEmployee(Employee employee) {
