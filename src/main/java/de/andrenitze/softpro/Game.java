@@ -42,6 +42,7 @@ public class Game {
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements;
+    private SkillsManager skillsMananger = new SkillsManager();
 
     // Every GameServer can host multiple Games
     Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
@@ -74,6 +75,10 @@ public class Game {
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
+            // Initialize skills
+            skillsMananger.addPlayer(player);
+
+            // Send state
             logger.debug("Sending initial state to players");
             GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.UPDATE_STATE);
             initialPlayerEvent.setPayload(player);
@@ -734,5 +739,9 @@ public class Game {
             return true;
         }
         return false;
+    }
+
+    public SkillsManager getSkillsMananger() {
+        return skillsMananger;
     }
 }

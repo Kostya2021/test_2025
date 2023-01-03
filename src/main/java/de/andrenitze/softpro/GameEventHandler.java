@@ -12,8 +12,6 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 
 class GameEventHandler {
-    public static final String EMPLOYEE_ID = "employeeId";
-    public static final String PROJECT_ID = "projectId";
     private static final Gson GSON = new Gson();
     private final Game game;
 
@@ -61,8 +59,8 @@ class GameEventHandler {
                 payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>(){}.getType();
                 GameEvent<HashMap<String, Integer>> assignmentEvent = GSON.fromJson(message, payloadType);
 
-                int employeeId = assignmentEvent.getPayload().get(EMPLOYEE_ID);
-                int projectId = assignmentEvent.getPayload().get(PROJECT_ID);
+                int employeeId = assignmentEvent.getPayload().get("employeeId");
+                int projectId = assignmentEvent.getPayload().get("projectId");
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, true);
                 break;
@@ -70,10 +68,19 @@ class GameEventHandler {
                 payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>(){}.getType();
                 GameEvent<HashMap<String, Integer>> unassignmentEvent = GSON.fromJson(message, payloadType);
 
-                employeeId = unassignmentEvent.getPayload().get(EMPLOYEE_ID);
-                projectId = unassignmentEvent.getPayload().get(PROJECT_ID);
+                employeeId = unassignmentEvent.getPayload().get("employeeId");
+                projectId = unassignmentEvent.getPayload().get("projectId");
 
                 changeEmployeeAssignment(websocket, employeeId, projectId,false);
+                break;
+            case SKILL_UNLOCKED:
+                Player player = game.getPlayerByWebSocket(websocket);
+
+                payloadType = new TypeToken<GameEvent<HashMap<String, String>>>(){}.getType();
+                GameEvent<HashMap<String, String>> skillUnlockedEvent = GSON.fromJson(message, payloadType);
+                String skillId = skillUnlockedEvent.getPayload().get("skillId");
+
+                game.getSkillsMananger().unlockSkill(player, skillId);
                 break;
             default:
                 break;

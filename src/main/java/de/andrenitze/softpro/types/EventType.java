@@ -20,4 +20,5 @@ public enum EventType {
     T,
     EMPLOYEE_UPDATED,
     PLAYER_NAME_UPDATED,
+    SKILL_UNLOCKED,
 }
