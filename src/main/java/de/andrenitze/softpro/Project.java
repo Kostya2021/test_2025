@@ -232,8 +232,8 @@ public class Project {
 
     public boolean hasOnboardingEmployees(ArrayList<Employee> employees) {
         // After "safe period": Does any of the employees need on-boarding?
-        int safePeriodInDays = (int) (SimulationParameters.SAFE_PERIOD_PERCENT * getScheduledDuration())
-                + SimulationParameters.ASSIGNMENT_TIME_IN_DAYS;
+        int safePeriodInDays = (int) (Params.SAFE_PERIOD_PERCENT * getScheduledDuration())
+                + Params.ASSIGNMENT_TIME_IN_DAYS;
         for (Employee employee : employees) {
             // Employee has no experience in this project and needs to be trained
             if (employee.getExperienceInDaysByProject(this) <= safePeriodInDays) {
@@ -248,9 +248,9 @@ public class Project {
         // No extra on-boarding effort is assigned at the beginning of the project for the beginning of a project
         // (time to allocate staff to project, also general ramp-up, s. Rule #2)
         // Safe period (10%). No training required.
-        return currentTick <= (getScheduledDuration() * SimulationParameters.SAFE_PERIOD_PERCENT
+        return currentTick <= (getScheduledDuration() * Params.SAFE_PERIOD_PERCENT
                 + getAcquiredAt()
-                + SimulationParameters.ASSIGNMENT_TIME_IN_DAYS);
+                + Params.ASSIGNMENT_TIME_IN_DAYS);
     }
 
     public int getScheduledDuration() {

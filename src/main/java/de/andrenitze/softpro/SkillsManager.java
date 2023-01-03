@@ -28,9 +28,9 @@ public class SkillsManager {
         }
     }
 
-    boolean playerHasSkill(Player player, Skill skill) {
+    boolean playerHasSkill(Player player, String skillId) {
         HashMap<String, Skill> skills = playersSkills.get(player);
-        return skills.get(skill.getId()).isUnlocked();
+        return skills.get(skillId) != null && skills.get((skillId)).isUnlocked();
     }
 
     void addPlayer(Player player) {

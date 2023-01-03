@@ -586,9 +586,25 @@ public class Game {
                 project.setStartedAt(currentTick);
             }
 
+            earnedValue *= calculateSkillsFactor(project);
+
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
         }
+    }
+
+    private float calculateSkillsFactor(Project project) {
+        List<Player> players = project.getInvolvedPlayers();
+
+        // If only one player is working on the project
+        if (players.size() == 1) {
+            Player player = players.get(0);
+            if (skillsMananger.playerHasSkill(player, "pmo")) {
+                return 1.05f;
+            }
+        }
+
+        return 1.0f;
     }
 
     private float calculateOnboardingFactor(Project project, ArrayList<Employee> employees) {
@@ -596,7 +612,7 @@ public class Game {
 
         for (Employee employee : employees) {
             // FIXED: 30,4 (10% of a 304 day project)
-            float onboardingDays = SimulationParameters.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
+            float onboardingDays = Params.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
 
             // VARIABLE (depending on employees' experience): 4 days / 30,4 days = 0,1333%
             float onboardingProgress = employee.getExperienceInDaysByProject(project) / onboardingDays;
@@ -609,7 +625,7 @@ public class Game {
             // Example 1: 10% onboardingProgress => 13,5% productivity decrease
             // Example 2: 50% onboardingProgress => 7,5% productivity decrease
             // Example 3: 100% onboardingProgress => 0% productivity decrease
-            float onboardingFactor = 1 - (1 - onboardingProgress) * SimulationParameters.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
+            float onboardingFactor = 1 - (1 - onboardingProgress) * Params.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
             onboardingFactors.add(onboardingFactor);
 
             logger.debug("{} is being on-boarded in project {}: {} productivity factor, {}/{} days",
