@@ -275,12 +275,9 @@ public class Game {
                 goStats.setSurvivedDays(this.getCurrentTick());
 
                 if (playerHasWon) {
-                    goStats.setReport("""
-                            Great work! You succeeded to manage the company through rough times!
-
-                            Here's your performance report:""");
+                    goStats.setReport("win");
                 } else {
-                    goStats.setReport("Yikes! That didn't go well...\nYou ran out of money!");
+                    goStats.setReport("fail");
                 }
 
                 gameOverEvent.setPayload(goStats);

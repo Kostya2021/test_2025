@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 2;
+    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final HashSet<Game> games = new HashSet<>();
     private final ConcurrentHashMap<WebSocket, Player> playersAndTheirConnections = new ConcurrentHashMap<>();
