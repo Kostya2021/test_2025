@@ -440,9 +440,9 @@ public class Game {
                     player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
 
-                    // Calculate player's XP points gained in this project
+                    // Calculate player's XP gained in this project
                     // Riskier and larger projects yield more XP
-                    float xp = project.getTotalValue() / 100f;
+                    float xp = project.getTotalValue() / 1000f;
                     switch (project.getRiskLevel()) {
                         case low -> xp *= 0.75;
                         case medium -> xp *= 1;

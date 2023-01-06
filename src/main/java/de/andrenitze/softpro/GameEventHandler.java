@@ -79,8 +79,9 @@ class GameEventHandler {
                 payloadType = new TypeToken<GameEvent<HashMap<String, String>>>(){}.getType();
                 GameEvent<HashMap<String, String>> skillUnlockedEvent = GSON.fromJson(message, payloadType);
                 String skillId = skillUnlockedEvent.getPayload().get("skillId");
+                int unlockSkillPoints = Integer.parseInt(skillUnlockedEvent.getPayload().get("unlockSkillPoints"));
 
-                game.getSkillsMananger().unlockSkill(player, skillId);
+                game.getSkillsMananger().unlockSkill(player, skillId, unlockSkillPoints);
                 break;
             default:
                 break;

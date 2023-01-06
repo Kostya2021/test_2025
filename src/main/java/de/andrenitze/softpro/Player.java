@@ -37,7 +37,12 @@ public class Player {
     private boolean ready;
 
     @JsonProperty
-    private Integer xp = 0;
+    private int xp = 0;
+    @JsonProperty
+    private int skillPoints = 0;
+
+    @JsonProperty
+    private int level = 0;
 
     Player() {
         this(generatePlayerName(), generateCompanyName());
@@ -182,7 +187,23 @@ public class Player {
         this.objectives = objectives.getObjectives();
     }
 
-    public void addXp(Integer XpToAdd) {
-        this.xp += XpToAdd;
+    public void addXp(int newXP) {
+        this.xp += newXP;
+
+        // Check if new XP is enough to level up
+        int xpToLevelUp = SkillsManager.LEVEL_THRESHOLDS[this.level];
+
+        if (this.xp >= xpToLevelUp) {
+            this.skillPoints++;
+            this.level++;
+        }
+    }
+
+    public int getSkillPoints() {
+        return skillPoints;
+    }
+
+    public void setSkillPoints(int skillPoints) {
+        this.skillPoints = skillPoints;
     }
 }
