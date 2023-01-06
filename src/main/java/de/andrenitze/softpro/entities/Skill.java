@@ -1,11 +1,7 @@
 package de.andrenitze.softpro.entities;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 public class Skill {
-    @JsonProperty
     private String id;
-
     private String title;
     private String description;
     private String requiresId;
