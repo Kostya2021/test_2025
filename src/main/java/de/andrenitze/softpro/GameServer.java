@@ -34,7 +34,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class GameServer extends WebSocketServer {
-    private static final int PLAYERS_NEEDED_FOR_GAME_START = 1;
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
@@ -97,35 +96,39 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
         logger.debug("WebSocket {} is closing? {}", webSocket.getRemoteSocketAddress(), webSocket.isClosing());
-        removeDisconnectedCLient(webSocket);
+        removeDisconnectedClient(webSocket);
     }
 
-    private void removeDisconnectedCLient(WebSocket webSocket) {
+    private void removeDisconnectedClient(WebSocket webSocket) {
         // Remove disconnected clients from lobby
         logger.debug("Removing WebSocket {} from lobby", webSocket.getRemoteSocketAddress());
-        lobby.remove(webSocket);
-
-        // TODO Hier läuft irgendwas schief, die Games und enthaltenen Threads bleiben aktiv
+        Player player = lobby.remove(webSocket);
+        if (player != null) {
+            logger.info("Player '{}' disconnected. New number of players in lobby: {}",
+                    player.getName(),
+                    lobby.size());
+        }
 
         // Remove disconnected client from running game
         logger.debug("Removing WebSocket {} from game", webSocket.getRemoteSocketAddress());
-        synchronized (games) {
-            for (Game game : games) {
-                if (game.hasWebSocket(webSocket)) {
-                    game.removePlayerFromGame(webSocket);
+        for (Game game : games) {
+            if (game.hasWebSocket(webSocket)) {
+                game.removePlayerFromGame(webSocket);
 
-                    int numberOfPlayers = game.getPlayers().size();
-                    logger.debug("A player left the game - {} player(s) left in the game", numberOfPlayers);
+                int numberOfPlayers = game.getPlayers().size();
+                logger.debug("A player left the game - {} player(s) left in the game", numberOfPlayers);
 
-                    if (game.closeIfEmpty()) {
-                        // Remove reference
-                        games.remove(game);
-                        logger.info("Running games ( closeIfEmpty() ): {}", games.size());
+                if (game.closeIfEmpty()) {
+                    // Remove all references to the game
+                    if (games.remove(game)) {
+                        logger.info("Game closed. {} game(s) left", games.size());
+                    } else {
+                        logger.error("Could not remove game from games set");
                     }
-
-                    // Don't search any further
-                    break;
                 }
+
+                // Don't search any further
+                break;
             }
         }
         broadcastLobbyState();
@@ -185,33 +188,23 @@ public class GameServer extends WebSocketServer {
                 }
             }
 
-            // Start a new game round if enough players in the lobby are ready
-            int readyPlayersInLobby = 0;
-            for (Player player : lobby.values()) {
-                if (player.isReady()) {
-                    readyPlayersInLobby++;
-                }
-            }
+            // Start game sessions for all ready players in the game lobby
+            for (Map.Entry<WebSocket, Player> player : lobby.entrySet()) {
+                if (player.getValue().isReady()) {
+                    // Remove player from lobby
+                    lobby.remove(player.getKey());
 
-            // Start games for all ready player groups in the lobby
-            if (readyPlayersInLobby >= PLAYERS_NEEDED_FOR_GAME_START) {
-                ConcurrentHashMap<WebSocket, Player> readyPlayersAndTheirConnections = new ConcurrentHashMap<>();
-                for (Map.Entry<WebSocket, Player> player : lobby.entrySet()) {
-                    if (player.getValue().isReady()) {
-                        // Move player from lobby to game
-                        var playerOrNull = lobby.remove(player.getKey());
-                        if (playerOrNull != null) {
-                            readyPlayersAndTheirConnections.put(player.getKey(), playerOrNull);
-                        }
-                    }
+                    // Create a new game instance on this server for this group of ready players
+                    Game game = new Game(this);
 
-                    if (readyPlayersAndTheirConnections.size() == PLAYERS_NEEDED_FOR_GAME_START) {
-                        // Create a new game instance on this server for this group of ready players
-                        games.add(new Game(readyPlayersAndTheirConnections, this));
-                        logger.info("Running games: {}", games.size());
-                        logger.info("Players in the lobby: {}", lobby.size());
-                        broadcastLobbyState();
-                    }
+                    // Only support single player games (for now)
+                    game.addPlayerToGame(player.getKey(), player.getValue());
+                    game.start();
+                    games.add(game);
+
+                    logger.info("Players in the lobby: {}", lobby.size());
+                    logger.info("Running games: {}", games.size());
+                    broadcastLobbyState();
                 }
             }
         } catch (JSONException | JsonSyntaxException e) {
@@ -240,7 +233,9 @@ public class GameServer extends WebSocketServer {
             anonymizedHighScore.setSurvivedDays(dailyHighScore.getSurvivedDays());
         }
 
-        broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { \"players\": " + playersList +
+        broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
+                "\"runningGames\": " + games.size() +
+                ", \"players\": " + playersList +
                 ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
     }
 
@@ -254,8 +249,6 @@ public class GameServer extends WebSocketServer {
         // Most likely a player dropped out of the game and the WebSocket connection is gone
         if (webSocket != null) {
             logger.warn("Connection {} was closed unexpectedly.", webSocket.getRemoteSocketAddress());
-            // TODO Close stale games with only "ghost" websocket connections
-            //removeDisconnectedCLient(webSocket);
         } else {
             logger.warn("An error occurred on a connection. {}", (Object) ex.getStackTrace());
         }
@@ -268,10 +261,8 @@ public class GameServer extends WebSocketServer {
     }
 
     void addPlayerToLobby(WebSocket webSocket, Player player) {
-        synchronized (lobby) {
-            lobby.put(webSocket, player);
-            broadcastLobbyState();
-        }
+        lobby.put(webSocket, player);
+        broadcastLobbyState();
     }
 
     public void setNewHighScore(GameOverStats gameOverStats) {
@@ -305,6 +296,7 @@ public class GameServer extends WebSocketServer {
                         logger.debug("Found ghost game! {}", game);
                         game.stop();
                         games.remove(game);
+                        broadcastLobbyState();
                     }
                 }
             }

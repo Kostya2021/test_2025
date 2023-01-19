@@ -16,10 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -35,47 +32,40 @@ public class Game {
     private boolean isRunning;
     private final GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
-    private final ArrayList<Project> projects;
+    private ArrayList<Project> projects;
     private int currentTick;
     private LocalDate currentDate;
-    private final ScheduledExecutorService gameLoop;
+    private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
-    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();;
+    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     public static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements;
-    private SkillsManager skillsMananger = new SkillsManager();
+    private final SkillsManager skillsMananger = new SkillsManager();
 
     /**
-     * Creates a new Game with the provided Players within the GameServer.
+     * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
      * <p>
      * A ThreadPool with a single Thread is used to run the game logic in a loop.
      * Changes in the game's state can be sent to the players as GameEvents.
      *
-     * @param players Players in this game instance
      * @param gameServer The GameServer that this game is running in
      */
-    Game(ConcurrentHashMap<WebSocket, Player> players, GameServer gameServer) {
+    public Game(GameServer gameServer) {
         // Every game consists of players and a world in a specific state
-        this.players = players;
+        this.players = new ConcurrentHashMap<>();
         this.gameServer = gameServer;
         this.eventHandler = new GameEventHandler(this);
         currentTick = 0;
         currentDate = now();
-
-        // Spawn some projects to get going
-        projects = new ArrayList<>();
-        for (int i = 0; i<4; i++) {
-            Project project = new Project();
-            projects.add(project);
-            projectEmployeesMap.put(project, new ArrayList<>());
-            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
-            newTenderEvent.setPayload(project);
-            broadcastToAllPlayers(GSON.toJson(newTenderEvent));
-        }
-
-        logger.info("A new game has started with {} players.", players.size());
-
         loadStoryElementsFromFile();
+    }
+
+    public void start() {
+        // CHeck if there is at least one player in this game instance
+        if (players.size() == 0) {
+            logger.error("No players in this game instance. Cannot start game.");
+            return;
+        }
 
         // Start the round for all players
         isRunning = true;
@@ -95,16 +85,31 @@ public class Game {
             sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
 
+        // Spawn some projects to get going
+        projects = new ArrayList<>();
+        for (int i = 0; i<4; i++) {
+            Project project = new Project();
+            projects.add(project);
+            projectEmployeesMap.put(project, new ArrayList<>());
+            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
+            newTenderEvent.setPayload(project);
+            broadcastToAllPlayers(GSON.toJson(newTenderEvent));
+        }
+
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleWithFixedDelay(() -> {
-                // Notify all clients of current time
-                this.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
-                        "\", \"payload\": " + getCurrentTick() + "}");
+            // Notify all clients of current time
+            this.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
+                    "\", \"payload\": " + getCurrentTick() + "}");
 
-                // Progress game time and calculate the world's state for each tick
-                progressGameTime();
+            // Progress game time and calculate the world's state for each tick
+            progressGameTime();
         }, 0, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
+
+        logger.info("A new game has started with {} players: {}",
+                players.size(),
+                players.values().stream().map(Player::getName).collect(Collectors.toList()));
     }
 
     private void loadStoryElementsFromFile() {
@@ -119,7 +124,10 @@ public class Game {
         // Stop if the game is over
         if (!isRunning) {
             gameLoop.shutdownNow();
+            return;
         }
+
+        //logger.debug("Tag: {} | Spieler: {}", currentTick, players.values().stream().map(Player::getName).collect(Collectors.toList()));
 
         // Progress calendar date
         currentDate = now();
@@ -144,7 +152,6 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
-
     }
 
     private void sendStoryElementsPerTick() {
@@ -268,7 +275,7 @@ public class Game {
             }
 
             if (gameIsOver) {
-                GameEvent<GameOverStats> gameOverEvent = new GameEvent<GameOverStats>(EventType.GAME_OVER);
+                GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
 
                 int deliveredProjects = 0;
                 int projectsVolume = 0;
@@ -326,10 +333,7 @@ public class Game {
                 removePlayerFromGame(webSocket);
 
                 // If the game is empty, stop progressing the game time
-                // Actually redundant code, because this check is done from the "outside" of the game as well
-                if (getPlayers().size() == 0) {
-                    this.stop();
-                }
+                closeIfEmpty();
             }
         });
     }
@@ -338,7 +342,7 @@ public class Game {
         players.forEach((webSocket, player) -> {
             List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(getCurrentTick());
             if (!newObjectivesInThisTick.isEmpty()) {
-                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<List<Objective>>(EventType.OBJECTIVES_UPDATED);
+                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                 List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(getCurrentTick());
                 objectivesUpdatedEvent.setPayload(allActiveObjectives);
                 sendMessageToPlayer(player, Game.GSON.toJson(objectivesUpdatedEvent));
@@ -700,7 +704,7 @@ public class Game {
 
     void removePlayerFromGame(WebSocket conn) {
         players.remove(conn);
-        closeIfEmpty();
+        //closeIfEmpty();
     }
 
     Map<WebSocket, Player> getPlayers() {
@@ -771,24 +775,33 @@ public class Game {
 
         // Close game session if this was the last player
         if (numberOfPlayers == 0) {
-            logger.info("Shutting down empty game with {} players.", numberOfPlayers);
-
             // Stop the game loop to make sure the thread can be interrupted
             logger.debug("Game has no players left. Stopping game loop.");
-            isRunning = false;
+            stop();
 
-            // TODO Das scheint nicht zu funktionieren. Der Thread bleibt "running".
-            gameLoop.shutdown();
-            try {
-                if (!gameLoop.awaitTermination(800, TimeUnit.MILLISECONDS)) {
-                    gameLoop.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                gameLoop.shutdownNow();
-            }
-            return true;
+            // If the game loop successfully stopped, return true
+            // TODO FIX THIS: It's probably not actually waiting for the game loop to shutdown
+            return gameLoop.isShutdown();
         }
         return false;
+    }
+
+    void shutdownAndAwaitTermination(ExecutorService pool) {
+        pool.shutdown(); // Disable new tasks from being submitted
+        try {
+            // Wait a while for existing tasks to terminate
+            if (!pool.awaitTermination(2, TimeUnit.SECONDS)) {
+                pool.shutdownNow(); // Cancel currently executing tasks
+                // Wait a while for tasks to respond to being cancelled
+                if (!pool.awaitTermination(2, TimeUnit.SECONDS))
+                    logger.error("Pool did not terminate");
+            }
+        } catch (InterruptedException ie) {
+            // (Re-)Cancel if current thread also interrupted
+            pool.shutdownNow();
+            // Preserve interrupt status
+            Thread.currentThread().interrupt();
+        }
     }
 
     public SkillsManager getSkillsMananger() {
@@ -797,5 +810,10 @@ public class Game {
 
     public void stop() {
         isRunning = false;
+        shutdownAndAwaitTermination(gameLoop);
+    }
+
+    public void addPlayerToGame(WebSocket key, Player value) {
+        players.put(key, value);
     }
 }
