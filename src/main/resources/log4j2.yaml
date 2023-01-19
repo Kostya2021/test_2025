@@ -40,4 +40,11 @@ Configutation:
           - ref: Console_Appender
             level: debug
           - ref: RollingFile_Appender
-            level: warn
+            level: info
+      - name: org.hibernate
+        level: warn
+        AppenderRef:
+          - ref: Console_Appender
+            level: info
+          - ref: RollingFile_Appender
+            level: info
