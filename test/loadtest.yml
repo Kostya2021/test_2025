@@ -1,9 +1,9 @@
 config:
-  target: "ws://172.16.36.2:8070" #"wss://fbwsim.th-brandenburg.de/ws"
+  target: "ws://192.168.56.1:8070" #"wss://fbwsim.th-brandenburg.de/ws"
   phases:
-    - duration: 20  # Test for 20 seconds
-      arrivalRate: 4 # Every second, add y users
-      rampTo: 20 # Ramp it up to x users over the "duration"
+    - duration: 5
+      arrivalRate: 1 # Every second, add y users
+      rampTo: 30 # Ramp it up to x users over the "duration"
       name: "Ramping up the load"
   ws:
     # Ignore SSL certificate errors
@@ -13,9 +13,10 @@ scenarios:
   - name: Basic Game Engine Load Test
     engine: "ws"
     flow:
-      #      - send:
-      #          type: "NEW_PLAYER"
       #          player:
       #            name: "Rob the Bot"
       #            company: "Robotic Enterprises"
-      - think: 30 # Let the game engine run for a while
+      - think: 5
+      - send:
+          type: "PLAYER_READY"  # Send the "ready" signal
+      - think: 35   # Let the game engine run for a while

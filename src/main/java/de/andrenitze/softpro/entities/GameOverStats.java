@@ -19,6 +19,7 @@ public class GameOverStats {
     private Date finishedAt;
     private String gameId;
     private Integer survivedDays = 0;
+    private Integer playedSeconds = 0;
 
     public UUID getId() {
         return id;
@@ -90,5 +91,13 @@ public class GameOverStats {
 
     public void setReport(String report) {
         this.report = report;
+    }
+
+    public void setPlayedSeconds(Integer playedSeconds) {
+        this.playedSeconds = playedSeconds;
+    }
+
+    public Integer getPlayedSeconds() {
+        return playedSeconds;
     }
 }
