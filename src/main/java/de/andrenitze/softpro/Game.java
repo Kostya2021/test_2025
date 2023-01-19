@@ -290,6 +290,7 @@ public class Game {
                 goStats.setDeliveredProjects(deliveredProjects);
                 goStats.setProjectsVolume(projectsVolume);
                 goStats.setSurvivedDays(getCurrentTick());
+                goStats.setPlayedSeconds(getCurrentTick() * GAME_SPEED_IN_MILLISECONDS / 1000);
 
                 if (playerHasWon) {
                     goStats.setReport("win");

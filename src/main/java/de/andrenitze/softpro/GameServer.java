@@ -290,7 +290,6 @@ public class GameServer extends WebSocketServer {
         ScheduledExecutorService regularTaskManager = Executors.newSingleThreadScheduledExecutor();
         regularTaskManager.scheduleAtFixedRate(() -> {
             if (games.size() != 0) {
-                logger.debug("Checking {} game instances for ghost games...", games.size());
                 for (Game game : games) {
                     if (game.getPlayers().size() == 0) {
                         logger.debug("Found ghost game! {}", game);
