@@ -106,7 +106,7 @@ public class Game {
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
-        }, 0, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
+        }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
 
         logger.info("A new game has started with {} players: {}",
                 players.size(),
@@ -161,7 +161,9 @@ public class Game {
         List<Project> staleTenders = new ArrayList<>();
         for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
             Project project = iterator.next();
-            if (!project.isCompleted() && project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < this.currentTick) {
+            if (!project.isCompleted() &&
+                    project.getInvolvedPlayers().size() == 0 &&
+                    project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < this.currentTick) {
                 // Add the tender to the list of stale tenders
                 staleTenders.add(project);
 
