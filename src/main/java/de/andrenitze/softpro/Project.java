@@ -20,6 +20,7 @@ public class Project {
     private int startedAt;
     private int completedAt = 0;
     private int quality;
+    private int publishedAt;
     private float penalty;
     private float profit;
     private static final Random RANDOM = new Random();
@@ -255,5 +256,17 @@ public class Project {
 
     public int getScheduledDuration() {
         return getDeadline() - getAcquiredAt();
+    }
+
+    public void setPublishedAt(int currentTick) {
+        this.publishedAt = currentTick;
+    }
+
+    public int getPublishedAt() {
+        return this.publishedAt;
+    }
+
+    public boolean isOverdue() {
+        return getCompletedAt() > getDeadline();
     }
 }

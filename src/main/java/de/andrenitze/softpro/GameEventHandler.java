@@ -81,7 +81,7 @@ class GameEventHandler {
                 String skillId = skillUnlockedEvent.getPayload().get("skillId");
                 int unlockSkillPoints = Integer.parseInt(skillUnlockedEvent.getPayload().get("unlockSkillPoints"));
 
-                game.getSkillsMananger().unlockSkill(player, skillId, unlockSkillPoints);
+                game.getSkillsManager().unlockSkill(player, skillId, unlockSkillPoints);
                 break;
             default:
                 break;

@@ -28,6 +28,7 @@ public class Game {
     private static final int BANKRUPTCY_THRESHOLD = -25000;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.05f;
+    public static final int STALE_TENDERS_KILL_DAYS = 365;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -87,7 +88,7 @@ public class Game {
 
         // Spawn some projects to get going
         projects = new ArrayList<>();
-        for (int i = 0; i<4; i++) {
+        for (int i = 0; i<30; i++) {
             Project project = new Project();
             projects.add(project);
             projectEmployeesMap.put(project, new ArrayList<>());
@@ -105,7 +106,7 @@ public class Game {
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
-        }, 0, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
+        }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
 
         logger.info("A new game has started with {} players: {}",
                 players.size(),
@@ -140,6 +141,7 @@ public class Game {
         processSalariesAndAdjustFundsPerTick(currentDate);
         checkGameOverConditionsAndKickPlayersPerTick();
         randomlySpawnProjectTendersPerTick();
+        removeStaleTendersPerTick();
         assignProjectsPerTick();
         spawnObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
@@ -152,6 +154,31 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
+    }
+
+    private void removeStaleTendersPerTick() {
+        // Remove tenders that have been on the market for a long time and store them in a separate array
+        List<Project> staleTenders = new ArrayList<>();
+        for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
+            Project project = iterator.next();
+            if (!project.isCompleted() &&
+                    project.getInvolvedPlayers().size() == 0 &&
+                    project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < this.currentTick) {
+                // Add the tender to the list of stale tenders
+                staleTenders.add(project);
+
+                // Remove the current element from the iterator and the list
+                iterator.remove();
+            }
+        }
+
+        // Send an update to the clients, if there are any stale tenders
+        if (staleTenders.size() == 0) {
+            return;
+        }
+        GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
+        tendersRemovedEvent.setPayload(staleTenders);
+        broadcastToAllPlayers(GSON.toJson(tendersRemovedEvent));
     }
 
     private void sendStoryElementsPerTick() {
@@ -371,6 +398,7 @@ public class Game {
         if (new Random().nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
             // Generate a new project
             Project project = new Project();
+            project.setPublishedAt(getCurrentTick());
             projects.add(project);
 
             // Initialize project-employee map
@@ -805,7 +833,7 @@ public class Game {
         }
     }
 
-    public SkillsManager getSkillsMananger() {
+    public SkillsManager getSkillsManager() {
         return skillsMananger;
     }
 
