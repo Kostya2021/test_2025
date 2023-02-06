@@ -9,6 +9,7 @@ import java.util.Random;
 
 public class Employee {
     public static final float SICK_DAY_PROBABILITY = 0.02f;
+    public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     private static int lastId = 1;
     public static final int MINIMUM_SICK_DAYS = 4;
     public static final int MAXIMUM_SICK_DAYS = 22;
@@ -40,6 +41,23 @@ public class Employee {
         this.projectTypeExperience = new EnumMap<>(ProjectType.class);
         for (ProjectType type : ProjectType.values()) {
             this.projectTypeExperience.put(type, 0);
+        }
+
+        // Add some days of experience in a few of the project types
+        int maxDaysOfXP = 365;
+        for (int i = 0; i < NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN; i++) {
+            int projectTypeIndex = new Random().nextInt(ProjectType.values().length);
+
+            ProjectType type = ProjectType.values()[projectTypeIndex];
+            this.projectTypeExperience.put(type, this.projectTypeExperience.get(type) + new Random().nextInt(maxDaysOfXP));
+
+            // Now, add some days of experience in one project domain of this type
+            String domain = ProjectType.values()[projectTypeIndex].getDomain();
+            if (this.projectDomainExperience.containsKey(domain)) {
+                this.projectDomainExperience.put(domain, this.projectDomainExperience.get(domain) + new Random().nextInt(maxDaysOfXP));
+            } else {
+                this.projectDomainExperience.put(domain, new Random().nextInt(maxDaysOfXP));
+            }
         }
     }
 
