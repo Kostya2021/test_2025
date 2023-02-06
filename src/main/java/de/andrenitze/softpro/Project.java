@@ -33,11 +33,6 @@ public class Project {
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
     private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
-    private static final List<String> PROJECT_DOMAINS_CONSULTING = List.of("ProcessAssessment,TechnologyEvaluation,FeasibilityStudy,SWOTAnalysis".split(","));
-    private static final List<String> PROJECT_DOMAINS_DEVELOPMENT = List.of("JAVA,COBOL,C,dotNET,Python,Swift,Kotlin,JavaScript,Go,PHP,Scala,CSharp".split(","));
-    private static final List<String> PROJECT_DOMAINS_INTRODUCTION = List.of("ProcessAssessment,TechnologyEvaluation,FeasibilityStudy,SWOTAnalysis".split(","));
-    private static final List<String> PROJECT_DOMAINS_CUSTOMIZATION = List.of("S4/MONTANA,Dynamix,TYPOW3".split(","));
-    private static final List<String> PROJECT_DOMAINS_MAINTENANCE = List.of("PlatformMigration,Refactoring,QualityEvaluation,DataMigration".split(","));
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
@@ -70,11 +65,11 @@ public class Project {
         this.hasTenderProcess = (Math.round(RANDOM.nextFloat()+0.4) < 1);
 
         // Set matching candidates for project types (e. g., "Development") and domains (e. g., "COBOL")
-        projectTypeDomainMap.put(ProjectType.CONSULTING, PROJECT_DOMAINS_CONSULTING);
-        projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, PROJECT_DOMAINS_CUSTOMIZATION);
-        projectTypeDomainMap.put(ProjectType.DEVELOPMENT, PROJECT_DOMAINS_DEVELOPMENT);
-        projectTypeDomainMap.put(ProjectType.INTRODUCTION, PROJECT_DOMAINS_INTRODUCTION);
-        projectTypeDomainMap.put(ProjectType.MAINTENANCE, PROJECT_DOMAINS_MAINTENANCE);
+        projectTypeDomainMap.put(ProjectType.CONSULTING, ProjectType.CONSULTING_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, ProjectType.CUSTOMIZATION_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.DEVELOPMENT, ProjectType.DEVELOPMENT_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.INTRODUCTION, ProjectType.INTRODUCTION_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.MAINTENANCE, ProjectType.MAINTENANCE_DOMAINS);
 
         // Based on the project type, assign a matching domain
         this.domain = generateDomain(this.type);
