@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.lang.Math.exp;
+import static java.lang.Math.round;
 import static java.time.LocalDate.now;
 
 public class Game {
@@ -28,7 +29,7 @@ public class Game {
     private static final int BANKRUPTCY_THRESHOLD = -25000;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.05f;
-    public static final int STALE_TENDERS_KILL_DAYS = 365;
+    public static final int STALE_TENDERS_KILL_DAYS = 548;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -90,12 +91,18 @@ public class Game {
         projects = new ArrayList<>();
         for (int i = 0; i<30; i++) {
             Project project = new Project();
+
+            // Set randomly negative publish dates to have some history of tenders
+            project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
+
             projects.add(project);
             projectEmployeesMap.put(project, new ArrayList<>());
-            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
-            newTenderEvent.setPayload(project);
-            broadcastToAllPlayers(GSON.toJson(newTenderEvent));
         }
+
+        // Send all tenders at once
+        GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
+        projectEvent.setPayload(projects);
+        broadcastToAllPlayers(GSON.toJson(projectEvent));
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -161,7 +168,7 @@ public class Game {
         List<Project> staleTenders = new ArrayList<>();
         for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
             Project project = iterator.next();
-            if (!project.isCompleted() &&
+            if (project.getEarnedValue() == 0 &&
                     project.getInvolvedPlayers().size() == 0 &&
                     project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < this.currentTick) {
                 // Add the tender to the list of stale tenders
@@ -475,7 +482,7 @@ public class Game {
             if (project.isCompleted()) {
                 // Send reward
                 for (Player player : project.getInvolvedPlayers()) {
-                    int profit = (int) Math.round(project.getTotalValue() * 0.6);
+                    int profit = (int) round(project.getTotalValue() * 0.6);
 
                     float overduePenaltyMultiplier = 1;
                     int daysLeft = project.getAcquiredAt() + project.getDeadline() - currentTick;
