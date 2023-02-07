@@ -9,6 +9,7 @@ import de.andrenitze.softpro.types.EventType;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 class GameEventHandler {
@@ -83,7 +84,35 @@ class GameEventHandler {
 
                 game.getSkillsManager().unlockSkill(player, skillId, unlockSkillPoints);
                 break;
+            case HIRE_TALENT:
+                // Parse the employee id out of the message
+                payloadType = new TypeToken<GameEvent<Integer>>(){}.getType();
+                GameEvent<Integer> hireTalentEvent = GSON.fromJson(message, payloadType);
+
+                player = game.getPlayerByWebSocket(websocket);
+                employeeId = hireTalentEvent.getPayload();
+
+                Employee employee = game.getTalentManager().hireTalent(player, employeeId);
+
+                if (employee == null) {
+                    System.out.println("Could not hire talent");
+                    break;
+                }
+
+                // Notify player about new employee
+                GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.STATE_UPDATED);
+                playerUpdateEvent.setPayload(player);
+                game.sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
+
+                // Remove employee from talent market, so that other players can't hire the same employee
+                GameEvent<ArrayList<Integer>> employeeHiredEvent = new GameEvent<>(EventType.TALENTS_REMOVED);
+                ArrayList<Integer> employeeList = new ArrayList<>();
+                employeeList.add(employee.getId());
+                employeeHiredEvent.setPayload(employeeList);
+                game.broadcastToAllPlayers(GSON.toJson(employeeHiredEvent));
+                break;
             default:
+                System.out.println("Received unknown event");
                 break;
         }
     }
