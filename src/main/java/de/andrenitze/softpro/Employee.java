@@ -30,8 +30,13 @@ public class Employee {
     Employee() {
         this.name = generateName();
         this.gender = assignGender();
-        this.salary = 3000;
-        this.age = 30;
+
+        // Randomize salary between 2000 and 4000
+        this.salary = new Random().nextInt(2000) + 2000;
+
+        // Randomize age between 20 and 60
+        this.age = new Random().nextInt(40) + 20;
+
         this.happiness = 60;
         this.id = lastId;
         initializeSickDays();
