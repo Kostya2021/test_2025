@@ -43,6 +43,7 @@ public class Game {
     public static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements;
     private final SkillsManager skillsMananger = new SkillsManager();
+    private static final TalentMarket talentMarket = new TalentMarket();
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -82,7 +83,7 @@ public class Game {
 
             // Send state
             logger.debug("Sending initial state to players");
-            GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.UPDATE_STATE);
+            GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.STATE_UPDATED);
             initialPlayerEvent.setPayload(player);
             sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
@@ -103,6 +104,14 @@ public class Game {
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projects);
         broadcastToAllPlayers(GSON.toJson(projectEvent));
+
+        // Fill talent market with candidates
+        talentMarket.initialize();
+
+        // Send talent market to players at once
+        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+        employeeEvent.setPayload(talentMarket.getTalents());
+        broadcastToAllPlayers(GSON.toJson(employeeEvent));
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -851,5 +860,9 @@ public class Game {
 
     public void addPlayerToGame(WebSocket key, Player value) {
         players.put(key, value);
+    }
+
+    public TalentMarket getTalentManager() {
+        return talentMarket;
     }
 }

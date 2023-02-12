@@ -129,7 +129,7 @@ public class Player {
     }
 
     public GameEvent<Object> createGameEventOfChangedObjectives() {
-        GameEvent<Object> event = new GameEvent<>(EventType.UPDATE_STATE);
+        GameEvent<Object> event = new GameEvent<>(EventType.STATE_UPDATED);
 
         return event.getPayload() != null? null : event;
     }
@@ -205,5 +205,9 @@ public class Player {
 
     public void setSkillPoints(int skillPoints) {
         this.skillPoints = skillPoints;
+    }
+
+    public void addEmployee(Employee employee) {
+        this.employees.add(employee);
     }
 }
