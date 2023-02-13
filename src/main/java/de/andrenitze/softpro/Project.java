@@ -5,6 +5,8 @@ import de.andrenitze.softpro.types.RiskLevel;
 
 import java.util.*;
 
+import static de.andrenitze.softpro.Main.logger;
+
 public class Project {
     public static final float DAILY_EARNED_VALUE_TO_FINISH_PROJECT_ON_TIME = 400f;
     private static int lastId = 1;
@@ -23,16 +25,17 @@ public class Project {
     private int publishedAt;
     private float penalty;
     private float profit;
-    private static final Random RANDOM = new Random();
+    private static final Random random = new Random();
     private final RiskLevel risk;
-    private static final List<RiskLevel> RISK_LEVELS =
-            List.of(RiskLevel.values());
+    private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     private final ProjectType type;
-    private static final List<ProjectType> PROJECT_TYPES =
-            List.of(ProjectType.values());
-    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
-    private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center".split(","));
+    private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
+    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
+    private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
+    private static final int projectNameSnippetsSize = PROJECT_NAME_SNIPPETS.size();
+    private static final int projectNameSpacersSize = PROJECT_NAME_SPACERS.size();
+    private static final int projectNameSuffixeSize = PROJECT_NAME_SUFFIXE.size();
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
@@ -56,13 +59,13 @@ public class Project {
         ++lastId;
 
         // Assign random risk level
-        this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
+        this.risk = RISK_LEVELS.get(random.nextInt(RISK_LEVELS.size()));
 
         // Assign random project type
-        this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
+        this.type = PROJECT_TYPES.get(random.nextInt(PROJECT_TYPES.size()));
 
         // +40% chance of a tender process
-        this.hasTenderProcess = (Math.round(RANDOM.nextFloat()+0.4) < 1);
+        this.hasTenderProcess = (Math.round(random.nextFloat()+0.4) < 1);
 
         // Set matching candidates for project types (e. g., "Development") and domains (e. g., "COBOL")
         projectTypeDomainMap.put(ProjectType.CONSULTING, ProjectType.CONSULTING_DOMAINS);
@@ -88,28 +91,39 @@ public class Project {
     }
 
     private static int generateVolume() {
-        return 10000 + RANDOM.nextInt(1000) * 100;
+        return 10000 + random.nextInt(1000) * 100;
     }
 
     private static String generateProjectName() {
-        String projectName = "";
+        StringBuilder projectName = new StringBuilder();
         boolean isUniqueName = false;
+        int i = 0;
 
         while (!isUniqueName) {
             // Pick a random name
-            projectName = PROJECT_NAME_SNIPPETS.get(new Random().nextInt(PROJECT_NAME_SNIPPETS.size()));
+            projectName.append(PROJECT_NAME_SNIPPETS.get(random.nextInt(projectNameSnippetsSize)));
+            //projectName = PROJECT_NAME_SNIPPETS.get(random.nextInt(projectNameSnippetsSize));
 
-            // Add variation (how many words, dashes, prefix, suffix etc.) by chance
-            if (new Random().nextInt(100) < 50) {
-                String spacer = PROJECT_NAME_SPACERS.get(new Random().nextInt(PROJECT_NAME_SPACERS.size()));
-                String secondPart = PROJECT_NAME_SUFFIXE.get(new Random().nextInt(PROJECT_NAME_SUFFIXE.size()));
-                projectName += spacer + secondPart;
+            // Add 50% chance for suffixes
+            if (random.nextInt(100) < 50) {
+                String spacer = PROJECT_NAME_SPACERS.get(random.nextInt(projectNameSpacersSize));
+                String secondPart = PROJECT_NAME_SUFFIXE.get(random.nextInt(projectNameSuffixeSize));
+
+                projectName.append(spacer);
+                projectName.append(secondPart);
             }
-            // Make sure every name is unique
-            isUniqueName = usedProjectNames.add(projectName);
-        }
 
-        return projectName;
+            // Make sure, every name is unique
+            isUniqueName = usedProjectNames.add(projectName.toString());
+            i++;
+
+            // After a lot of iterations, give up and return the name anyway
+            if (i > 10) {
+                logger.debug("Could not generate unique project name after 10 iterations. Returning name anyway.");
+                break;
+            }
+        }
+        return projectName.toString();
     }
 
     int getTotalValue() {
