@@ -1,9 +1,10 @@
 config:
-  target: "ws://192.168.56.1:8070" #"wss://fbwsim.th-brandenburg.de/ws"
+  target: "ws://192.168.56.1:8070"
+  #target: "wss://fbwsim.th-brandenburg.de/ws"
   phases:
-    - duration: 5
-      arrivalRate: 1 # Every second, add y users
-      rampTo: 30 # Ramp it up to x users over the "duration"
+    - duration: 5 # 3 seconds
+      arrivalRate: 10 # 1 user per second
+      rampTo: 20 # 15 users per second
       name: "Ramping up the load"
   ws:
     # Ignore SSL certificate errors

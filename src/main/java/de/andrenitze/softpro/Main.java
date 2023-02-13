@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 
 public class Main {
-    private static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
+    protected static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
 
     public static void main(String[] args) {
         logger.trace("Starting server...");
