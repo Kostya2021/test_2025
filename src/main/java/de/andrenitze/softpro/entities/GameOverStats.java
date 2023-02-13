@@ -1,5 +1,6 @@
 package de.andrenitze.softpro.entities;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -10,6 +11,7 @@ import java.util.UUID;
 public class GameOverStats {
     @Id
     @GeneratedValue()
+    @Column(columnDefinition = "BINARY(16)")
     private UUID id;
     private Integer deliveredProjects = 0;
     private Integer projectsVolume = 0;
