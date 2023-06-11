@@ -52,17 +52,20 @@ public class Employee {
         int maxDaysOfXP = 365;
         for (int i = 0; i < NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN; i++) {
             int projectTypeIndex = new Random().nextInt(ProjectType.values().length);
-
-            ProjectType type = ProjectType.values()[projectTypeIndex];
-            this.projectTypeExperience.put(type, this.projectTypeExperience.get(type) + new Random().nextInt(maxDaysOfXP));
+            int days = new Random().nextInt(maxDaysOfXP);
 
             // Now, add some days of experience in one project domain of this type
-            String domain = ProjectType.values()[projectTypeIndex].getDomain();
-            if (this.projectDomainExperience.containsKey(domain)) {
-                this.projectDomainExperience.put(domain, this.projectDomainExperience.get(domain) + new Random().nextInt(maxDaysOfXP));
-            } else {
-                this.projectDomainExperience.put(domain, new Random().nextInt(maxDaysOfXP));
-            }
+            ProjectType type = ProjectType.values()[projectTypeIndex];
+            addXp(type, type.getDomain(), days);
+        }
+    }
+
+    private void addExperienceForDomain(String domain, int days) {
+        if (projectDomainExperience.containsKey(domain)) {
+            Integer existingDomainExperience = projectDomainExperience.getOrDefault(domain, 0);
+            projectDomainExperience.put(domain, existingDomainExperience + days);
+        } else {
+            projectDomainExperience.put(domain, days);
         }
     }
 
@@ -125,13 +128,7 @@ public class Employee {
             }
             this.projectExperience.put(project, ++rampUpDays);
 
-            // Project-type-specific XP
-            Integer existingExperience = this.projectTypeExperience.getOrDefault(project.getType(), 0);
-            this.projectTypeExperience.put(project.getType(), existingExperience + newExperienceInDays);
-
-            // Domain-specific XP
-            Integer existingDomainExperience = this.projectDomainExperience.getOrDefault(project.getDomain(), 0);
-            this.projectDomainExperience.put(project.getDomain(), existingDomainExperience + newExperienceInDays);
+            addXp(project.getType(), project.getDomain(), newExperienceInDays);
         }
     }
 
@@ -201,5 +198,31 @@ public class Employee {
 
     public String getGender() {
         return gender;
+    }
+
+    public void addXp(ProjectType type, String domain, int days) {
+        // Check if the project domain is valid
+        if (domain == null || domain.isEmpty() ) {
+            throw new IllegalArgumentException("Domain must be one of the following: " + projectDomainExperience.keySet());
+        }
+
+        // Check if the project type is valid
+        if (type == null) {
+            throw new IllegalArgumentException("Type must be one of the following: " + projectTypeExperience.keySet());
+        }
+
+        // Check if the number of days is valid
+        if (days < 0) {
+            throw new IllegalArgumentException("Number of days must be positive");
+        }
+
+        // XP is always added for type and domain because a domain always belongs to exactly one type
+        addExperienceForType(type, days);
+        addExperienceForDomain(domain, days);
+    }
+
+    private void addExperienceForType(ProjectType type, int days) {
+        Integer existingExperience = projectTypeExperience.getOrDefault(type, 0);
+        projectTypeExperience.put(type, existingExperience + days);
     }
 }
