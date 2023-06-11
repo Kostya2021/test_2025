@@ -8,7 +8,9 @@ import java.util.*;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Project {
-    public static final float DAILY_EARNED_VALUE_TO_FINISH_PROJECT_ON_TIME = 400f;
+    // One Full Time Equivalent (FTE) can generate this amount of "value units" per day
+    // This value will be modified by factors like skill, project risk, team fit, etc.
+    public static final int PROJECT_VOLUME_MIN = 10000;
     private static int lastId = 1;
     private final Integer id;
     private final String name;
@@ -16,6 +18,8 @@ public class Project {
     private int earnedValue;
     private final boolean hasTenderProcess;
     private int tenderDeadlineInDays;
+
+    // Deadline: In how many days the project has to be finished, measured from the day the project was acquired.
     private final int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
     private int acquiredAt;
@@ -30,8 +34,8 @@ public class Project {
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     private final ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
-    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary".split(","));
-    private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate".split(","));
+    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon".split(","));
+    private static final List<String> PROJECT_NAME_SUFFIXE = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
     private static final int projectNameSnippetsSize = PROJECT_NAME_SNIPPETS.size();
     private static final int projectNameSpacersSize = PROJECT_NAME_SPACERS.size();
@@ -53,7 +57,6 @@ public class Project {
      */
     public Project() {
         this.name = generateProjectName();
-        this.totalValue = generateVolume();
         this.earnedValue = 0;
         this.id = lastId;
         ++lastId;
@@ -66,6 +69,11 @@ public class Project {
 
         // +40% chance of a tender process
         this.hasTenderProcess = (Math.round(random.nextFloat()+0.4) < 1);
+
+        // Order is important. Volume depends on risk.
+        this.totalValue = generateVolume();
+
+        this.deadline = generateDeadline();
 
         // Set matching candidates for project types (e. g., "Development") and domains (e. g., "COBOL")
         projectTypeDomainMap.put(ProjectType.CONSULTING, ProjectType.CONSULTING_DOMAINS);
@@ -82,16 +90,38 @@ public class Project {
         } else {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
+    }
 
-        this.deadline = Math.round(totalValue / DAILY_EARNED_VALUE_TO_FINISH_PROJECT_ON_TIME);
+    private int generateDeadline() {
+        // The deadline of a project is independent of the players' capacity.
+        // By defining a deadline, inherently, every project is suited for a specific number of people.
+
+        float riskMultiplier = switch (getRiskLevel()) {
+            case low -> 2.0f;
+            case medium -> 1.0f;
+            case high -> 0.5f;
+            case extreme -> 0.25f;
+        };
+
+        // Generate random deadline, loosely based on project volume
+        return (int) (getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE * riskMultiplier * random.nextFloat(0.8f, 1.9f));
     }
 
     private static String generateDomain(ProjectType type) {
         return projectTypeDomainMap.get(type).get(new Random().nextInt(projectTypeDomainMap.get(type).size()));
     }
 
-    private static int generateVolume() {
-        return 10000 + random.nextInt(1000) * 100;
+    private int generateVolume() {
+        // The higher the risk level the higher the project volume
+        float riskMultiplier = switch (getRiskLevel()) {
+            case low -> 1.0f;
+            case medium -> 2.0f;
+            case high -> 4.0f;
+            case extreme -> 8.0f;
+        };
+
+        int randomVolume = random.nextInt(1000) * 100;
+        return (int) (PROJECT_VOLUME_MIN + riskMultiplier * randomVolume);
     }
 
     private static String generateProjectName() {

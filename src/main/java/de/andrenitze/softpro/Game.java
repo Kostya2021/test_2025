@@ -28,8 +28,12 @@ public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 500;
     private static final int BANKRUPTCY_THRESHOLD = -25000;
     private static final String EVENT_TYPE = "type";
-    public static final float PROJECT_SPAWN_PROBABILITY = 0.05f;
+    public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
+
+    // Base productivity value = How much value one person (FTE) can produce in one day
+    public static final int BASE_PRODUCTIVITY_VALUE = 500;
+    public static final double PROFIT_MARGIN = 0.3;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -90,7 +94,7 @@ public class Game {
 
         // Spawn some projects to get going
         projects = new ArrayList<>();
-        for (int i = 0; i<30; i++) {
+        for (int i = 0; i<100; i++) {
             Project project = new Project();
 
             // Set randomly negative publish dates to have some history of tenders
@@ -491,7 +495,7 @@ public class Game {
             if (project.isCompleted()) {
                 // Send reward
                 for (Player player : project.getInvolvedPlayers()) {
-                    int profit = (int) round(project.getTotalValue() * 0.6);
+                    int profit = (int) round(project.getTotalValue() * PROFIT_MARGIN);
 
                     float overduePenaltyMultiplier = 1;
                     int daysLeft = project.getAcquiredAt() + project.getDeadline() - currentTick;
@@ -618,7 +622,7 @@ public class Game {
             }
 
             // Fixed imaginary number
-            earnedValue = 500;
+            earnedValue = BASE_PRODUCTIVITY_VALUE;
 
             // Rule #1: Context changes decrease employee productivity
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
