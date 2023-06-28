@@ -6,6 +6,7 @@ import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
+import de.andrenitze.softpro.types.ProjectType;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -177,9 +178,17 @@ public class Player {
     public void initializeBeforeRound() {
         setReady(false);
         this.funds = INITIAL_FUNDS;
-
         this.employees = new ArrayList<>();
-        this.employees.add(new Employee());
+
+        // The first employee has a moderate amount of XP in one random project domain
+        Employee employeeWithXP = new Employee();
+
+        ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
+        String domain = type.getDomain();
+        employeeWithXP.addXp(type, domain,RANDOM.nextInt(500) + 750);
+        this.employees.add(employeeWithXP);
+
+        // Add a second employee
         this.employees.add(new Employee());
 
         Objectives objectives = new Objectives();
