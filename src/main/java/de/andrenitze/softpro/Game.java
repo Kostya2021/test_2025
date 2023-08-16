@@ -69,7 +69,7 @@ public class Game {
 
     public void start() {
         // CHeck if there is at least one player in this game instance
-        if (players.size() == 0) {
+        if (players.isEmpty()) {
             logger.error("No players in this game instance. Cannot start game.");
             return;
         }
@@ -182,7 +182,7 @@ public class Game {
         for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
             Project project = iterator.next();
             if (project.getEarnedValue() == 0 &&
-                    project.getInvolvedPlayers().size() == 0 &&
+                    project.getInvolvedPlayers().isEmpty() &&
                     project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < this.currentTick) {
                 // Add the tender to the list of stale tenders
                 staleTenders.add(project);
@@ -193,7 +193,7 @@ public class Game {
         }
 
         // Send an update to the clients, if there are any stale tenders
-        if (staleTenders.size() == 0) {
+        if (staleTenders.isEmpty()) {
             return;
         }
         GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
@@ -212,7 +212,7 @@ public class Game {
             }
         });
 
-        if (relevantStoryElements.size() == 0) {
+        if (relevantStoryElements.isEmpty()) {
             return;
         }
 
@@ -236,7 +236,7 @@ public class Game {
                 }
             });
 
-            if (thisPlayersStoryElements.size() != 0) {
+            if (!thisPlayersStoryElements.isEmpty()) {
                 // Send the compiled list to the player
                 newStoryElementEvent.setPayload(thisPlayersStoryElements);
                 sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
@@ -314,7 +314,7 @@ public class Game {
             if (player.getFunds() <= BANKRUPTCY_THRESHOLD) {
                 // Game Over condition #1: Bankruptcy
                 gameIsOver = true;
-            } else if (player.getObjectives().size() != 0 &&
+            } else if (!player.getObjectives().isEmpty() &&
                     player.getObjectives().size() == player.getCompletedObjectives().size()) {
                 // Game Over condition #2: All objectives completed
                 gameIsOver = true;
@@ -647,19 +647,19 @@ public class Game {
             float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 float productivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue *= productivityFactor;
+                earnedValue *= (int) productivityFactor;
             }
 
             // Increase the employee's experience
             employee.gainExperience(project, 1);
 
-            earnedValue *= onboardingFactor;
+            earnedValue *= (int) onboardingFactor;
 
             if (project.getEarnedValue() == 0 && earnedValue > 0) {
                 project.setStartedAt(currentTick);
             }
 
-            earnedValue *= calculateSkillsFactor(project);
+            earnedValue *= (int) calculateSkillsFactor(project);
 
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
