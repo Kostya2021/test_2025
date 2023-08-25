@@ -612,7 +612,7 @@ public class Game {
             onboardingFactor = calculateOnboardingFactor(project, employees);
             logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", onboardingFactor);
         } else {
-            // No onboarding required (safe period or no new employees
+            // No onboarding required (safe period or no new employees)
             onboardingFactor = 1;
         }
 
@@ -647,19 +647,19 @@ public class Game {
             float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 float productivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue *= (int) productivityFactor;
+                earnedValue *= productivityFactor;
             }
 
             // Increase the employee's experience
             employee.gainExperience(project, 1);
 
-            earnedValue *= (int) onboardingFactor;
+            earnedValue *= onboardingFactor;
 
             if (project.getEarnedValue() == 0 && earnedValue > 0) {
                 project.setStartedAt(currentTick);
             }
 
-            earnedValue *= (int) calculateSkillsFactor(project);
+            earnedValue *= calculateSkillsFactor(project);
 
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
