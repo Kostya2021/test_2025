@@ -12,6 +12,8 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static de.andrenitze.softpro.Main.logger;
+
 class GameEventHandler {
     private static final Gson GSON = new Gson();
     private final Game game;
@@ -22,11 +24,13 @@ class GameEventHandler {
 
     void handleEvent(WebSocket websocket, String message) {
         GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
+        logger.debug("Received event: " + event.getType());
 
         switch (event.getType()) {
-            case JOIN_TENDER:
+            case JOIN_TENDER: {
                 // Fancy way to parse the "tenderId" int out of the message
-                Type payloadType = new TypeToken<GameEvent<Integer>>(){}.getType();
+                Type payloadType = new TypeToken<GameEvent<Integer>>() {
+                }.getType();
                 GameEvent<Integer> tenderIdEvent = GSON.fromJson(message, payloadType);
 
                 // A player joins a tender or simply accepts a project
@@ -56,8 +60,10 @@ class GameEventHandler {
                     System.out.println("invalid message");
                 }
                 break;
-            case ASSIGN_EMPLOYEE:
-                payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>(){}.getType();
+            }
+            case ASSIGN_EMPLOYEE: {
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {
+                }.getType();
                 GameEvent<HashMap<String, Integer>> assignmentEvent = GSON.fromJson(message, payloadType);
 
                 int employeeId = assignmentEvent.getPayload().get("employeeId");
@@ -65,32 +71,38 @@ class GameEventHandler {
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, true);
                 break;
-            case UNASSIGN_EMPLOYEE:
-                payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>(){}.getType();
+            }
+            case UNASSIGN_EMPLOYEE: {
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {
+                }.getType();
                 GameEvent<HashMap<String, Integer>> unassignmentEvent = GSON.fromJson(message, payloadType);
 
-                employeeId = unassignmentEvent.getPayload().get("employeeId");
-                projectId = unassignmentEvent.getPayload().get("projectId");
+                int employeeId = unassignmentEvent.getPayload().get("employeeId");
+                int projectId = unassignmentEvent.getPayload().get("projectId");
 
-                changeEmployeeAssignment(websocket, employeeId, projectId,false);
+                changeEmployeeAssignment(websocket, employeeId, projectId, false);
                 break;
-            case SKILL_UNLOCKED:
+            }
+            case SKILL_UNLOCKED: {
                 Player player = game.getPlayerByWebSocket(websocket);
 
-                payloadType = new TypeToken<GameEvent<HashMap<String, String>>>(){}.getType();
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {
+                }.getType();
                 GameEvent<HashMap<String, String>> skillUnlockedEvent = GSON.fromJson(message, payloadType);
                 String skillId = skillUnlockedEvent.getPayload().get("skillId");
                 int unlockSkillPoints = Integer.parseInt(skillUnlockedEvent.getPayload().get("unlockSkillPoints"));
 
                 game.getSkillsManager().unlockSkill(player, skillId, unlockSkillPoints);
                 break;
-            case HIRE_TALENT:
+            }
+            case HIRE_TALENT: {
                 // Parse the employee id out of the message
-                payloadType = new TypeToken<GameEvent<Integer>>(){}.getType();
+                Type payloadType = new TypeToken<GameEvent<Integer>>() {
+                }.getType();
                 GameEvent<Integer> hireTalentEvent = GSON.fromJson(message, payloadType);
 
-                player = game.getPlayerByWebSocket(websocket);
-                employeeId = hireTalentEvent.getPayload();
+                Player player = game.getPlayerByWebSocket(websocket);
+                int employeeId = hireTalentEvent.getPayload();
 
                 Employee employee = game.getTalentManager().hireTalent(player, employeeId);
 
@@ -111,8 +123,23 @@ class GameEventHandler {
                 employeeHiredEvent.setPayload(employeeList);
                 game.broadcastToAllPlayers(GSON.toJson(employeeHiredEvent));
                 break;
+            }
+            case RISK_ASSESSMENT_REQUESTED: {
+                // Parse the project id out of the message
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {
+                }.getType();
+                GameEvent<HashMap<String, Integer>> riskAssessmentEvent = GSON.fromJson(message, payloadType);
+
+                int projectId = riskAssessmentEvent.getPayload().get("projectId");
+                Player player = game.getPlayerByWebSocket(websocket);
+
+                // Confirm the risk assessment for this player *WITHOUT* changing the data model in the Project instance.
+                // This is necessary to prevent changing the risk visibility for other players in the game.
+                game.assessProjectRiskForPlayer(projectId, player);
+                break;
+            }
             default:
-                System.out.println("Received unknown event");
+                logger.warn("Received unknown event type: " + event.getType());
                 break;
         }
     }

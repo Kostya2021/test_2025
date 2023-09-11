@@ -869,4 +869,21 @@ public class Game {
     public TalentMarket getTalentManager() {
         return talentMarket;
     }
+
+    public void assessProjectRiskForPlayer(int projectId, Player player) {
+        Project project = getProjectById(projectId);
+        if (project == null) {
+            logger.error("Project with ID {} not found.", projectId);
+            return;
+        }
+
+        // Deduct funds from player
+        player.subtractFunds(Params.PROJECT_RISK_ASSESSMENT_COST);
+        sendFundsUpdateToPlayer(player);
+
+        // Send project update to player
+        GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
+        riskAssessedConfirmation.setPayload(project);
+        sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
+    }
 }
