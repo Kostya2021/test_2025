@@ -27,7 +27,7 @@ class GameEventHandler {
         logger.debug("Received event: " + event.getType());
 
         switch (event.getType()) {
-            case JOIN_TENDER: {
+            case JOIN_TENDER -> {
                 // Fancy way to parse the "tenderId" int out of the message
                 Type payloadType = new TypeToken<GameEvent<Integer>>() {
                 }.getType();
@@ -59,9 +59,8 @@ class GameEventHandler {
                 } catch (Exception e) {
                     System.out.println("invalid message");
                 }
-                break;
             }
-            case ASSIGN_EMPLOYEE: {
+            case ASSIGN_EMPLOYEE -> {
                 Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {
                 }.getType();
                 GameEvent<HashMap<String, Integer>> assignmentEvent = GSON.fromJson(message, payloadType);
@@ -70,9 +69,8 @@ class GameEventHandler {
                 int projectId = assignmentEvent.getPayload().get("projectId");
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, true);
-                break;
             }
-            case UNASSIGN_EMPLOYEE: {
+            case UNASSIGN_EMPLOYEE -> {
                 Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {
                 }.getType();
                 GameEvent<HashMap<String, Integer>> unassignmentEvent = GSON.fromJson(message, payloadType);
@@ -81,9 +79,8 @@ class GameEventHandler {
                 int projectId = unassignmentEvent.getPayload().get("projectId");
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, false);
-                break;
             }
-            case SKILL_UNLOCKED: {
+            case SKILL_UNLOCKED -> {
                 Player player = game.getPlayerByWebSocket(websocket);
 
                 Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {
@@ -93,9 +90,8 @@ class GameEventHandler {
                 int unlockSkillPoints = Integer.parseInt(skillUnlockedEvent.getPayload().get("unlockSkillPoints"));
 
                 game.getSkillsManager().unlockSkill(player, skillId, unlockSkillPoints);
-                break;
             }
-            case HIRE_TALENT: {
+            case HIRE_TALENT -> {
                 // Parse the employee id out of the message
                 Type payloadType = new TypeToken<GameEvent<Integer>>() {
                 }.getType();
@@ -122,9 +118,8 @@ class GameEventHandler {
                 employeeList.add(employee.getId());
                 employeeHiredEvent.setPayload(employeeList);
                 game.broadcastToAllPlayers(GSON.toJson(employeeHiredEvent));
-                break;
             }
-            case RISK_ASSESSMENT_REQUESTED: {
+            case RISK_ASSESSMENT_REQUESTED -> {
                 // Parse the project id out of the message
                 Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {
                 }.getType();
@@ -136,11 +131,8 @@ class GameEventHandler {
                 // Confirm the risk assessment for this player *WITHOUT* changing the data model in the Project instance.
                 // This is necessary to prevent changing the risk visibility for other players in the game.
                 game.assessProjectRiskForPlayer(projectId, player);
-                break;
             }
-            default:
-                logger.warn("Received unknown event type: " + event.getType());
-                break;
+            default -> logger.warn("Received unknown event type: " + event.getType());
         }
     }
 
