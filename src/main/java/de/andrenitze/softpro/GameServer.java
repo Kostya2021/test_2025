@@ -51,7 +51,8 @@ public class GameServer extends WebSocketServer {
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
-        fetchHighscore();
+        // Fetch Highscore in a separate thread
+        new Thread(this::fetchHighscore).start();
     }
 
     private void fetchHighscore() {
@@ -288,10 +289,10 @@ public class GameServer extends WebSocketServer {
     private void regularlyCheckForEmptyGames() {
         ScheduledExecutorService regularTaskManager = Executors.newSingleThreadScheduledExecutor();
         regularTaskManager.scheduleAtFixedRate(() -> {
-            if (games.size() != 0) {
+            if (!games.isEmpty()) {
                 for (Game game : games) {
-                    if (game.getPlayers().size() == 0) {
-                        logger.debug("Found ghost game! {}", game);
+                    if (game.getPlayers().isEmpty()) {
+                        logger.warn("Found ghost game! {}", game);
                         game.stop();
                         games.remove(game);
                         broadcastLobbyState();
