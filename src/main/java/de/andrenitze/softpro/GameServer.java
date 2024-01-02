@@ -303,9 +303,9 @@ public class GameServer extends WebSocketServer {
     private void regularlyCheckForEmptyGames() {
         ScheduledExecutorService regularTaskManager = Executors.newSingleThreadScheduledExecutor();
         regularTaskManager.scheduleAtFixedRate(() -> {
-            if (games.size() != 0) {
+            if (!games.isEmpty()) {
                 for (Game game : games) {
-                    if (game.getPlayers().size() == 0) {
+                    if (game.getPlayers().isEmpty()) {
                         logger.debug("Found ghost game! {}", game);
                         game.stop();
                         games.remove(game);
