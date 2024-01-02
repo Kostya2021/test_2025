@@ -23,10 +23,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.persistence.NoResultException;
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -77,6 +79,18 @@ public class GameServer extends WebSocketServer {
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
         // When a new WebSocket connection is opened, it's a player joining the lobby
         logger.info("Client {} connected", webSocket.getRemoteSocketAddress());
+
+        // Send version number to frontend
+        final Properties properties = new Properties();
+        try {
+            properties.load(getClass().getClassLoader().getResourceAsStream("project.properties"));
+            String version = properties.getProperty("version");
+            webSocket.send("{\"type\": \""+EventType.VERSION+"\", \"payload\": \""+version+"\"}");
+        } catch (IOException e) {
+            logger.error("Could not load project.properties file");
+        }
+
+        // Generate a new player
         Player generatedPlayer = new Player();
         lobby.put(webSocket, generatedPlayer);
 
@@ -280,7 +294,7 @@ public class GameServer extends WebSocketServer {
         } catch (NoResultException e) {
             return null;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Could not fetch high-score from database: {}", e.getMessage());
             return null;
         }
         return highScore;
