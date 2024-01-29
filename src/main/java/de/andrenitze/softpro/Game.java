@@ -280,7 +280,7 @@ public class Game {
                             .filter(project -> project.isCompleted()
                                     && project.getCompletedAt() > objective.getEarliestOccurrence()
                                     && project.playerWasInvolved(player))
-                            .collect(Collectors.toList());
+                            .toList();
 
                     // Only send when conditions have changed from last time
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
@@ -515,7 +515,7 @@ public class Game {
                     // Riskier and larger projects yield more XP
                     float xp = project.getTotalValue() / 1000f;
                     switch (project.getRiskLevel()) {
-                        case low -> xp *= 0.75;
+                        case low -> xp *= 0.75F;
                         case medium -> xp *= 1;
                         case high -> xp *= 2;
                         case extreme -> xp *= 4;
@@ -629,10 +629,10 @@ public class Game {
                 case 1 ->
                     //noinspection ConstantConditions
                         earnedValue *= 1;
-                case 2 -> earnedValue *= 0.4;
-                case 3 -> earnedValue *= 0.2;
-                case 4 -> earnedValue *= 0.1;
-                case 5 -> earnedValue *= 0.05;
+                case 2 -> earnedValue = (int) (earnedValue * 0.4);
+                case 3 -> earnedValue = (int) (earnedValue * 0.2);
+                case 4 -> earnedValue = (int) (earnedValue * 0.1);
+                case 5 -> earnedValue = (int) (earnedValue * 0.05);
                 default -> earnedValue = 1;
             }
 
