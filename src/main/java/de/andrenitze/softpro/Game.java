@@ -280,6 +280,7 @@ public class Game {
                             .filter(project -> project.isCompleted()
                                     && project.getCompletedAt() > objective.getEarliestOccurrence()
                                     && project.playerWasInvolved(player))
+                            // The following line can NOT be replaced with "toList()"!
                             .collect(Collectors.toList());
 
                     // Only send when conditions have changed from last time
@@ -362,12 +363,10 @@ public class Game {
 
                 try (Session session = this.gameServer.sessionFactory.openSession()) {
                     session.beginTransaction();
-                    session.save(goStats);
+                    session.persist(goStats);
                     session.getTransaction().commit();
-                    session.close();
                     logger.info("Game stats of player {} saved successfully.", player.getName());
                 } catch (Exception e) {
-                    e.printStackTrace();
                     logger.warn("Game stats of player {} could not be saved! Database up?", player.getName());
                 }
 
@@ -517,7 +516,7 @@ public class Game {
                     // Riskier and larger projects yield more XP
                     float xp = project.getTotalValue() / 1000f;
                     switch (project.getRiskLevel()) {
-                        case low -> xp *= 0.75;
+                        case low -> xp *= 0.75F;
                         case medium -> xp *= 1;
                         case high -> xp *= 2;
                         case extreme -> xp *= 4;
@@ -631,10 +630,10 @@ public class Game {
                 case 1 ->
                     //noinspection ConstantConditions
                         earnedValue *= 1;
-                case 2 -> earnedValue *= 0.4;
-                case 3 -> earnedValue *= 0.2;
-                case 4 -> earnedValue *= 0.1;
-                case 5 -> earnedValue *= 0.05;
+                case 2 -> earnedValue = (int) (earnedValue * 0.4);
+                case 3 -> earnedValue = (int) (earnedValue * 0.2);
+                case 4 -> earnedValue = (int) (earnedValue * 0.1);
+                case 5 -> earnedValue = (int) (earnedValue * 0.05);
                 default -> earnedValue = 1;
             }
 
