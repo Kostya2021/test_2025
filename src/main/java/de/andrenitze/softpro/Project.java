@@ -47,6 +47,10 @@ public class Project {
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
     private final String domain;
 
+    // Description text is generated in the frontend
+    private final String description = "";
+    private boolean hasBeenRiskAssessed = false;
+
     /**
      * Generates a project with a random name and volume
      * Projects can be used in several stages. The first stage is a "tender".
@@ -307,5 +311,9 @@ public class Project {
 
     public boolean isOverdue() {
         return getCompletedAt() > getDeadline();
+    }
+
+    public boolean hasBeenRiskAssessed() {
+        return hasBeenRiskAssessed;
     }
 }

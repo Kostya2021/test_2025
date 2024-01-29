@@ -92,7 +92,7 @@ public class Player {
         return funds;
     }
 
-    private void subtractFunds(float fundsToSubtract) {
+    void subtractFunds(float fundsToSubtract) {
         this.funds -= fundsToSubtract;
     }
 

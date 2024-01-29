@@ -25,7 +25,7 @@ import static java.lang.Math.round;
 import static java.time.LocalDate.now;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 500;
+    private static final int GAME_SPEED_IN_MILLISECONDS = 1000;
     private static final int BANKRUPTCY_THRESHOLD = -25000;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
@@ -611,7 +611,7 @@ public class Game {
             onboardingFactor = calculateOnboardingFactor(project, employees);
             logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", onboardingFactor);
         } else {
-            // No onboarding required (safe period or no new employees
+            // No onboarding required (safe period or no new employees)
             onboardingFactor = 1;
         }
 
@@ -646,19 +646,19 @@ public class Game {
             float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 float productivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue *= (int) productivityFactor;
+                earnedValue *= productivityFactor;
             }
 
             // Increase the employee's experience
             employee.gainExperience(project, 1);
 
-            earnedValue *= (int) onboardingFactor;
+            earnedValue *= onboardingFactor;
 
             if (project.getEarnedValue() == 0 && earnedValue > 0) {
                 project.setStartedAt(currentTick);
             }
 
-            earnedValue *= (int) calculateSkillsFactor(project);
+            earnedValue *= calculateSkillsFactor(project);
 
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
@@ -867,5 +867,22 @@ public class Game {
 
     public TalentMarket getTalentManager() {
         return talentMarket;
+    }
+
+    public void assessProjectRiskForPlayer(int projectId, Player player) {
+        Project project = getProjectById(projectId);
+        if (project == null) {
+            logger.error("Project with ID {} not found.", projectId);
+            return;
+        }
+
+        // Deduct funds from player
+        player.subtractFunds(Params.PROJECT_RISK_ASSESSMENT_COST);
+        sendFundsUpdateToPlayer(player);
+
+        // Send project update to player
+        GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
+        riskAssessedConfirmation.setPayload(project);
+        sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
     }
 }

@@ -58,11 +58,10 @@ public class GameServer extends WebSocketServer {
 
     private void fetchHighscore() {
         // Initialize database session
-        StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-                .configure("hibernate.cfg.xml")
-                .build();
-
         try {
+            StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
+                    .configure("hibernate.cfg.xml")
+                    .build();
             sessionFactory = new MetadataSources(registry).buildMetadata().buildSessionFactory();
             this.dailyHighScore = getCurrentHighScore();
             if (this.dailyHighScore != null && this.dailyHighScore.getProjectsVolume() > 0) {
@@ -71,7 +70,7 @@ public class GameServer extends WebSocketServer {
                 logger.info("No high-score set for today, yet.");
             }
         } catch (Exception e) {
-            StandardServiceRegistryBuilder.destroy(registry);
+            logger.warn("Could not initialize database session: {}", e.getMessage());
         }
     }
 
@@ -174,9 +173,9 @@ public class GameServer extends WebSocketServer {
                 GameEvent<Player> updatedPlayerEvent = GSON.fromJson(message, payloadType);
                 Player updatedPlayer = updatedPlayerEvent.getPayload();
 
-                // Sanitize string
+                // Sanitize string, but allow spaces, and special characters like é,ß,ä,ö,ü...
                 String newName = updatedPlayer.getName();
-                newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^A-Za-z0-9 ]","").trim();
+                newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^\\p{L}\\p{M}\\s]", "").trim();
                 if (newName.length() >= 2) {
                     Player player = this.lobby.get(webSocket);
                     player.setName(newName);
@@ -294,7 +293,7 @@ public class GameServer extends WebSocketServer {
         } catch (NoResultException e) {
             return null;
         } catch (Exception e) {
-            logger.error("Could not fetch high-score from database: {}", e.getMessage());
+            logger.warn("Could not fetch high-score from database: {}", e.getMessage());
             return null;
         }
         return highScore;
