@@ -362,12 +362,10 @@ public class Game {
 
                 try (Session session = this.gameServer.sessionFactory.openSession()) {
                     session.beginTransaction();
-                    session.save(goStats);
+                    session.persist(goStats);
                     session.getTransaction().commit();
-                    session.close();
                     logger.info("Game stats of player {} saved successfully.", player.getName());
                 } catch (Exception e) {
-                    e.printStackTrace();
                     logger.warn("Game stats of player {} could not be saved! Database up?", player.getName());
                 }
 
