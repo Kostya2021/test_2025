@@ -43,6 +43,7 @@ public class TalentMarket {
     }
 
     public void initialize() {
+        clearTalentMarket();
         for (int i = 0; i<15; i++) {
             Employee employee = new Employee();
             addTalent(employee);
