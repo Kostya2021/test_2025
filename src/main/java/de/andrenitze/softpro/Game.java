@@ -280,7 +280,8 @@ public class Game {
                             .filter(project -> project.isCompleted()
                                     && project.getCompletedAt() > objective.getEarliestOccurrence()
                                     && project.playerWasInvolved(player))
-                            .toList();
+                            // The following line can NOT be replaced with "toList()"!
+                            .collect(Collectors.toList());
 
                     // Only send when conditions have changed from last time
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
