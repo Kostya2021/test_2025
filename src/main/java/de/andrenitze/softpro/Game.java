@@ -630,10 +630,10 @@ public class Game {
                 case 1 ->
                     //noinspection ConstantConditions
                         earnedValue *= 1;
-                case 2 -> earnedValue = (int) (earnedValue * 0.4);
-                case 3 -> earnedValue = (int) (earnedValue * 0.2);
-                case 4 -> earnedValue = (int) (earnedValue * 0.1);
-                case 5 -> earnedValue = (int) (earnedValue * 0.05);
+                case 2 -> earnedValue *= 0.4;
+                case 3 -> earnedValue *= 0.2;
+                case 4 -> earnedValue *= 0.1;
+                case 5 -> earnedValue *= 0.05;
                 default -> earnedValue = 1;
             }
 
