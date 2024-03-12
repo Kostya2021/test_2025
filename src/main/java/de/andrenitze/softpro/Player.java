@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public class Player {
     private static final Random RANDOM = new Random();
-    public static final float INITIAL_FUNDS = 100000;
+    public static final float INITIAL_FUNDS = 150000;
 
     @JsonIgnore
     private final UUID id;
@@ -180,16 +180,14 @@ public class Player {
         this.funds = INITIAL_FUNDS;
         this.employees = new ArrayList<>();
 
-        // The first employee has a moderate amount of XP in one random project domain
-        Employee employeeWithXP = new Employee();
-
-        ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
-        String domain = type.getDomain();
-        employeeWithXP.addXp(type, domain,RANDOM.nextInt(500) + 750);
-        this.employees.add(employeeWithXP);
-
-        // Add a second employee
-        this.employees.add(new Employee());
+        // The first two employees have a moderate amount of XP in one random project domain
+        for (int i = 0; i < 2; i++) {
+            Employee employeeWithXP = new Employee();
+            ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
+            String domain = type.getDomain();
+            employeeWithXP.addXp(type, domain, RANDOM.nextInt(500) + 750);
+            this.employees.add(employeeWithXP);
+        }
 
         Objectives objectives = new Objectives();
         objectives.loadObjectivesFromYamlFile();
