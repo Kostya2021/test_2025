@@ -137,7 +137,7 @@ public class Employee {
     }
 
     public Integer getExperienceInDaysByProjectDomain(String domain) {
-        return projectDomainExperience.get(domain);
+        return projectDomainExperience.getOrDefault(domain, 0);
     }
 
     public Integer getHappiness() {
