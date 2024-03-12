@@ -32,7 +32,7 @@ public class Game {
     public static final int STALE_TENDERS_KILL_DAYS = 548;
 
     // Base productivity value = How much value one person (FTE) can produce in one day
-    public static final int BASE_PRODUCTIVITY_VALUE = 500;
+    public static final int BASE_PRODUCTIVITY_VALUE = 1000;
     public static final double PROFIT_MARGIN = 0.3;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
@@ -623,7 +623,39 @@ public class Game {
             // Fixed imaginary number
             earnedValue = BASE_PRODUCTIVITY_VALUE;
 
-            // Rule #1: Context changes decrease employee productivity
+            // Rule #4: Productivity depends on experience.
+            // Experience factors are "project domain" and "project type".
+            // The more experience an employee has in a project type, the more productive they are.
+            // If an employee has *type* experience, but not the exact *domain* experience, they have some transferable
+            // skills, which still makes them somewhat productive.
+            // Examples:
+            // 0 days type XP, 0 days domain XP = 0% productivity
+            // 1000 days type XP, 0 days domain XP = 50% productivity
+            // 1000 days type XP, 1000 days domain XP = 100% productivity
+
+            // Experience in days for project type and domain
+            int typeXP = employee.getExperienceInDaysByProjectType(project.getType());
+            int domainXP = employee.getExperienceInDaysByProjectDomain(project.getDomain());
+
+            // Weights for project type and domain experience
+            float typeXPWeight = 0.25f;
+            float domainXPWeight = 0.75f;
+
+            // Base productivity value (if experience = 0)
+            float baseProductivity = 0.25f;
+            float maxProductivity = 1.0f;
+
+            float productivityFactor = (float) (baseProductivity +
+                    (maxProductivity - baseProductivity) * (
+                        (typeXP > 0 ? typeXPWeight * (1 - exp(-0.0005 * typeXP)) : 0) +
+                        (domainXP > 0 ? domainXPWeight * (1 - exp(-0.0005 * domainXP)) : 0)
+                )
+            );
+
+            earnedValue *= productivityFactor * 2;
+            logger.debug("Productivity factor for {}: {} (type), {} (domain) => {}%", employee.getName(), typeXP, domainXP, productivityFactor);
+
+            // Rule #1: Context changes decrease employee productivity.
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
             earnedValue /= numberOfParallelProjects;
             switch (numberOfParallelProjects) {
@@ -637,7 +669,7 @@ public class Game {
                 default -> earnedValue = 1;
             }
 
-            // Rule #2: Productivity ramp-up: New staff needs some time to get fully productive
+            // Rule #2: Productivity ramp-up: New staff in project needs some time to get fully productive.
             // Example:
             // 0 days XP = 0% productivity
             // 1 day XP = 10% productivity
@@ -645,8 +677,8 @@ public class Game {
             // 20 days XP = 100% productivity
             float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
-                float productivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue *= productivityFactor;
+                float rampUpProductivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
+                earnedValue *= rampUpProductivityFactor;
             }
 
             // Increase the employee's experience
@@ -658,6 +690,7 @@ public class Game {
                 project.setStartedAt(currentTick);
             }
 
+            // Rule #5: Organizational skills affect productivity.
             earnedValue *= calculateSkillsFactor(project);
 
             // Increase the project's earnedValue for this employee
