@@ -642,7 +642,7 @@ public class Game {
             float domainXPWeight = 0.75f;
 
             // Base productivity value (if experience = 0)
-            float baseProductivity = 0.1f;
+            float baseProductivity = 0.25f;
             float maxProductivity = 1.0f;
 
             float productivityFactor = (float) (baseProductivity +
@@ -652,7 +652,7 @@ public class Game {
                 )
             );
 
-            earnedValue *= productivityFactor;
+            earnedValue *= productivityFactor * 2;
             logger.debug("Productivity factor for {}: {} (type), {} (domain) => {}%", employee.getName(), typeXP, domainXP, productivityFactor);
 
             // Rule #1: Context changes decrease employee productivity.

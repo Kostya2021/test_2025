@@ -31,8 +31,8 @@ public class Employee {
         this.name = generateName();
         this.gender = assignGender();
 
-        // Randomize salary between 2000 and 4000
-        this.salary = new Random().nextInt(2000) + 2000;
+        // Randomize salary between 3000 and 4500
+        this.salary = new Random().nextInt(0, 1500) + 3000;
 
         // Randomize age between 20 and 60
         this.age = new Random().nextInt(40) + 20;
