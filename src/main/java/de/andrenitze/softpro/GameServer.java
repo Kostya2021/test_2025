@@ -31,9 +31,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class GameServer extends WebSocketServer {
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
@@ -271,7 +268,6 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onStart() {
         logger.info("Server started successfully");
-        regularlyCheckForEmptyGames();
     }
 
     void addPlayerToLobby(WebSocket webSocket, Player player) {
@@ -298,21 +294,5 @@ public class GameServer extends WebSocketServer {
             return null;
         }
         return highScore;
-    }
-
-    private void regularlyCheckForEmptyGames() {
-        ScheduledExecutorService regularTaskManager = Executors.newSingleThreadScheduledExecutor();
-        regularTaskManager.scheduleAtFixedRate(() -> {
-            if (!games.isEmpty()) {
-                for (Game game : games) {
-                    if (game.getPlayers().isEmpty()) {
-                        logger.warn("Found ghost game! {}", game);
-                        game.stop();
-                        games.remove(game);
-                        broadcastLobbyState();
-                    }
-                }
-            }
-        }, 0, 2500, TimeUnit.MILLISECONDS);
     }
 }
