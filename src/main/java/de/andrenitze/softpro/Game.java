@@ -368,6 +368,7 @@ public class Game {
                     logger.info("Game stats of player {} saved successfully.", player.getName());
                 } catch (Exception e) {
                     logger.warn("Game stats of player {} could not be saved! Database up?", player.getName());
+                    logger.warn(e.getMessage());
                 }
 
                 // Check if there's a new high-score and broadcast updates in lobby
