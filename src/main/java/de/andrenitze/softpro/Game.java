@@ -47,7 +47,8 @@ public class Game {
     public static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements;
     private final SkillsManager skillsMananger = new SkillsManager();
-    private static final TalentMarket talentMarket = new TalentMarket();
+    private final EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
+    private final TalentMarket talentMarket = new TalentMarket(employeeIdGenerator);
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -350,7 +351,7 @@ public class Game {
                 sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
 
                 // Keep connection and name but reset other player attributes
-                player.initializeBeforeRound();
+                player.initializeBeforeGame();
 
                 // Tell game server to move player back to lobby
                 this.gameServer.addPlayerToLobby(webSocket, player);
@@ -899,7 +900,7 @@ public class Game {
         players.put(key, value);
     }
 
-    public TalentMarket getTalentManager() {
+    public TalentMarket getTalentMarket() {
         return talentMarket;
     }
 
@@ -918,5 +919,12 @@ public class Game {
         GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
         riskAssessedConfirmation.setPayload(project);
         sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
+    }
+
+    public void initializePlayers() {
+        // Generate first employees for all players (necessary for Level 1)
+        players.forEach((webSocket, player) -> {
+            talentMarket.generateFirstEmployees().forEach(player::addEmployee);
+        });
     }
 }

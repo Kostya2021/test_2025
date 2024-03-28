@@ -4,9 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
-import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.types.EventType;
-import de.andrenitze.softpro.types.ProjectType;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -40,10 +37,11 @@ public class Player {
     @JsonProperty
     private int xp = 0;
     @JsonProperty
-    private int skillPoints = 0;
+    private int skillPoints = 5;
 
     @JsonProperty
     private int level = 0;
+
 
     Player() {
         this(generatePlayerName(), generateCompanyName());
@@ -72,7 +70,7 @@ public class Player {
         this.name = name;
         this.company = company;
         this.id = UUID.randomUUID();
-        initializeBeforeRound();
+        initializeBeforeGame();
     }
 
     String getName() {
@@ -81,10 +79,6 @@ public class Player {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public void setCompany(String company) {
-        this.company = company;
     }
 
     public float addFunds(float additionalFunds) {
@@ -98,10 +92,6 @@ public class Player {
 
     public float getFunds() {
         return funds;
-    }
-
-    public String getCompany() {
-        return company;
     }
 
     ArrayList<Employee> getEmployees() {
@@ -127,12 +117,6 @@ public class Player {
 
     public ArrayList<Objective> getObjectives() {
         return objectives;
-    }
-
-    public GameEvent<Object> createGameEventOfChangedObjectives() {
-        GameEvent<Object> event = new GameEvent<>(EventType.STATE_UPDATED);
-
-        return event.getPayload() != null? null : event;
     }
 
     public ArrayList<Objective> getNewObjectivesForThisTick(int tick) {
@@ -175,19 +159,9 @@ public class Player {
         this.ready = ready;
     }
 
-    public void initializeBeforeRound() {
+    public void initializeBeforeGame() {
         setReady(false);
         this.funds = INITIAL_FUNDS;
-        this.employees = new ArrayList<>();
-
-        // The first two employees have a moderate amount of XP in one random project domain
-        for (int i = 0; i < 2; i++) {
-            Employee employeeWithXP = new Employee();
-            ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
-            String domain = type.getDomain();
-            employeeWithXP.addXp(type, domain, RANDOM.nextInt(500) + 750);
-            this.employees.add(employeeWithXP);
-        }
 
         Objectives objectives = new Objectives();
         objectives.loadObjectivesFromYamlFile();

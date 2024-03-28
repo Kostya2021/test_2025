@@ -88,19 +88,25 @@ public class GameServer extends WebSocketServer {
         }
 
         // Generate a new player
-        Player generatedPlayer = new Player();
-        lobby.put(webSocket, generatedPlayer);
+        Player newPlayer = new Player();
+        lobby.put(webSocket, newPlayer);
+
+        // Create a new game instance for this player and add her to it
+        Game game = new Game(this);
+        game.addPlayerToGame(webSocket, newPlayer);
+        game.initializePlayers();
+        games.add(game);
 
         // Return generated player to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
         playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
-        playerUpdateEvent.setPayload(generatedPlayer);
+        playerUpdateEvent.setPayload(newPlayer);
         webSocket.send(GSON.toJson(playerUpdateEvent));
 
         broadcastLobbyState();
 
         logger.info("New player '{}' added. New number of players in lobby: {}",
-                generatedPlayer.getName(),
+                newPlayer.getName(),
                 lobby.size());
     }
 
@@ -108,6 +114,7 @@ public class GameServer extends WebSocketServer {
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
         logger.debug("WebSocket {} is closing? {}", webSocket.getRemoteSocketAddress(), webSocket.isClosing());
         removeDisconnectedClient(webSocket);
+        findAndCloseEmptyGames();
     }
 
     private void removeDisconnectedClient(WebSocket webSocket) {
@@ -149,11 +156,11 @@ public class GameServer extends WebSocketServer {
     public void onMessage(WebSocket webSocket, String message) {
         logger.debug("received message from {}: {}", webSocket.getRemoteSocketAddress(), message);
 
-        // Handle lobby events here and forward everything else to the game instances
+        // Handle lobby events (PLAYER_READY, PLAYER_NAME_UPDATED) here and forward everything else to the game instances
         try {
             GameEvent<Object> genericGameEvent = GSON.fromJson(message, GameEvent.class);
 
-            // If player is ready to play, add her to the lobby
+            // If player is ready to play, make her available to be picked up by game instances.
             if (genericGameEvent.isOfType(EventType.PLAYER_READY)) {
                 try {
                     //Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
@@ -161,8 +168,10 @@ public class GameServer extends WebSocketServer {
 
                     Player player = lobby.get(webSocket);
                     player.setReady(true);
+
                     broadcastLobbyState();
                 } catch (Exception e) {
+                    logger.debug(e.getMessage());
                     logger.error("Websocket message was malformed!");
                 }
             } else if (genericGameEvent.isOfType(EventType.PLAYER_NAME_UPDATED)) {
@@ -176,6 +185,7 @@ public class GameServer extends WebSocketServer {
                 newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^\\p{L}\\p{M}\\s]", "").trim();
                 if (newName.length() >= 2) {
                     Player player = this.lobby.get(webSocket);
+                    String oldName = player.getName();
                     player.setName(newName);
 
                     // Confirm successful name change
@@ -186,7 +196,7 @@ public class GameServer extends WebSocketServer {
 
                     // Notify everyone in the lobby
                     broadcastLobbyState();
-                    logger.info("{} changed name to {}", player.getName(), newName);
+                    logger.info("{} changed name to {}", oldName, newName);
                 }
             } else {
                 // Forward all other events to the corresponding game instance
@@ -205,16 +215,21 @@ public class GameServer extends WebSocketServer {
                     // Remove player from lobby
                     lobby.remove(player.getKey());
 
-                    // Create a new game instance on this server for this group of ready players
-                    Game game = new Game(this);
+                    // Find corresponding game instance for this player
+                    Game game = games.stream()
+                            .filter(g -> g.hasWebSocket(player.getKey()))
+                            .findFirst()
+                            .orElse(null);
 
-                    // Only support single player games (for now)
+                    if (game == null) {
+                        logger.error("Could not find game instance for player {}", player.getValue().getName());
+                        return;
+                    }
+
                     game.addPlayerToGame(player.getKey(), player.getValue());
                     game.start();
-                    games.add(game);
 
-                    logger.info("Players in the lobby: {}", lobby.size());
-                    logger.info("Running games: {}", games.size());
+                    logger.info("Players in the lobby: {} | Running games: {}", lobby.size(), games.size());
                     broadcastLobbyState();
                 }
             }
@@ -294,5 +309,18 @@ public class GameServer extends WebSocketServer {
             return null;
         }
         return highScore;
+    }
+
+    private void findAndCloseEmptyGames() {
+        if (!games.isEmpty()) {
+            for (Game game : games) {
+                if (game.getPlayers().isEmpty()) {
+                    logger.debug("Found empty game! Closing...");
+                    game.stop();
+                    games.remove(game);
+                    broadcastLobbyState();
+                }
+            }
+        }
     }
 }
