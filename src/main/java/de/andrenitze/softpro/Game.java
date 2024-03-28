@@ -927,4 +927,24 @@ public class Game {
             talentMarket.generateFirstEmployees().forEach(player::addEmployee);
         });
     }
+
+    // Move Employee from Player to TalentMarket
+    public void dismissEmployee(Player player, Employee employee) {
+        player.removeEmployee(employee);
+        TalentMarket.addTalent(employee); // Not sure about this...
+
+        // Remove employee from all projects
+        for (Project project : projects) {
+            if (projectEmployeesMap.containsKey(project)) {
+                ArrayList<Employee> employees = projectEmployeesMap.get(project);
+                employees.remove(employee);
+                projectEmployeesMap.put(project, employees);
+            }
+        }
+
+        // Send employee dismissal confirmation
+        GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
+        employeeDismissedEvent.setPayload(employee);
+        sendMessageToPlayer(player, GSON.toJson(employeeDismissedEvent));
+    }
 }
