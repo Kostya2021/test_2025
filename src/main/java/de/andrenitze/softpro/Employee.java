@@ -10,7 +10,6 @@ import java.util.Random;
 public class Employee {
     public static final float SICK_DAY_PROBABILITY = 0.02f;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
-    private static int lastId = 1;
     public static final int MINIMUM_SICK_DAYS = 4;
     public static final int MAXIMUM_SICK_DAYS = 22;
     private final Integer id;
@@ -27,7 +26,7 @@ public class Employee {
     private float health = 0.0f;
     private final String gender;
 
-    Employee() {
+    Employee(Integer id) {
         this.name = generateName();
         this.gender = assignGender();
 
@@ -37,10 +36,9 @@ public class Employee {
         // Randomize age between 20 and 60
         this.age = new Random().nextInt(40) + 20;
 
-        this.happiness = 60;
-        this.id = lastId;
+        this.happiness = new Random().nextInt(45) + 50;
+        this.id = id;
         initializeSickDays();
-        ++lastId;
 
         this.projectExperience = new HashMap<>();
         this.projectTypeExperience = new EnumMap<>(ProjectType.class);
@@ -91,10 +89,6 @@ public class Employee {
         return salary;
     }
 
-    int getAge() {
-        return age;
-    }
-
     int getProjectExperience() {
         int experience = 0;
         if (projectExperience != null) {
@@ -138,14 +132,6 @@ public class Employee {
 
     public Integer getExperienceInDaysByProjectDomain(String domain) {
         return projectDomainExperience.getOrDefault(domain, 0);
-    }
-
-    public Integer getHappiness() {
-        return happiness;
-    }
-
-    public int getSickDays() {
-        return annualSickDays;
     }
 
     public void haveSickLeaveDay(int currentTick) {
@@ -194,10 +180,6 @@ public class Employee {
 
     public void setLastSickDay(int lastSickDay) {
         this.lastSickDay = lastSickDay;
-    }
-
-    public String getGender() {
-        return gender;
     }
 
     public void addXp(ProjectType type, String domain, int days) {
