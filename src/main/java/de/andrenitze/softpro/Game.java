@@ -7,12 +7,15 @@ import de.andrenitze.softpro.entities.StoryElement;
 import de.andrenitze.softpro.entities.StoryElements;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
-import org.hibernate.Session;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
@@ -272,8 +275,8 @@ public class Game {
 
             // Calculate progress for all active objectives
             for (Objective objective: player.getObjectives()) {
-                // Naive matching approach with exact IDs
-                if (objective.getId() == 1 && !objective.isCompleted()) {
+                // Naive matching approach with exact IDs (=> same logic for ID 1 and ID 2)
+                if ((objective.getId() == 1 || objective.getId() == 2) && !objective.isCompleted()) {
                     // Were conditions met (= projects finished) after the objective occurred?
                     // Only check relevant (= finished) projects
                     ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
@@ -362,14 +365,45 @@ public class Game {
                 goStats.setGameId(String.valueOf(this.hashCode()));
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
 
-                try (Session session = this.gameServer.sessionFactory.openSession()) {
-                    session.beginTransaction();
-                    session.persist(goStats);
-                    session.getTransaction().commit();
-                    logger.info("Game stats of player {} saved successfully.", player.getName());
-                } catch (Exception e) {
-                    logger.warn("Game stats of player {} could not be saved! Database up?", player.getName());
+                Connection conn = null;
+                PreparedStatement stmt = null;
+
+                try {
+                    Class.forName(Config.getProperty("db.driver"));
+                    conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
+
+                    String sql = "INSERT INTO GameOverStats (deliveredProjects, projectsVolume, report, playerName, ipAddress, finishedAt, gameId, survivedDays, playedSeconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    stmt = conn.prepareStatement(sql);
+
+                    stmt.setInt(1, goStats.getDeliveredProjects());
+                    stmt.setInt(2, goStats.getProjectsVolume());
+                    stmt.setString(3, goStats.getReport());
+                    stmt.setString(4, goStats.getPlayerName());
+                    stmt.setString(5, goStats.getIpAddress());
+                    stmt.setTimestamp(6, new java.sql.Timestamp(goStats.getFinishedAt().getTime()));  // Convert java.util.Date to java.sql.Timestamp
+                    stmt.setString(7, goStats.getGameId());
+                    stmt.setInt(8, goStats.getSurvivedDays());
+                    stmt.setInt(9, goStats.getPlayedSeconds());
+
+                    int affectedRows = stmt.executeUpdate();
+                    if (affectedRows > 0) {
+                        logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
+                    } else {
+                        logger.warn("Game stats of player in game {} could not be saved! No rows affected.", goStats.getGameId());
+                    }
+                } catch (ClassNotFoundException e) {
+                    logger.warn("JDBC Driver not found: {}", e.getMessage());
+                } catch (SQLException e) {
+                    logger.warn("Game stats in game {} could not be saved! Database up?", goStats.getGameId());
                     logger.warn(e.getMessage());
+                } finally {
+                    // Schließe alle Ressourcen
+                    try {
+                        if (stmt != null) stmt.close();
+                        if (conn != null) conn.close();
+                    } catch (SQLException e) {
+                        logger.warn("Error closing database resources: {}", e.getMessage());
+                    }
                 }
 
                 // Check if there's a new high-score and broadcast updates in lobby
