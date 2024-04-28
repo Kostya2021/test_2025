@@ -45,6 +45,18 @@ public class GameServer extends WebSocketServer {
 
         // Fetch Highscore in a separate thread
         new Thread(this::fetchHighscore).start();
+
+        // Find and close empty games every 1 minute
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(60000);
+                    findAndCloseEmptyGames();
+                } catch (InterruptedException e) {
+                    logger.error("Error while trying to close empty games: {}", e.getMessage());
+                }
+            }
+        }).start();
     }
 
     private void fetchHighscore() {
@@ -129,7 +141,6 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
         removeDisconnectedClient(webSocket);
-        findAndCloseEmptyGames();
     }
 
     private void removeDisconnectedClient(WebSocket webSocket) {
