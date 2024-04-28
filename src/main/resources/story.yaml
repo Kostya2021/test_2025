@@ -4,24 +4,22 @@ storyElements:
     lines:
       - Congratulations to your new role as Junior Project Manager!
       - Now let's show them how to get projects done, shall we?
-      - For a beginning, just ACCEPT some low-risk projects from the PROJECT MARKET!
   - id: 2
     avatar: ADVISOR
     afterObjective: 1
     medium: MESSENGER
     lines:
-      - Excellent work! 😃👍
-      - The CEO is pleased with your bottom line. You received an additional 75K budget to build up your team!
+      - Excellent work! 😃👍 The CEO is pleased with your bottom line. Way to go!
   - id: 3
     avatar: BADGUY
-    afterObjective: 1
+    afterObjective: 2
     earliestOccurrence: 150
     lines:
       - Ha! You think you're the best because you finished some easy-peasy projects, huh?
       - Better watch your back...
   - id: 4
     avatar: ADVISOR
-    afterObjective: 1
+    afterObjective: 2
     earliestOccurrence: 170
     lines:
       - Being successful will always attract envious people.
@@ -31,4 +29,4 @@ storyElements:
     earliestOccurrence: 1000
     lines:
       - Hey! You still here?
-      - Seriously, you should get outside!
+      - Seriously, you should get outside! 😃

@@ -6,12 +6,6 @@ import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.EventType;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.boot.MetadataSources;
-import org.hibernate.boot.registry.StandardServiceRegistry;
-import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.query.NativeQuery;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -22,11 +16,11 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.persistence.NoResultException;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.sql.*;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -39,7 +33,6 @@ public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final Gson GSON = new Gson();
     private GameOverStats dailyHighScore;
-    public SessionFactory sessionFactory = null;
 
     /**
      * Creates a GameServer instance to manage games and players
@@ -55,20 +48,43 @@ public class GameServer extends WebSocketServer {
     }
 
     private void fetchHighscore() {
-        // Initialize database session
+        logger.info("Fetching high-score from database");
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+
         try {
-            StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-                    .configure("hibernate.cfg.xml")
-                    .build();
-            sessionFactory = new MetadataSources(registry).buildMetadata().buildSessionFactory();
-            this.dailyHighScore = getCurrentHighScore();
-            if (this.dailyHighScore != null && this.dailyHighScore.getProjectsVolume() > 0) {
-                logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
-            } else {
-                logger.info("No high-score set for today, yet.");
+            Class.forName(Config.getProperty("db.driver"));
+            conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
+
+            String sql = "SELECT * FROM GameOverStats WHERE DATE(finishedAt) = CURDATE() ORDER BY projectsVolume DESC LIMIT 1";
+            stmt = conn.prepareStatement(sql);
+            rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int projectsVolume = rs.getInt("projectsVolume");
+                this.dailyHighScore = getCurrentHighScore();
+                assert this.dailyHighScore != null;
+                this.dailyHighScore.setProjectsVolume(projectsVolume);
+
+                if (this.dailyHighScore.getProjectsVolume() > 0) {
+                    logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
+                } else {
+                    logger.info("No high-score set for today, yet.");
+                }
             }
-        } catch (Exception e) {
-            logger.warn("Could not initialize database session: {}", e.getMessage());
+        } catch (ClassNotFoundException e) {
+            logger.warn("JDBC Driver not found: {}", e.getMessage());
+        } catch (SQLException e) {
+            logger.warn("Could not initialize database connection: {}", e.getMessage());
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (stmt != null) stmt.close();
+                if (conn != null) conn.close();
+            } catch (SQLException e) {
+                logger.warn("Error closing database resources: {}", e.getMessage());
+            }
         }
     }
 
@@ -112,7 +128,6 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
-        logger.debug("WebSocket {} is closing? {}", webSocket.getRemoteSocketAddress(), webSocket.isClosing());
         removeDisconnectedClient(webSocket);
         findAndCloseEmptyGames();
     }
@@ -294,19 +309,48 @@ public class GameServer extends WebSocketServer {
         this.dailyHighScore = gameOverStats;
     }
 
-    @Nullable GameOverStats getCurrentHighScore() {
-        GameOverStats highScore;
-        try (Session session = sessionFactory.openSession()) {
-            NativeQuery<GameOverStats> query = session.createNativeQuery("SELECT * FROM `GameOverStats` " +
-                            "WHERE DATE(finishedAt) BETWEEN CURRENT_DATE AND CURRENT_DATE " +
-                            "ORDER BY projectsVolume DESC LIMIT 1",
-                    GameOverStats.class);
-            highScore = query.getSingleResult();
-        } catch (NoResultException e) {
+    @Nullable
+    GameOverStats getCurrentHighScore() {
+        GameOverStats highScore = null;
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            Class.forName(Config.getProperty("db.driver"));
+            conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
+
+            String sql = "SELECT * FROM GameOverStats WHERE DATE(finishedAt) = CURRENT_DATE ORDER BY projectsVolume DESC LIMIT 1";
+            stmt = conn.prepareStatement(sql);
+            rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                highScore = new GameOverStats();
+                highScore.setId(rs.getInt("id"));
+                highScore.setDeliveredProjects(rs.getInt("deliveredProjects"));
+                highScore.setProjectsVolume(rs.getInt("projectsVolume"));
+                highScore.setReport(rs.getString("report"));
+                highScore.setPlayerName(rs.getString("playerName"));
+                highScore.setIpAddress(rs.getString("ipAddress"));
+                highScore.setFinishedAt(rs.getTimestamp("finishedAt"));
+                highScore.setGameId(rs.getString("gameId"));
+                highScore.setSurvivedDays(rs.getInt("survivedDays"));
+                highScore.setPlayedSeconds(rs.getInt("playedSeconds"));
+            }
+        } catch (ClassNotFoundException e) {
+            logger.warn("JDBC Driver not found: {}", e.getMessage());
             return null;
-        } catch (Exception e) {
+        } catch (SQLException e) {
             logger.warn("Could not fetch high-score from database: {}", e.getMessage());
             return null;
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (stmt != null) stmt.close();
+                if (conn != null) conn.close();
+            } catch (SQLException e) {
+                logger.warn("Error closing database resources: {}", e.getMessage());
+            }
         }
         return highScore;
     }

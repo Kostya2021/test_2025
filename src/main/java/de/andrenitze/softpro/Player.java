@@ -37,7 +37,7 @@ public class Player {
     @JsonProperty
     private int xp = 0;
     @JsonProperty
-    private int skillPoints = 5;
+    private int skillPoints = 1;
 
     @JsonProperty
     private int level = 0;

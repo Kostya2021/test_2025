@@ -1,18 +1,9 @@
 package de.andrenitze.softpro.entities;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
 import java.util.Date;
-import java.util.UUID;
 
-@Entity
 public class GameOverStats {
-    @Id
-    @GeneratedValue()
-    @Column(columnDefinition = "BINARY(16)")
-    private UUID id;
+    private Integer id;
     private Integer deliveredProjects = 0;
     private Integer projectsVolume = 0;
     private String report = "";
@@ -23,11 +14,11 @@ public class GameOverStats {
     private Integer survivedDays = 0;
     private Integer playedSeconds = 0;
 
-    public UUID getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 

@@ -1,7 +1,13 @@
 objectives:
-  - title: Finish 10 projects
+  - title: Finish your first project
     id: 1
     order: 1
+    totalSteps: 1
+    mission: Getting Started
+    earliestOccurrence: 3
+  - title: Finish 10 projects
+    id: 2
+    order: 2
     totalSteps: 10
     mission: Getting Started
     earliestOccurrence: 3
