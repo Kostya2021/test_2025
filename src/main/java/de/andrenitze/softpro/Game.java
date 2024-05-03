@@ -689,7 +689,6 @@ public class Game {
             );
 
             earnedValue *= productivityFactor * 2;
-            logger.debug("Productivity factor for {}: {} (type), {} (domain) => {}%", employee.getName(), typeXP, domainXP, productivityFactor);
 
             // Rule #1: Context changes decrease employee productivity.
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);

@@ -4,8 +4,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
+import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.types.Decision;
+import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
+import org.apache.commons.dbcp2.*;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -16,11 +22,13 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.sql.*;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -33,6 +41,8 @@ public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final Gson GSON = new Gson();
     private GameOverStats dailyHighScore;
+    private static final String URL = "jdbc:mariadb://localhost:3306/thatsoftwaregame?user="+Config.getProperty("db.user")+"&password="+Config.getProperty("db.password");
+    private DataSource dataSource;
 
     /**
      * Creates a GameServer instance to manage games and players
@@ -43,20 +53,62 @@ public class GameServer extends WebSocketServer {
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
-        // Fetch Highscore in a separate thread
+        initiateDataSource();
+
+        // Fetch high-score in a separate thread
         new Thread(this::fetchHighscore).start();
 
-        // Find and close empty games every 1 minute
+        // Find and close empty games regularly in a separate thread
         new Thread(() -> {
             while (true) {
                 try {
-                    Thread.sleep(60000);
+                    Thread.sleep(2500);
                     findAndCloseEmptyGames();
                 } catch (InterruptedException e) {
-                    logger.error("Error while trying to close empty games: {}", e.getMessage());
+                    logger.error("Error while sleeping: {}", e.getMessage());
                 }
             }
         }).start();
+    }
+
+    private void initiateDataSource() {
+        GenericObjectPool<PoolableConnection> connectionPool = GameServer.createObjectPool();
+        dataSource = new PoolingDataSource(connectionPool);
+
+        try (Connection conn = dataSource.getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+                try (ResultSet rset = stmt.executeQuery("SELECT * from Decisions")) {
+                    int numcols = rset.getMetaData().getColumnCount();
+                    while (rset.next()) {
+                        connectionPoolStatus(connectionPool);
+                        for (int i = 1; i <= numcols; i++) {
+                            System.out.print("\t" + rset.getString(i));
+                        }
+                        System.out.println("");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        connectionPoolStatus(connectionPool);
+    }
+
+    public static GenericObjectPool<PoolableConnection> createObjectPool() {
+        ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(URL);
+
+        PoolableConnectionFactory poolableConnectionFactory = new PoolableConnectionFactory(connectionFactory, null);
+        poolableConnectionFactory.setValidationQuery("SELECT 1");
+
+        GenericObjectPoolConfig<PoolableConnection> config = new GenericObjectPoolConfig<>();
+        config.setTestOnBorrow(true);
+        config.setMaxTotal(10);
+
+        return new GenericObjectPool<>(poolableConnectionFactory, config);
+    }
+
+    private static void connectionPoolStatus(GenericObjectPool<PoolableConnection> connectionPool) {
+        System.out.println(String.format("Active: %s; Idle  : %s", connectionPool.getNumActive(), connectionPool.getNumIdle()));
     }
 
     private void fetchHighscore() {
@@ -145,7 +197,7 @@ public class GameServer extends WebSocketServer {
 
     private void removeDisconnectedClient(WebSocket webSocket) {
         // Remove disconnected clients from lobby
-        logger.debug("Removing WebSocket {} from lobby", webSocket.getRemoteSocketAddress());
+        logger.debug("Removing WebSocket {} from lobby and game", webSocket.getRemoteSocketAddress());
         Player player = lobby.remove(webSocket);
         if (player != null) {
             logger.info("Player '{}' disconnected. New number of players in lobby: {}",
@@ -154,7 +206,6 @@ public class GameServer extends WebSocketServer {
         }
 
         // Remove disconnected client from running game
-        logger.debug("Removing WebSocket {} from game", webSocket.getRemoteSocketAddress());
         for (Game game : games) {
             if (game.hasWebSocket(webSocket)) {
                 game.removePlayerFromGame(webSocket);
@@ -184,23 +235,35 @@ public class GameServer extends WebSocketServer {
 
         // Handle lobby events (PLAYER_READY, PLAYER_NAME_UPDATED) here and forward everything else to the game instances
         try {
-            GameEvent<Object> genericGameEvent = GSON.fromJson(message, GameEvent.class);
+            GameEvent genericGameEvent = GSON.fromJson(message, GameEvent.class);
 
             // If player is ready to play, make her available to be picked up by game instances.
-            if (genericGameEvent.isOfType(EventType.PLAYER_READY)) {
+            if (EventType.PLAYER_READY.equals(genericGameEvent.getType())) {
                 try {
-                    //Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
-                    //GameEvent<Player> playerEvent = GSON.fromJson(message, payloadType);
+                    Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
+                    GameEvent<LevelDecisions> gameEvent = GSON.fromJson(message, payloadType);
+
+                    List<Decision> decisions = gameEvent.getPayload().getDecisions();
+                    int level = gameEvent.getPayload().getLevel();
 
                     Player player = lobby.get(webSocket);
+                    lobby.get(webSocket).setDecisions(level, decisions);
                     player.setReady(true);
 
                     broadcastLobbyState();
+
+                    // Persist player decision(s) to database
+                    DecisionDAO decisionDao = new DecisionDAO(dataSource);
+                    try {
+                        decisionDao.saveDecisions(player.getId().toString(), level, decisions);
+                    } catch (SQLException e) {
+                        logger.error("Could not persist player decisions to database: {}", e.getMessage());
+                    }
                 } catch (Exception e) {
                     logger.debug(e.getMessage());
                     logger.error("Websocket message was malformed!");
                 }
-            } else if (genericGameEvent.isOfType(EventType.PLAYER_NAME_UPDATED)) {
+            } else if (EventType.PLAYER_NAME_UPDATED.equals(genericGameEvent.getType())) {
                 // Allow name changes in the lobby
                 Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
                 GameEvent<Player> updatedPlayerEvent = GSON.fromJson(message, payloadType);
@@ -301,6 +364,8 @@ public class GameServer extends WebSocketServer {
         // Most likely a player dropped out of the game and the WebSocket connection is gone
         if (webSocket != null) {
             logger.warn("Connection {} was closed unexpectedly.", webSocket.getRemoteSocketAddress());
+            // Kick player and close game if empty
+            removeDisconnectedClient(webSocket);
         } else {
             logger.warn("An error occurred on a connection. {}", (Object) ex.getStackTrace());
         }
@@ -371,7 +436,6 @@ public class GameServer extends WebSocketServer {
             for (Game game : games) {
                 if (game.getPlayers().isEmpty()) {
                     logger.debug("Found empty game! Closing...");
-                    game.stop();
                     games.remove(game);
                     broadcastLobbyState();
                 }
