@@ -9,13 +9,11 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.Decision;
 import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
-import org.apache.commons.dbcp2.*;
-import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import de.andrenitze.softpro.types.GameOverStatsDAO;
+import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
-import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,7 +25,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.sql.*;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -41,8 +39,6 @@ public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final Gson GSON = new Gson();
     private GameOverStats dailyHighScore;
-    private static final String URL = "jdbc:mariadb://localhost:3306/thatsoftwaregame?user="+Config.getProperty("db.user")+"&password="+Config.getProperty("db.password");
-    private DataSource dataSource;
 
     /**
      * Creates a GameServer instance to manage games and players
@@ -53,10 +49,8 @@ public class GameServer extends WebSocketServer {
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
-        initiateDataSource();
-
         // Fetch high-score in a separate thread
-        new Thread(this::fetchHighscore).start();
+        new Thread(this::fetchHighScore).start();
 
         // Find and close empty games regularly in a separate thread
         new Thread(() -> {
@@ -71,84 +65,16 @@ public class GameServer extends WebSocketServer {
         }).start();
     }
 
-    private void initiateDataSource() {
-        GenericObjectPool<PoolableConnection> connectionPool = GameServer.createObjectPool();
-        dataSource = new PoolingDataSource(connectionPool);
-
-        try (Connection conn = dataSource.getConnection()) {
-            try (Statement stmt = conn.createStatement()) {
-                try (ResultSet rset = stmt.executeQuery("SELECT * from Decisions")) {
-                    int numcols = rset.getMetaData().getColumnCount();
-                    while (rset.next()) {
-                        connectionPoolStatus(connectionPool);
-                        for (int i = 1; i <= numcols; i++) {
-                            System.out.print("\t" + rset.getString(i));
-                        }
-                        System.out.println("");
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        connectionPoolStatus(connectionPool);
-    }
-
-    public static GenericObjectPool<PoolableConnection> createObjectPool() {
-        ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(URL);
-
-        PoolableConnectionFactory poolableConnectionFactory = new PoolableConnectionFactory(connectionFactory, null);
-        poolableConnectionFactory.setValidationQuery("SELECT 1");
-
-        GenericObjectPoolConfig<PoolableConnection> config = new GenericObjectPoolConfig<>();
-        config.setTestOnBorrow(true);
-        config.setMaxTotal(10);
-
-        return new GenericObjectPool<>(poolableConnectionFactory, config);
-    }
-
-    private static void connectionPoolStatus(GenericObjectPool<PoolableConnection> connectionPool) {
-        System.out.println(String.format("Active: %s; Idle  : %s", connectionPool.getNumActive(), connectionPool.getNumIdle()));
-    }
-
-    private void fetchHighscore() {
+    private void fetchHighScore() {
         logger.info("Fetching high-score from database");
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
+        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(DatabaseConfig.getDataSource());
 
-        try {
-            Class.forName(Config.getProperty("db.driver"));
-            conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
-
-            String sql = "SELECT * FROM GameOverStats WHERE DATE(finishedAt) = CURDATE() ORDER BY projectsVolume DESC LIMIT 1";
-            stmt = conn.prepareStatement(sql);
-            rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                int projectsVolume = rs.getInt("projectsVolume");
-                this.dailyHighScore = getCurrentHighScore();
-                assert this.dailyHighScore != null;
-                this.dailyHighScore.setProjectsVolume(projectsVolume);
-
-                if (this.dailyHighScore.getProjectsVolume() > 0) {
-                    logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
-                } else {
-                    logger.info("No high-score set for today, yet.");
-                }
-            }
-        } catch (ClassNotFoundException e) {
-            logger.warn("JDBC Driver not found: {}", e.getMessage());
-        } catch (SQLException e) {
-            logger.warn("Could not initialize database connection: {}", e.getMessage());
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (stmt != null) stmt.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                logger.warn("Error closing database resources: {}", e.getMessage());
-            }
+        GameOverStats dailyHighScore = gameOverStatsDAO.getCurrentHighScore();
+        if (dailyHighScore != null && dailyHighScore.getProjectsVolume() > 0) {
+            this.dailyHighScore = dailyHighScore;
+            logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
+        } else {
+            logger.info("No high-score set for today, yet.");
         }
     }
 
@@ -243,8 +169,8 @@ public class GameServer extends WebSocketServer {
                     Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
                     GameEvent<LevelDecisions> gameEvent = GSON.fromJson(message, payloadType);
 
-                    List<Decision> decisions = gameEvent.getPayload().getDecisions();
-                    int level = gameEvent.getPayload().getLevel();
+                    List<Decision> decisions = gameEvent.getPayload().decisions();
+                    int level = gameEvent.getPayload().level();
 
                     Player player = lobby.get(webSocket);
                     lobby.get(webSocket).setDecisions(level, decisions);
@@ -253,7 +179,7 @@ public class GameServer extends WebSocketServer {
                     broadcastLobbyState();
 
                     // Persist player decision(s) to database
-                    DecisionDAO decisionDao = new DecisionDAO(dataSource);
+                    DecisionDAO decisionDao = new DecisionDAO(DatabaseConfig.getDataSource());
                     try {
                         decisionDao.saveDecisions(player.getId().toString(), level, decisions);
                     } catch (SQLException e) {
@@ -385,48 +311,15 @@ public class GameServer extends WebSocketServer {
         this.dailyHighScore = gameOverStats;
     }
 
-    @Nullable
     GameOverStats getCurrentHighScore() {
-        GameOverStats highScore = null;
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
+        DataSource dataSource = DatabaseConfig.getDataSource();
+        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
 
-        try {
-            Class.forName(Config.getProperty("db.driver"));
-            conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
-
-            String sql = "SELECT * FROM GameOverStats WHERE DATE(finishedAt) = CURRENT_DATE ORDER BY projectsVolume DESC LIMIT 1";
-            stmt = conn.prepareStatement(sql);
-            rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                highScore = new GameOverStats();
-                highScore.setId(rs.getInt("id"));
-                highScore.setDeliveredProjects(rs.getInt("deliveredProjects"));
-                highScore.setProjectsVolume(rs.getInt("projectsVolume"));
-                highScore.setReport(rs.getString("report"));
-                highScore.setPlayerName(rs.getString("playerName"));
-                highScore.setIpAddress(rs.getString("ipAddress"));
-                highScore.setFinishedAt(rs.getTimestamp("finishedAt"));
-                highScore.setGameId(rs.getString("gameId"));
-                highScore.setSurvivedDays(rs.getInt("survivedDays"));
-                highScore.setPlayedSeconds(rs.getInt("playedSeconds"));
-            }
-        } catch (ClassNotFoundException e) {
-            logger.warn("JDBC Driver not found: {}", e.getMessage());
-            return null;
-        } catch (SQLException e) {
-            logger.warn("Could not fetch high-score from database: {}", e.getMessage());
-            return null;
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (stmt != null) stmt.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                logger.warn("Error closing database resources: {}", e.getMessage());
-            }
+        GameOverStats highScore = gameOverStatsDAO.getCurrentHighScore();
+        if (highScore != null) {
+            logger.info("Current high score fetched successfully.");
+        } else {
+            logger.warn("No high score found for today.");
         }
         return highScore;
     }

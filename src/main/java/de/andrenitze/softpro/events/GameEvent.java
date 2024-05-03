@@ -32,8 +32,4 @@ public class GameEvent<T> {
     public void setType(EventType type) {
         this.type = type;
     }
-
-    public boolean isOfType(T type) {
-        return (type == this.type);
-    }
 }

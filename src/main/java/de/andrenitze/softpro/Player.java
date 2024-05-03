@@ -201,6 +201,6 @@ public class Player {
     }
 
     public void setDecisions(int level, List<Decision> decisions) {
-
+        this.decisions = new LevelDecisions(level, decisions);
     }
 }
