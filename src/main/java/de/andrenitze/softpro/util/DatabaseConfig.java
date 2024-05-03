@@ -31,13 +31,14 @@ public final class DatabaseConfig {
     private static DataSource createDataSource() {
         ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(URL, Config.getProperty("db.user"), Config.getProperty("db.password"));
         PoolableConnectionFactory poolableConnectionFactory = new PoolableConnectionFactory(connectionFactory, null);
-        poolableConnectionFactory.setValidationQuery("SELECT 1");
 
         GenericObjectPoolConfig<PoolableConnection> config = new GenericObjectPoolConfig<>();
         config.setTestOnBorrow(true);
         config.setMaxTotal(10);
 
         GenericObjectPool<PoolableConnection> connectionPool = new GenericObjectPool<>(poolableConnectionFactory, config);
+        poolableConnectionFactory.setPool(connectionPool);
+        poolableConnectionFactory.setValidationQuery("SELECT 1");
         logConnectionPoolStatus(connectionPool);  // Initial status
 
         return new PoolingDataSource<>(connectionPool);
