@@ -1,6 +1,10 @@
 package de.andrenitze.softpro.entities;
 
+import de.andrenitze.softpro.types.OptionVoteDistribution;
+
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 public class GameOverStats {
     private Integer id;
@@ -13,6 +17,8 @@ public class GameOverStats {
     private String gameId;
     private Integer survivedDays = 0;
     private Integer playedSeconds = 0;
+
+    private Map<Integer, List<OptionVoteDistribution>> communityVotes;
 
     public Integer getId() {
         return id;
@@ -92,5 +98,13 @@ public class GameOverStats {
 
     public Integer getPlayedSeconds() {
         return playedSeconds;
+    }
+
+    public void setCommunityVotes(Map<Integer, List<OptionVoteDistribution>> distributions) {
+        this.communityVotes = distributions;
+    }
+
+    public Map<Integer, List<OptionVoteDistribution>> getCommunityVotes() {
+        return communityVotes;
     }
 }

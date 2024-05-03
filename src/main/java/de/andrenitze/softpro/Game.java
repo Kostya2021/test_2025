@@ -6,8 +6,10 @@ import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.StoryElement;
 import de.andrenitze.softpro.entities.StoryElements;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
+import de.andrenitze.softpro.types.OptionVoteDistribution;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
@@ -348,6 +350,14 @@ public class Game {
                 } else {
                     goStats.setReport("fail");
                 }
+
+                // Add community votes to the game over stats
+                // TODO Save this in memory and only fetch every 5 minutes
+                DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
+                // TODO Placeholder for level 1
+                int level = 1;
+                Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
+                goStats.setCommunityVotes(distributions);
 
                 gameOverEvent.setPayload(goStats);
                 sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
