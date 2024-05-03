@@ -8,7 +8,7 @@ import java.sql.*;
 import static de.andrenitze.softpro.Main.logger;
 
 public class GameOverStatsDAO {
-    private DataSource dataSource;
+    private final DataSource dataSource;
 
     public GameOverStatsDAO(DataSource dataSource) {
         this.dataSource = dataSource;
