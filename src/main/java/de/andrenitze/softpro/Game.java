@@ -352,9 +352,8 @@ public class Game {
                 }
 
                 // Add community votes to the game over stats
-                // TODO Save this in memory and only fetch every 5 minutes
                 DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
-                // TODO Placeholder for level 1
+                // Hard-coded placeholder for level 1
                 int level = 1;
                 Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
                 goStats.setCommunityVotes(distributions);
