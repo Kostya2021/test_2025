@@ -2,10 +2,13 @@ package de.andrenitze.softpro;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
+import de.andrenitze.softpro.types.Decision;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
@@ -42,6 +45,7 @@ public class Player {
     @JsonProperty
     private int level = 0;
 
+    private LevelDecisions decisions;
 
     Player() {
         this(generatePlayerName(), generateCompanyName());
@@ -194,5 +198,9 @@ public class Player {
 
     public void removeEmployee(Employee employee) {
         this.employees.remove(employee);
+    }
+
+    public void setDecisions(int level, List<Decision> decisions) {
+        this.decisions = new LevelDecisions(level, decisions);
     }
 }

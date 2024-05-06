@@ -4,23 +4,29 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
+import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.types.Decision;
+import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
+import de.andrenitze.softpro.types.GameOverStatsDAO;
+import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
-import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.sql.*;
+import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -43,48 +49,32 @@ public class GameServer extends WebSocketServer {
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
-        // Fetch Highscore in a separate thread
-        new Thread(this::fetchHighscore).start();
-    }
+        // Fetch high-score in a separate thread
+        new Thread(this::fetchHighScore).start();
 
-    private void fetchHighscore() {
-        logger.info("Fetching high-score from database");
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-
-        try {
-            Class.forName(Config.getProperty("db.driver"));
-            conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
-
-            String sql = "SELECT * FROM GameOverStats WHERE DATE(finishedAt) = CURDATE() ORDER BY projectsVolume DESC LIMIT 1";
-            stmt = conn.prepareStatement(sql);
-            rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                int projectsVolume = rs.getInt("projectsVolume");
-                this.dailyHighScore = getCurrentHighScore();
-                assert this.dailyHighScore != null;
-                this.dailyHighScore.setProjectsVolume(projectsVolume);
-
-                if (this.dailyHighScore.getProjectsVolume() > 0) {
-                    logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
-                } else {
-                    logger.info("No high-score set for today, yet.");
+        // Find and close empty games regularly in a separate thread
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(2500);
+                    findAndCloseEmptyGames();
+                } catch (InterruptedException e) {
+                    logger.error("Error while sleeping: {}", e.getMessage());
                 }
             }
-        } catch (ClassNotFoundException e) {
-            logger.warn("JDBC Driver not found: {}", e.getMessage());
-        } catch (SQLException e) {
-            logger.warn("Could not initialize database connection: {}", e.getMessage());
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (stmt != null) stmt.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                logger.warn("Error closing database resources: {}", e.getMessage());
-            }
+        }).start();
+    }
+
+    private void fetchHighScore() {
+        logger.info("Fetching high-score from database");
+        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(DatabaseConfig.getDataSource());
+
+        GameOverStats dailyHighScore = gameOverStatsDAO.getCurrentHighScore();
+        if (dailyHighScore != null && dailyHighScore.getProjectsVolume() > 0) {
+            this.dailyHighScore = dailyHighScore;
+            logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
+        } else {
+            logger.info("No high-score set for today, yet.");
         }
     }
 
@@ -129,12 +119,11 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
         removeDisconnectedClient(webSocket);
-        findAndCloseEmptyGames();
     }
 
     private void removeDisconnectedClient(WebSocket webSocket) {
         // Remove disconnected clients from lobby
-        logger.debug("Removing WebSocket {} from lobby", webSocket.getRemoteSocketAddress());
+        logger.debug("Removing WebSocket {} from lobby and game", webSocket.getRemoteSocketAddress());
         Player player = lobby.remove(webSocket);
         if (player != null) {
             logger.info("Player '{}' disconnected. New number of players in lobby: {}",
@@ -143,7 +132,6 @@ public class GameServer extends WebSocketServer {
         }
 
         // Remove disconnected client from running game
-        logger.debug("Removing WebSocket {} from game", webSocket.getRemoteSocketAddress());
         for (Game game : games) {
             if (game.hasWebSocket(webSocket)) {
                 game.removePlayerFromGame(webSocket);
@@ -173,23 +161,35 @@ public class GameServer extends WebSocketServer {
 
         // Handle lobby events (PLAYER_READY, PLAYER_NAME_UPDATED) here and forward everything else to the game instances
         try {
-            GameEvent<Object> genericGameEvent = GSON.fromJson(message, GameEvent.class);
+            GameEvent genericGameEvent = GSON.fromJson(message, GameEvent.class);
 
             // If player is ready to play, make her available to be picked up by game instances.
-            if (genericGameEvent.isOfType(EventType.PLAYER_READY)) {
+            if (EventType.PLAYER_READY.equals(genericGameEvent.getType())) {
                 try {
-                    //Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
-                    //GameEvent<Player> playerEvent = GSON.fromJson(message, payloadType);
+                    Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
+                    GameEvent<LevelDecisions> gameEvent = GSON.fromJson(message, payloadType);
+
+                    List<Decision> decisions = gameEvent.getPayload().decisions();
+                    int level = gameEvent.getPayload().level();
 
                     Player player = lobby.get(webSocket);
+                    lobby.get(webSocket).setDecisions(level, decisions);
                     player.setReady(true);
 
                     broadcastLobbyState();
+
+                    // Persist player decision(s) to database
+                    DecisionDAO decisionDao = new DecisionDAO(DatabaseConfig.getDataSource());
+                    try {
+                        decisionDao.saveDecisions(player.getId().toString(), level, decisions);
+                    } catch (SQLException e) {
+                        logger.error("Could not persist player decisions to database: {}", e.getMessage());
+                    }
                 } catch (Exception e) {
                     logger.debug(e.getMessage());
                     logger.error("Websocket message was malformed!");
                 }
-            } else if (genericGameEvent.isOfType(EventType.PLAYER_NAME_UPDATED)) {
+            } else if (EventType.PLAYER_NAME_UPDATED.equals(genericGameEvent.getType())) {
                 // Allow name changes in the lobby
                 Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
                 GameEvent<Player> updatedPlayerEvent = GSON.fromJson(message, payloadType);
@@ -290,6 +290,8 @@ public class GameServer extends WebSocketServer {
         // Most likely a player dropped out of the game and the WebSocket connection is gone
         if (webSocket != null) {
             logger.warn("Connection {} was closed unexpectedly.", webSocket.getRemoteSocketAddress());
+            // Kick player and close game if empty
+            removeDisconnectedClient(webSocket);
         } else {
             logger.warn("An error occurred on a connection. {}", (Object) ex.getStackTrace());
         }
@@ -309,48 +311,15 @@ public class GameServer extends WebSocketServer {
         this.dailyHighScore = gameOverStats;
     }
 
-    @Nullable
     GameOverStats getCurrentHighScore() {
-        GameOverStats highScore = null;
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
+        DataSource dataSource = DatabaseConfig.getDataSource();
+        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
 
-        try {
-            Class.forName(Config.getProperty("db.driver"));
-            conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
-
-            String sql = "SELECT * FROM GameOverStats WHERE DATE(finishedAt) = CURRENT_DATE ORDER BY projectsVolume DESC LIMIT 1";
-            stmt = conn.prepareStatement(sql);
-            rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                highScore = new GameOverStats();
-                highScore.setId(rs.getInt("id"));
-                highScore.setDeliveredProjects(rs.getInt("deliveredProjects"));
-                highScore.setProjectsVolume(rs.getInt("projectsVolume"));
-                highScore.setReport(rs.getString("report"));
-                highScore.setPlayerName(rs.getString("playerName"));
-                highScore.setIpAddress(rs.getString("ipAddress"));
-                highScore.setFinishedAt(rs.getTimestamp("finishedAt"));
-                highScore.setGameId(rs.getString("gameId"));
-                highScore.setSurvivedDays(rs.getInt("survivedDays"));
-                highScore.setPlayedSeconds(rs.getInt("playedSeconds"));
-            }
-        } catch (ClassNotFoundException e) {
-            logger.warn("JDBC Driver not found: {}", e.getMessage());
-            return null;
-        } catch (SQLException e) {
-            logger.warn("Could not fetch high-score from database: {}", e.getMessage());
-            return null;
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (stmt != null) stmt.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                logger.warn("Error closing database resources: {}", e.getMessage());
-            }
+        GameOverStats highScore = gameOverStatsDAO.getCurrentHighScore();
+        if (highScore != null) {
+            logger.info("Current high score fetched successfully.");
+        } else {
+            logger.warn("No high score found for today.");
         }
         return highScore;
     }
@@ -360,7 +329,6 @@ public class GameServer extends WebSocketServer {
             for (Game game : games) {
                 if (game.getPlayers().isEmpty()) {
                     logger.debug("Found empty game! Closing...");
-                    game.stop();
                     games.remove(game);
                     broadcastLobbyState();
                 }

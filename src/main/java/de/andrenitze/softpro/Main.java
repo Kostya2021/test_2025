@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 
 public class Main {
-    protected static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
+    public static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
 
     public static void main(String[] args) {
         logger.trace("Starting server...");
@@ -16,7 +16,7 @@ public class Main {
 
             GameServer server = new GameServer(hostAddress, port);
             server.setConnectionLostTimeout(5);
-            logger.info(InetAddress.getLocalHost().getHostAddress()+":"+port);
+            logger.info("{}:{}", InetAddress.getLocalHost().getHostAddress(), port);
             logger.info(InetAddress.getLocalHost().getHostName());
             server.run();
             server.start();

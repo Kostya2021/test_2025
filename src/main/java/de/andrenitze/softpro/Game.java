@@ -6,16 +6,17 @@ import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.StoryElement;
 import de.andrenitze.softpro.entities.StoryElements;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
+import de.andrenitze.softpro.types.GameOverStatsDAO;
+import de.andrenitze.softpro.types.OptionVoteDistribution;
+import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import javax.sql.DataSource;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
@@ -350,6 +351,13 @@ public class Game {
                     goStats.setReport("fail");
                 }
 
+                // Add community votes to the game over stats
+                DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
+                // Hard-coded placeholder for level 1
+                int level = 1;
+                Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
+                goStats.setCommunityVotes(distributions);
+
                 gameOverEvent.setPayload(goStats);
                 sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
 
@@ -359,51 +367,19 @@ public class Game {
                 // Tell game server to move player back to lobby
                 this.gameServer.addPlayerToLobby(webSocket, player);
 
+                DataSource dataSource = DatabaseConfig.getDataSource();
+                GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
+
                 // Complete the infos for the database
                 goStats.setPlayerName(player.getName());
                 goStats.setFinishedAt(new Date());
                 goStats.setGameId(String.valueOf(this.hashCode()));
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
 
-                Connection conn = null;
-                PreparedStatement stmt = null;
-
-                try {
-                    Class.forName(Config.getProperty("db.driver"));
-                    conn = DriverManager.getConnection(Config.getProperty("db.url"), Config.getProperty("db.user"), Config.getProperty("db.password"));
-
-                    String sql = "INSERT INTO GameOverStats (deliveredProjects, projectsVolume, report, playerName, ipAddress, finishedAt, gameId, survivedDays, playedSeconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                    stmt = conn.prepareStatement(sql);
-
-                    stmt.setInt(1, goStats.getDeliveredProjects());
-                    stmt.setInt(2, goStats.getProjectsVolume());
-                    stmt.setString(3, goStats.getReport());
-                    stmt.setString(4, goStats.getPlayerName());
-                    stmt.setString(5, goStats.getIpAddress());
-                    stmt.setTimestamp(6, new java.sql.Timestamp(goStats.getFinishedAt().getTime()));  // Convert java.util.Date to java.sql.Timestamp
-                    stmt.setString(7, goStats.getGameId());
-                    stmt.setInt(8, goStats.getSurvivedDays());
-                    stmt.setInt(9, goStats.getPlayedSeconds());
-
-                    int affectedRows = stmt.executeUpdate();
-                    if (affectedRows > 0) {
-                        logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
-                    } else {
-                        logger.warn("Game stats of player in game {} could not be saved! No rows affected.", goStats.getGameId());
-                    }
-                } catch (ClassNotFoundException e) {
-                    logger.warn("JDBC Driver not found: {}", e.getMessage());
-                } catch (SQLException e) {
-                    logger.warn("Game stats in game {} could not be saved! Database up?", goStats.getGameId());
-                    logger.warn(e.getMessage());
-                } finally {
-                    // Schließe alle Ressourcen
-                    try {
-                        if (stmt != null) stmt.close();
-                        if (conn != null) conn.close();
-                    } catch (SQLException e) {
-                        logger.warn("Error closing database resources: {}", e.getMessage());
-                    }
+                if (gameOverStatsDAO.saveGameOverStats(goStats)) {
+                    logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
+                } else {
+                    logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
                 }
 
                 // Check if there's a new high-score and broadcast updates in lobby
@@ -689,7 +665,6 @@ public class Game {
             );
 
             earnedValue *= productivityFactor * 2;
-            logger.debug("Productivity factor for {}: {} (type), {} (domain) => {}%", employee.getName(), typeXP, domainXP, productivityFactor);
 
             // Rule #1: Context changes decrease employee productivity.
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
