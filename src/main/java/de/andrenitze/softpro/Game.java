@@ -879,6 +879,11 @@ public class Game {
     }
 
     void shutdownAndAwaitTermination(ExecutorService pool) {
+        // Make sure, pool isn't null
+        if (pool == null) {
+            return;
+        }
+
         pool.shutdown(); // Disable new tasks from being submitted
         try {
             // Wait a while for existing tasks to terminate
@@ -942,12 +947,15 @@ public class Game {
         player.removeEmployee(employee);
         TalentMarket.addTalent(employee); // Not sure about this...
 
-        // Remove employee from all projects
-        for (Project project : projects) {
-            if (projectEmployeesMap.containsKey(project)) {
-                ArrayList<Employee> employees = projectEmployeesMap.get(project);
-                employees.remove(employee);
-                projectEmployeesMap.put(project, employees);
+        // If there are projects...
+        if (projects != null) {
+            // Remove employee from all projects
+            for (Project project : projects) {
+                if (projectEmployeesMap.containsKey(project)) {
+                    ArrayList<Employee> employees = projectEmployeesMap.get(project);
+                    employees.remove(employee);
+                    projectEmployeesMap.put(project, employees);
+                }
             }
         }
 
