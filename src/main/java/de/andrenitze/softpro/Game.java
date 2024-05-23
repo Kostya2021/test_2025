@@ -376,6 +376,7 @@ public class Game {
                 goStats.setGameId(String.valueOf(this.hashCode()));
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
 
+                // Save high-score in a separate thread
                 if (gameOverStatsDAO.saveGameOverStats(goStats)) {
                     logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
                 } else {
@@ -935,7 +936,10 @@ public class Game {
         sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
     }
 
-    public void initializePlayers() {
+    public void generateFirstEmployeesForPlayers() {
+        // Remove any existing employees from the player
+        players.forEach((webSocket, player) -> player.getEmployees().clear());
+
         // Generate first employees for all players (necessary for Level 1)
         players.forEach((webSocket, player) -> {
             talentMarket.generateFirstEmployees().forEach(player::addEmployee);
