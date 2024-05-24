@@ -97,23 +97,28 @@ public class GameServer extends WebSocketServer {
         Player newPlayer = new Player();
         lobby.put(webSocket, newPlayer);
 
-        // Create a new game instance for this player and add her to it
-        Game game = new Game(this);
-        game.addPlayerToGame(webSocket, newPlayer);
-        game.initializePlayers();
-        games.add(game);
-
-        // Return generated player to the client
-        GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-        playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
-        playerUpdateEvent.setPayload(newPlayer);
-        webSocket.send(GSON.toJson(playerUpdateEvent));
+        createNewGameWithPlayer(webSocket, newPlayer);
 
         broadcastLobbyState();
 
         logger.info("New player '{}' added. New number of players in lobby: {}",
                 newPlayer.getName(),
                 lobby.size());
+    }
+
+    private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
+        // Create a new game instance for this player and add her to it
+        Game game = new Game(this);
+        player.initializeBeforeGame();
+        game.addPlayerToGame(webSocket, player);
+        game.generateFirstEmployeesForPlayers();
+        games.add(game);
+
+        // Return generated player to the client
+        GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+        playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+        playerUpdateEvent.setPayload(player);
+        webSocket.send(GSON.toJson(playerUpdateEvent));
     }
 
     @Override
@@ -304,6 +309,7 @@ public class GameServer extends WebSocketServer {
 
     void addPlayerToLobby(WebSocket webSocket, Player player) {
         lobby.put(webSocket, player);
+        createNewGameWithPlayer(webSocket, player);
         broadcastLobbyState();
     }
 

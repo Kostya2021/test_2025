@@ -30,7 +30,7 @@ import static java.time.LocalDate.now;
 
 public class Game {
     private static final int GAME_SPEED_IN_MILLISECONDS = 1000;
-    private static final int BANKRUPTCY_THRESHOLD = -25000;
+    private static final int BANKRUPTCY_THRESHOLD = -100000;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -376,6 +376,7 @@ public class Game {
                 goStats.setGameId(String.valueOf(this.hashCode()));
                 goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
 
+                // Save high-score in a separate thread
                 if (gameOverStatsDAO.saveGameOverStats(goStats)) {
                     logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
                 } else {
@@ -879,6 +880,11 @@ public class Game {
     }
 
     void shutdownAndAwaitTermination(ExecutorService pool) {
+        // Make sure, pool isn't null
+        if (pool == null) {
+            return;
+        }
+
         pool.shutdown(); // Disable new tasks from being submitted
         try {
             // Wait a while for existing tasks to terminate
@@ -930,7 +936,10 @@ public class Game {
         sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
     }
 
-    public void initializePlayers() {
+    public void generateFirstEmployeesForPlayers() {
+        // Remove any existing employees from the player
+        players.forEach((webSocket, player) -> player.getEmployees().clear());
+
         // Generate first employees for all players (necessary for Level 1)
         players.forEach((webSocket, player) -> {
             talentMarket.generateFirstEmployees().forEach(player::addEmployee);
@@ -942,12 +951,15 @@ public class Game {
         player.removeEmployee(employee);
         TalentMarket.addTalent(employee); // Not sure about this...
 
-        // Remove employee from all projects
-        for (Project project : projects) {
-            if (projectEmployeesMap.containsKey(project)) {
-                ArrayList<Employee> employees = projectEmployeesMap.get(project);
-                employees.remove(employee);
-                projectEmployeesMap.put(project, employees);
+        // If there are projects...
+        if (projects != null) {
+            // Remove employee from all projects
+            for (Project project : projects) {
+                if (projectEmployeesMap.containsKey(project)) {
+                    ArrayList<Employee> employees = projectEmployeesMap.get(project);
+                    employees.remove(employee);
+                    projectEmployeesMap.put(project, employees);
+                }
             }
         }
 

@@ -10,7 +10,6 @@ import javax.sql.DataSource;
 import static de.andrenitze.softpro.Main.logger;
 
 public final class DatabaseConfig {
-    private static final String URL = "jdbc:mariadb://localhost:3306/thatsoftwaregame";
     private static volatile DataSource dataSource;
 
     private DatabaseConfig() {
@@ -29,7 +28,12 @@ public final class DatabaseConfig {
     }
 
     private static DataSource createDataSource() {
-        ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(URL, Config.getProperty("db.user"), Config.getProperty("db.password"));
+        ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(
+                Config.getProperty("db.url"),
+                Config.getProperty("db.user"),
+                Config.getProperty("db.password")
+        );
+
         PoolableConnectionFactory poolableConnectionFactory = new PoolableConnectionFactory(connectionFactory, null);
 
         GenericObjectPoolConfig<PoolableConnection> config = new GenericObjectPoolConfig<>();
