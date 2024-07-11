@@ -20,15 +20,6 @@ public class TalentMarket {
         this.employeeIdGenerator = employeeIdGenerator;
     }
 
-    public synchronized Employee getTalent(int employeeId) {
-        for (Employee employee : talents.values()) {
-            if (employee.getId() == employeeId) {
-                return employee;
-            }
-        }
-        return null;
-    }
-
     public synchronized ArrayList<Employee> generateFirstEmployees() {
         ArrayList<Employee> employees = new ArrayList<>();
 
