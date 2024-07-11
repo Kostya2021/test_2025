@@ -948,7 +948,7 @@ public class Game {
         });
     }
 
-    // Move Employee from Player to TalentMarket
+    // Move Employee from Player back to TalentMarket
     public void dismissEmployee(Player player, Employee employee) {
         player.removeEmployee(employee);
         talentMarket.addTalent(employee);
@@ -969,6 +969,11 @@ public class Game {
         GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
         employeeDismissedEvent.setPayload(employee);
         sendMessageToPlayer(player, GSON.toJson(employeeDismissedEvent));
+
+        // Send new employee to all players' TalentMarkets in the game
+        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+        employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
+        broadcastToAllPlayers(GSON.toJson(employeeEvent));
     }
 
     private void initializeTalentMarket() {
