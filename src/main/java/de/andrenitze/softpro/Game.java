@@ -979,7 +979,7 @@ public class Game {
     private void initializeTalentMarket() {
         talentMarket.clearTalentMarket();
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 30; i++) {
             Employee employee = new Employee(talentMarket.generateNewEmployeeId());
             logger.info("Adding employee {} to talent market", employee.getName());
             talentMarket.addTalent(employee);
