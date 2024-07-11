@@ -103,6 +103,9 @@ class GameEventHandler {
                     break;
                 }
 
+                logger.info("Player {} hired employee {} - {}", player.getName(), employee.getId(), employee.getName());
+                logger.info("Talent market has the following employees left: {}", game.getTalentMarket().getTalents().size());
+
                 // Notify player about new employee
                 GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.STATE_UPDATED);
                 playerUpdateEvent.setPayload(player);

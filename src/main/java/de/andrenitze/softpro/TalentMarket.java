@@ -3,25 +3,33 @@ package de.andrenitze.softpro;
 import de.andrenitze.softpro.types.ProjectType;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
-import static de.andrenitze.softpro.Main.logger;
-
 /**
- * The TalentMarket class is a singleton class that holds all the available talents in a running game that are
- * currently not employed by a player.
+ * The TalentMarket class is a singleton class that holds all the available talents in a running game instance
+ * which are currently not employed by a player.
  */
 public class TalentMarket {
-    private static final ArrayList<Employee> talents = new ArrayList<>();
+    private final Map<Integer, Employee> talents = new HashMap<>();
+    public final EmployeeIdGenerator employeeIdGenerator;
     private static final Random RANDOM = new Random();
-
-    public EmployeeIdGenerator employeeIdGenerator;
 
     public TalentMarket(EmployeeIdGenerator employeeIdGenerator) {
         this.employeeIdGenerator = employeeIdGenerator;
     }
 
-    public ArrayList<Employee> generateFirstEmployees() {
+    public synchronized Employee getTalent(int employeeId) {
+        for (Employee employee : talents.values()) {
+            if (employee.getId() == employeeId) {
+                return employee;
+            }
+        }
+        return null;
+    }
+
+    public synchronized ArrayList<Employee> generateFirstEmployees() {
         ArrayList<Employee> employees = new ArrayList<>();
 
         // The first two employees have a moderate amount of XP in one random project domain
@@ -35,20 +43,20 @@ public class TalentMarket {
         return employees;
     }
 
-    public static void addTalent(Employee employee) {
-        talents.add(employee);
+    public synchronized  void addTalent(Employee employee) {
+        talents.put(employee.getId(), employee);
     }
 
-    public static void removeTalent(Employee employee) {
-        talents.remove(employee);
+    public synchronized  void removeTalent(Employee employee) {
+        talents.remove(employee.getId());
     }
 
-    public static void clearTalentMarket() {
+    public synchronized  void clearTalentMarket() {
         talents.clear();
     }
 
     public Employee hireTalent(Player player, int talentId) {
-        for (Employee employee : talents) {
+        for (Employee employee : talents.values()) {
             if (employee.getId() == talentId) {
                 player.addEmployee(employee);
                 removeTalent(employee);
@@ -58,21 +66,11 @@ public class TalentMarket {
         return null;
     }
 
-    public void initialize() {
-        clearTalentMarket();
-
-        if (employeeIdGenerator == null) {
-            logger.debug("EmployeeIdGenerator not set. Cannot initialize TalentMarket.");
-            return;
-        }
-
-        for (int i = 0; i<15; i++) {
-            Employee employee = new Employee(employeeIdGenerator.generateId());
-            addTalent(employee);
-        }
+    public synchronized int generateNewEmployeeId() {
+        return employeeIdGenerator.generateId();
     }
 
     public ArrayList<Employee> getTalents() {
-        return talents;
+        return new ArrayList<>(talents.values());
     }
 }
