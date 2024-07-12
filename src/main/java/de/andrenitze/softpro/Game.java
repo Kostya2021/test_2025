@@ -51,8 +51,7 @@ public class Game {
     public static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements;
     private final SkillsManager skillsMananger = new SkillsManager();
-    private final EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
-    private final TalentMarket talentMarket = new TalentMarket(employeeIdGenerator);
+    private final TalentMarket talentMarket;
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -67,6 +66,12 @@ public class Game {
         this.players = new ConcurrentHashMap<>();
         this.gameServer = gameServer;
         this.eventHandler = new GameEventHandler(this);
+
+        // Fill talent market with candidates, use global IDs for employees (unique across all games)
+        EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
+        talentMarket = new TalentMarket(employeeIdGenerator);
+        initializeTalentMarket();
+
         currentTick = 0;
         currentDate = now();
         loadStoryElementsFromFile();
@@ -113,9 +118,6 @@ public class Game {
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projects);
         broadcastToAllPlayers(GSON.toJson(projectEvent));
-
-        // Fill talent market with candidates
-        talentMarket.initialize();
 
         // Send talent market to players at once
         GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
@@ -946,10 +948,10 @@ public class Game {
         });
     }
 
-    // Move Employee from Player to TalentMarket
+    // Move Employee from Player back to TalentMarket
     public void dismissEmployee(Player player, Employee employee) {
         player.removeEmployee(employee);
-        TalentMarket.addTalent(employee); // Not sure about this...
+        talentMarket.addTalent(employee);
 
         // If there are projects...
         if (projects != null) {
@@ -967,5 +969,20 @@ public class Game {
         GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
         employeeDismissedEvent.setPayload(employee);
         sendMessageToPlayer(player, GSON.toJson(employeeDismissedEvent));
+
+        // Send new employee to all players' TalentMarkets in the game
+        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+        employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
+        broadcastToAllPlayers(GSON.toJson(employeeEvent));
+    }
+
+    private void initializeTalentMarket() {
+        talentMarket.clearTalentMarket();
+
+        for (int i = 0; i < 30; i++) {
+            Employee employee = new Employee(talentMarket.generateNewEmployeeId());
+            logger.info("Adding employee {} to talent market", employee.getName());
+            talentMarket.addTalent(employee);
+        }
     }
 }
