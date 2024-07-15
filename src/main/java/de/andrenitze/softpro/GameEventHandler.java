@@ -68,6 +68,10 @@ class GameEventHandler {
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, true);
             }
+            case PLAYER_READY -> {
+            }
+            case ROUND_STARTED -> {
+            }
             case UNASSIGN_EMPLOYEE -> {
                 Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
                 GameEvent<HashMap<String, Integer>> unassignmentEvent = GSON.fromJson(message, payloadType);
@@ -144,6 +148,59 @@ class GameEventHandler {
                 }
 
                 game.dismissEmployee(player, employee);
+            }
+            case GAME_OVER -> {
+            }
+            case STATE_UPDATED -> {
+            }
+            case NEW_TENDER -> {
+            }
+            case NEW_FUNDS -> {
+            }
+            case PROJECT_RECEIVED -> {
+            }
+            case TENDER_CLOSED -> {
+            }
+            case OBJECTIVES_UPDATED -> {
+            }
+            case PROJECT_UPDATED -> {
+            }
+            case PROJECT_STARTED -> {
+                // Parse project id and startedAt time out of the message, e. g., {projectId: 502, startedAt: 1234567}
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
+                GameEvent<HashMap<String, Integer>> projectStartedEvent = GSON.fromJson(message, payloadType);
+
+                int projectId = projectStartedEvent.getPayload().get("projectId");
+                long startedAt = projectStartedEvent.getPayload().get("startedAt");
+
+                logger.debug("Project {} started at {}", projectId, startedAt);
+                //game.startProject(projectId, startedAt);
+            }
+            case PLAYER_UPDATED -> {
+            }
+            case NEW_STORY_ELEMENT -> {
+            }
+            case UPDATE_LOBBY -> {
+            }
+            case T -> {
+            }
+            case EMPLOYEE_UPDATED -> {
+            }
+            case PLAYER_NAME_UPDATED -> {
+            }
+            case TENDERS_REMOVED -> {
+            }
+            case TALENTS_ADDED -> {
+            }
+            case EMPLOYEE_HIRED -> {
+            }
+            case TALENTS_REMOVED -> {
+            }
+            case TENDERS_ADDED -> {
+            }
+            case VERSION -> {
+            }
+            case RISK_ASSESSMENT_CONFIRMED -> {
             }
             default -> logger.warn("Received unknown event type: " + event.getType());
         }
