@@ -652,20 +652,7 @@ public class Game {
             int typeXP = employee.getExperienceInDaysByProjectType(project.getType());
             int domainXP = employee.getExperienceInDaysByProjectDomain(project.getDomain());
 
-            // Weights for project type and domain experience
-            float typeXPWeight = 0.25f;
-            float domainXPWeight = 0.75f;
-
-            // Base productivity value (if experience = 0)
-            float baseProductivity = 0.25f;
-            float maxProductivity = 1.0f;
-
-            float productivityFactor = (float) (baseProductivity +
-                    (maxProductivity - baseProductivity) * (
-                        (typeXP > 0 ? typeXPWeight * (1 - exp(-0.0005 * typeXP)) : 0) +
-                        (domainXP > 0 ? domainXPWeight * (1 - exp(-0.0005 * domainXP)) : 0)
-                )
-            );
+            float productivityFactor = getProductivityFactor(typeXP, domainXP);
 
             earnedValue *= productivityFactor * 2;
 
@@ -710,6 +697,23 @@ public class Game {
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
         }
+    }
+
+    private static float getProductivityFactor(int typeXP, int domainXP) {
+        // Weights for project type and domain experience
+        float typeXPWeight = 0.25f;
+        float domainXPWeight = 0.75f;
+
+        // Base productivity value (if experience = 0)
+        float baseProductivity = 0.25f;
+        float maxProductivity = 1.0f;
+
+        return (float) (baseProductivity +
+                (maxProductivity - baseProductivity) * (
+                    (typeXP > 0 ? typeXPWeight * (1 - exp(-0.0005 * typeXP)) : 0) +
+                    (domainXP > 0 ? domainXPWeight * (1 - exp(-0.0005 * domainXP)) : 0)
+            )
+        );
     }
 
     private float calculateSkillsFactor(Project project) {
