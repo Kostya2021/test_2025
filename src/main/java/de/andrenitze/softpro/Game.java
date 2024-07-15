@@ -489,12 +489,19 @@ public class Game {
             return;
         }
 
-        // For all projects that have employees assigned
+        // For all projects that are started AND have employees assigned
         Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
             ArrayList<Employee> employees = entry.getValue();
+
+            // Ignore not started projects
+            if (project.getStartedAt() == 0) {
+                continue;
+            }
+
+            // Ignore empty projects
             if (employees.isEmpty()) {
                 continue;
             }
@@ -767,8 +774,9 @@ public class Game {
 
         for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeesMap.entrySet()) {
             ArrayList<Employee> employees = entry.getValue();
+            Project project = entry.getKey();
 
-            if (employees.contains(employee)) {
+            if (employees.contains(employee) && project.hasBeenStarted()) {
                 numberOfProjects++;
             }
         }
@@ -988,5 +996,15 @@ public class Game {
             logger.info("Adding employee {} to talent market", employee.getName());
             talentMarket.addTalent(employee);
         }
+    }
+
+    public void startProject(int projectId, int startedAt) {
+        Project project = getProjectById(projectId);
+        if (project == null) {
+            logger.error("Project with ID {} not found.", projectId);
+            return;
+        }
+
+        project.setStartedAt(startedAt);
     }
 }

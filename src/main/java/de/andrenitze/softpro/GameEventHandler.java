@@ -171,10 +171,10 @@ class GameEventHandler {
                 GameEvent<HashMap<String, Integer>> projectStartedEvent = GSON.fromJson(message, payloadType);
 
                 int projectId = projectStartedEvent.getPayload().get("projectId");
-                long startedAt = projectStartedEvent.getPayload().get("startedAt");
+                int startedAt = projectStartedEvent.getPayload().get("startedAt");
 
                 logger.debug("Project {} started at {}", projectId, startedAt);
-                //game.startProject(projectId, startedAt);
+                game.startProject(projectId, startedAt);
             }
             case PLAYER_UPDATED -> {
             }

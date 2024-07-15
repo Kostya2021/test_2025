@@ -316,4 +316,12 @@ public class Project {
     public boolean hasBeenRiskAssessed() {
         return hasBeenRiskAssessed;
     }
+
+    public int getStartedAt() {
+        return startedAt;
+    }
+
+    public boolean hasBeenStarted() {
+        return getStartedAt() > 0;
+    }
 }
