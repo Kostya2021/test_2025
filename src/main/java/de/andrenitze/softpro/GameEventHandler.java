@@ -173,8 +173,9 @@ class GameEventHandler {
                 int projectId = projectStartedEvent.getPayload().get("projectId");
                 int startedAt = projectStartedEvent.getPayload().get("startedAt");
 
-                logger.debug("Project {} started at {}", projectId, startedAt);
-                game.startProject(projectId, startedAt);
+                Project project = game.getProjectById(projectId);
+
+                game.startProject(project, startedAt);
             }
             case PLAYER_UPDATED -> {
             }

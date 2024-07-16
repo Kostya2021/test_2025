@@ -309,10 +309,6 @@ public class Project {
         return this.publishedAt;
     }
 
-    public boolean isOverdue() {
-        return getCompletedAt() > getDeadline();
-    }
-
     public boolean hasBeenRiskAssessed() {
         return hasBeenRiskAssessed;
     }
