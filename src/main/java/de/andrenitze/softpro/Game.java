@@ -546,7 +546,7 @@ public class Game {
                     int profit = (int) round(project.getTotalValue() * PROFIT_MARGIN);
 
                     float overduePenaltyMultiplier = 1;
-                    int daysLeft = project.getStartedAt() + project.getDeadline() - currentTick;
+                    int daysLeft = project.getDeadline() - (currentTick - project.getStartedAt());
                     if (daysLeft < 0) {
                         // Per 1% delayed delivery, return 2% less win margin
                         overduePenaltyMultiplier = 1 - ((float) Math.abs(daysLeft) / project.getDeadline() * 2);
