@@ -43,7 +43,7 @@ public class Player {
     private int skillPoints = 1;
 
     @JsonProperty
-    private int level = 0;
+    private int level = 1;
 
     private LevelDecisions decisions;
 
@@ -202,5 +202,9 @@ public class Player {
 
     public void setDecisions(int level, List<Decision> decisions) {
         this.decisions = new LevelDecisions(level, decisions);
+    }
+
+    public int getLevel() {
+        return level;
     }
 }

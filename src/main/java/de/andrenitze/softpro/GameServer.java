@@ -6,10 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.types.Decision;
-import de.andrenitze.softpro.types.DecisionDAO;
-import de.andrenitze.softpro.types.EventType;
-import de.andrenitze.softpro.types.GameOverStatsDAO;
+import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
@@ -112,7 +109,26 @@ public class GameServer extends WebSocketServer {
         Game game = new Game(this);
         player.initializeBeforeGame();
         game.addPlayerToGame(webSocket, player);
-        game.generateFirstEmployeesForPlayers();
+
+        // For level 1, generate the player as his/her own first and only employee
+        if (player.getLevel() == 1) {
+            Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
+            employee.setName(player.getName());
+            employee.setSalary(1152);
+
+            // Increase XP in one random project domain and project type
+            employee.addXp(ProjectType.DEVELOPMENT, "Frontend", 100);
+            player.addEmployee(employee);
+
+            // Generate three projects, one of which matches the previously selected skills
+            //game.generateThreeProjectsForPlayer(player);
+        }
+
+        // For level 2, populate the talent market with employees
+        if (player.getLevel() == 2) {
+            game.generateFirstEmployeesForPlayers();
+        }
+
         games.add(game);
 
         // Return generated player to the client
