@@ -31,6 +31,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class GameServer extends WebSocketServer {
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
@@ -53,16 +56,14 @@ public class GameServer extends WebSocketServer {
         new Thread(this::fetchHighScore).start();
 
         // Find and close empty games regularly in a separate thread
-        new Thread(() -> {
-            while (true) {
-                try {
-                    Thread.sleep(2500);
-                    findAndCloseEmptyGames();
-                } catch (InterruptedException e) {
-                    logger.error("Error while sleeping: {}", e.getMessage());
-                }
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                findAndCloseEmptyGames();
+            } catch (Exception e) {
+                logger.error("Error while finding and closing empty games: {}", e.getMessage());
             }
-        }).start();
+        }, 0, 2500, TimeUnit.MILLISECONDS);
     }
 
     private void fetchHighScore() {
