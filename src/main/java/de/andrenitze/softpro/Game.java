@@ -1027,7 +1027,7 @@ public class Game {
 
     public void startProject(Project project, int startedAt) {
         if (project == null) {
-            logger.error("Project with ID {} not found.", project.getId());
+            logger.error("Project not found.");
             return;
         }
 
