@@ -174,6 +174,7 @@ public class Game {
         checkObjectivesCriteriaAndSendRewardsPerTick();
         simulateEmployeeLifePerTick();
         sendStoryElementsPerTick();
+        startStaleProjectsPerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -181,6 +182,32 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
+    }
+
+    private void startStaleProjectsPerTick() {
+        // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
+        for (Project project : projects) {
+            if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
+                int daysPassed = currentTick - project.getAcquiredAt();
+                if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
+                    // Start the project and inform involved players
+                    startProject(project, currentTick-1);
+                    notifyInvolvedPlayers(project);
+                    logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
+                }
+            }
+        }
+    }
+
+    private void notifyInvolvedPlayers(Project project) {
+        GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
+        HashMap<String, Integer> payload = new HashMap<>();
+        payload.put("projectId", project.getId());
+        payload.put("startedAt", project.getStartedAt());
+        projectStartedEvent.setPayload(payload);
+
+        // Notify involved players about forced start
+        project.getInvolvedPlayers().forEach(player -> sendMessageToPlayer(player, GSON.toJson(projectStartedEvent)));
     }
 
     private void removeStaleTendersPerTick() {
@@ -489,12 +516,19 @@ public class Game {
             return;
         }
 
-        // For all projects that have employees assigned
+        // For all projects that are started AND have employees assigned
         Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
             ArrayList<Employee> employees = entry.getValue();
+
+            // Ignore not started projects
+            if (project.getStartedAt() == 0) {
+                continue;
+            }
+
+            // Ignore empty projects
             if (employees.isEmpty()) {
                 continue;
             }
@@ -512,7 +546,7 @@ public class Game {
                     int profit = (int) round(project.getTotalValue() * PROFIT_MARGIN);
 
                     float overduePenaltyMultiplier = 1;
-                    int daysLeft = project.getAcquiredAt() + project.getDeadline() - currentTick;
+                    int daysLeft = project.getDeadline() - (currentTick - project.getStartedAt());
                     if (daysLeft < 0) {
                         // Per 1% delayed delivery, return 2% less win margin
                         overduePenaltyMultiplier = 1 - ((float) Math.abs(daysLeft) / project.getDeadline() * 2);
@@ -767,8 +801,9 @@ public class Game {
 
         for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeesMap.entrySet()) {
             ArrayList<Employee> employees = entry.getValue();
+            Project project = entry.getKey();
 
-            if (employees.contains(employee)) {
+            if (employees.contains(employee) && project.hasBeenStarted()) {
                 numberOfProjects++;
             }
         }
@@ -985,8 +1020,17 @@ public class Game {
 
         for (int i = 0; i < 30; i++) {
             Employee employee = new Employee(talentMarket.generateNewEmployeeId());
-            logger.info("Adding employee {} to talent market", employee.getName());
             talentMarket.addTalent(employee);
         }
+        logger.debug("Talent market initialized with {} employees.", talentMarket.getTalents().size());
+    }
+
+    public void startProject(Project project, int startedAt) {
+        if (project == null) {
+            logger.error("Project with ID {} not found.", project.getId());
+            return;
+        }
+
+        project.setStartedAt(startedAt);
     }
 }
