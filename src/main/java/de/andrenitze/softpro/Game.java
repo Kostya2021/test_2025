@@ -1020,9 +1020,9 @@ public class Game {
 
         for (int i = 0; i < 30; i++) {
             Employee employee = new Employee(talentMarket.generateNewEmployeeId());
-            logger.info("Adding employee {} to talent market", employee.getName());
             talentMarket.addTalent(employee);
         }
+        logger.debug("Talent market initialized with {} employees.", talentMarket.getTalents().size());
     }
 
     public void startProject(Project project, int startedAt) {
