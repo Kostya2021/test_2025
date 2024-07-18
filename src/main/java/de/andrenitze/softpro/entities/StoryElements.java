@@ -8,21 +8,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 
+import static de.andrenitze.softpro.Main.logger;
+
 public class StoryElements {
     @JsonProperty
     private ArrayList<StoryElement> storyElements;
 
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
-    private InputStream getFileFromResourceAsStream(String fileName) {
+    private InputStream getFileFromResourceAsStream() {
 
         // The class loader that loaded the class
         ClassLoader classLoader = getClass().getClassLoader();
-        InputStream inputStream = classLoader.getResourceAsStream(fileName);
+        InputStream inputStream = classLoader.getResourceAsStream("story.yaml");
 
         // the stream holding the file content
         if (inputStream == null) {
-            throw new IllegalArgumentException("file not found! " + fileName);
+            throw new IllegalArgumentException("file not found! " + "story.yaml");
         } else {
             return inputStream;
         }
@@ -31,10 +33,10 @@ public class StoryElements {
 
     public void loadStoryElementsFromYamlFile() {
         try {
-            StoryElements extractedStoryElements = mapper.readValue(getFileFromResourceAsStream("story.yaml"), StoryElements.class);
+            StoryElements extractedStoryElements = mapper.readValue(getFileFromResourceAsStream(), StoryElements.class);
             setStoryElements(extractedStoryElements.getStoryElements());
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error while loading story elements from yaml file: {}", e.getMessage());
         }
     }
 

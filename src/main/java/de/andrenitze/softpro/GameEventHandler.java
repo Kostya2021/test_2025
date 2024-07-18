@@ -24,7 +24,7 @@ class GameEventHandler {
 
     void handleEvent(WebSocket websocket, String message) {
         GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
-        logger.debug("Received event: " + event.getType());
+        logger.debug("Received event: {}", event.getType());
 
         switch (event.getType()) {
             case JOIN_TENDER -> {
@@ -203,19 +203,19 @@ class GameEventHandler {
             }
             case RISK_ASSESSMENT_CONFIRMED -> {
             }
-            default -> logger.warn("Received unknown event type: " + event.getType());
+            default -> logger.warn("Received unknown event type: {}", event.getType());
         }
     }
 
-    private boolean changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
+    private void changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
         Player player = game.getPlayerByWebSocket(websocket);
         Employee employee = player.getEmployeeById(employeeId);
         Project project = game.getProjectById(projectId);
 
         if (isAssignOperation) {
-            return game.assignEmployeeToProject(employee, project);
+            game.assignEmployeeToProject(employee, project);
         } else {
-            return game.removeEmployeeFromProject(employee, project);
+            game.removeEmployeeFromProject(employee, project);
         }
     }
 }
