@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import static de.andrenitze.softpro.GameServer.RANDOM;
+
 public class Employee {
     public static final float SICK_DAY_PROBABILITY = 0.02f;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
@@ -68,7 +70,7 @@ public class Employee {
     }
 
     private String assignGender() {
-        if (new Random().nextFloat() <= 0.5) {
+        if (RANDOM.nextFloat() <= 0.5) {
             return "male";
         } else {
             return "female";

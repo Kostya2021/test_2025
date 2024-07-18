@@ -37,7 +37,7 @@ public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final Gson GSON = new Gson();
     private GameOverStats dailyHighScore;
-    private static final Random RANDOM = new Random();
+    protected static final Random RANDOM = new Random();
 
     /**
      * Creates a GameServer instance to manage games and players

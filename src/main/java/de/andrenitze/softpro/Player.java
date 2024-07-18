@@ -9,11 +9,11 @@ import de.andrenitze.softpro.types.Decision;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 
+import static de.andrenitze.softpro.GameServer.RANDOM;
+
 public class Player {
-    private static final Random RANDOM = new Random();
     public static final float INITIAL_FUNDS = 150000;
 
     @JsonIgnore
