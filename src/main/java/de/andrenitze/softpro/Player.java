@@ -207,4 +207,8 @@ public class Player {
     public int getLevel() {
         return level;
     }
+
+    public void setFunds(int i) {
+        this.funds = i;
+    }
 }

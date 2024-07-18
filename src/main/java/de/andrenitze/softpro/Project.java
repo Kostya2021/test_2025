@@ -79,12 +79,7 @@ public class Project {
 
         this.deadline = generateDeadline();
 
-        // Set matching candidates for project types (e.g., "Development") and domains (e.g., "COBOL")
-        projectTypeDomainMap.put(ProjectType.CONSULTING, ProjectType.CONSULTING_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, ProjectType.CUSTOMIZATION_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.DEVELOPMENT, ProjectType.DEVELOPMENT_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.INTRODUCTION, ProjectType.INTRODUCTION_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.MAINTENANCE, ProjectType.MAINTENANCE_DOMAINS);
+        setMatchingDomainForType();
 
         // Based on the project type, assign a matching domain
         this.domain = generateDomain(this.type);
@@ -96,9 +91,19 @@ public class Project {
         }
     }
 
-    public Project(ProjectType type, RiskLevel risk) {
+    private static void setMatchingDomainForType() {
+        // Set matching candidates for project types (e.g., "Development") and domains (e.g., "COBOL")
+        projectTypeDomainMap.put(ProjectType.CONSULTING, ProjectType.CONSULTING_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, ProjectType.CUSTOMIZATION_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.DEVELOPMENT, ProjectType.DEVELOPMENT_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.INTRODUCTION, ProjectType.INTRODUCTION_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.MAINTENANCE, ProjectType.MAINTENANCE_DOMAINS);
+    }
+
+    public Project(ProjectType type, String domain, RiskLevel risk) {
         this();
         this.type = type;
+        this.domain = domain;
         this.risk = risk;
     }
 
@@ -327,7 +332,8 @@ public class Project {
         return getStartedAt() > 0;
     }
 
-    void setRiskLevel(RiskLevel riskLevel) {
+    Project setRiskLevel(RiskLevel riskLevel) {
         this.risk = riskLevel;
+        return this;
     }
 }

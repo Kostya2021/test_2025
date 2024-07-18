@@ -129,16 +129,18 @@ public class GameServer extends WebSocketServer {
         if (game.getLevel() == 1) {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setName(player.getName());
-            employee.setSalary(1152);
+            employee.setSalary(952);
             employee.setAge(22);
+            player.setFunds(18000);
 
             // Increase XP in one random project domain and project type
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
-            employee.addXp(type, type.getDomain(), 400);
+            String domain = type.getRandomDomain();
+            employee.addXp(type, domain, 400);
             player.addEmployee(employee);
 
             // Generate a friendly low-risk project matching the player's skill
-            Project perfectProject = new Project(type, RiskLevel.low);
+            Project perfectProject = new Project(type, domain, RiskLevel.low);
             game.addProject(perfectProject);
 
             // Generate two more random projects

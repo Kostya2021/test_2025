@@ -27,7 +27,7 @@ public class TalentMarket {
         for (int i = 0; i < 2; i++) {
             Employee employeeWithXP = new Employee(employeeIdGenerator.generateId());
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
-            String domain = type.getDomain();
+            String domain = type.getRandomDomain();
             employeeWithXP.addXp(type, domain, RANDOM.nextInt(500) + 750);
             employees.add(employeeWithXP);
         }

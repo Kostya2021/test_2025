@@ -54,7 +54,7 @@ public class Employee {
 
             // Now, add some days of experience in one project domain of this type
             ProjectType type = ProjectType.values()[projectTypeIndex];
-            addXp(type, type.getDomain(), days);
+            addXp(type, type.getRandomDomain(), days);
         }
     }
 
