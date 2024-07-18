@@ -30,7 +30,7 @@ public class Project {
     private float penalty;
     private float profit;
     private static final Random random = new Random();
-    private final RiskLevel risk;
+    private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     private ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
@@ -96,9 +96,10 @@ public class Project {
         }
     }
 
-    public Project(ProjectType type) {
+    public Project(ProjectType type, RiskLevel risk) {
         this();
         this.type = type;
+        this.risk = risk;
     }
 
     private int generateDeadline() {
@@ -324,5 +325,9 @@ public class Project {
 
     public boolean hasBeenStarted() {
         return getStartedAt() > 0;
+    }
+
+    void setRiskLevel(RiskLevel riskLevel) {
+        this.risk = riskLevel;
     }
 }

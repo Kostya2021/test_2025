@@ -109,7 +109,8 @@ public class GameServer extends WebSocketServer {
         player.initializeBeforeGame();
         game.addPlayerToGame(webSocket, player);
 
-        prepareGameForNextLevel(player, game);
+        // WARNING! THIS WILL BREAK STARTING IN LEVEL 2!
+        preparePlayerAndGameForNextLevel(player, game);
 
         games.add(game);
 
@@ -120,9 +121,12 @@ public class GameServer extends WebSocketServer {
         webSocket.send(GSON.toJson(playerUpdateEvent));
     }
 
-    private static void prepareGameForNextLevel(Player player, Game game) {
+    /**
+     * Prepare the player and game instance for the next level while the player is still in the lobby.
+     */
+    private void preparePlayerAndGameForNextLevel(Player player, Game game) {
         // For level 1, generate the player as his/her own first and only employee
-        if (player.getLevel() == 1) {
+        if (game.getLevel() == 1) {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setName(player.getName());
             employee.setSalary(1152);
@@ -133,12 +137,13 @@ public class GameServer extends WebSocketServer {
             employee.addXp(type, type.getDomain(), 400);
             player.addEmployee(employee);
 
-            // Generate a project matching the player's skill
-            game.addProject(new Project(type));
+            // Generate a friendly low-risk project matching the player's skill
+            Project perfectProject = new Project(type, RiskLevel.low);
+            game.addProject(perfectProject);
 
             // Generate two more random projects
             for (int i = 0; i < 2; i++) {
-                game.getProjects().add(new Project());
+                game.addProject(new Project());
             }
         }
 

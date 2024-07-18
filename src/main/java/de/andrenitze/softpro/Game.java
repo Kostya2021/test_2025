@@ -42,7 +42,7 @@ public class Game {
     private boolean isRunning;
     private final GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
-    private ArrayList<Project> projects;
+    private ArrayList<Project> projects = new ArrayList<>();
     private int currentTick;
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
@@ -52,6 +52,7 @@ public class Game {
     private ArrayList<StoryElement> storyElements;
     private final SkillsManager skillsMananger = new SkillsManager();
     private final TalentMarket talentMarket;
+    private int level = 1;
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -102,27 +103,7 @@ public class Game {
             sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
 
-        // Spawn some projects to get going
-        projects = new ArrayList<>();
-        for (int i = 0; i<100; i++) {
-            Project project = new Project();
-
-            // Set randomly negative publish dates to have some history of tenders
-            project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
-
-            projects.add(project);
-            projectEmployeesMap.put(project, new ArrayList<>());
-        }
-
-        // Send all tenders at once
-        GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
-        projectEvent.setPayload(projects);
-        broadcastToAllPlayers(GSON.toJson(projectEvent));
-
-        // Send talent market to players at once
-        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-        employeeEvent.setPayload(talentMarket.getTalents());
-        broadcastToAllPlayers(GSON.toJson(employeeEvent));
+        prepareNextLevel();
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -135,9 +116,42 @@ public class Game {
             progressGameTime();
         }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
 
-        logger.info("A new game has started with {} players: {}",
+        logger.info("A new game has started with {} players in level {}: {}",
                 players.size(),
+                getLevel(),
                 players.values().stream().map(Player::getName).collect(Collectors.toList()));
+    }
+
+    /**
+     * The next level is prepared, after players hit the "Start Level X" button.
+     */
+    private void prepareNextLevel() {
+        if (getLevel() != 1) {
+            projects = new ArrayList<>();
+            for (int i = 0; i < 100; i++) {
+                Project project = new Project();
+
+                // Set randomly negative publish dates to have some history of tenders
+                project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
+
+                projects.add(project);
+                projectEmployeesMap.put(project, new ArrayList<>());
+            }
+        }
+
+        // Send all tenders at once
+        GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
+        projectEvent.setPayload(projects);
+        broadcastToAllPlayers(GSON.toJson(projectEvent));
+
+        // Send talent market to players at once
+        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+        employeeEvent.setPayload(talentMarket.getTalents());
+        broadcastToAllPlayers(GSON.toJson(employeeEvent));
+    }
+
+    protected int getLevel() {
+        return level;
     }
 
     private void loadStoryElementsFromFile() {
@@ -383,7 +397,6 @@ public class Game {
                 // Add community votes to the game over stats
                 DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
                 // Hard-coded placeholder for level 1
-                int level = 1;
                 Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
                 goStats.setCommunityVotes(distributions);
 
@@ -456,6 +469,11 @@ public class Game {
     }
 
     private void randomlySpawnProjectTendersPerTick() {
+        // Don't spawn new projects in level 1
+        if (getLevel() == 1) {
+            return;
+        }
+
         if (new Random().nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
             // Generate a new project
             Project project = new Project();
@@ -744,9 +762,9 @@ public class Game {
 
         return (float) (baseProductivity +
                 (maxProductivity - baseProductivity) * (
-                    (typeXP > 0 ? typeXPWeight * (1 - exp(-0.0005 * typeXP)) : 0) +
-                    (domainXP > 0 ? domainXPWeight * (1 - exp(-0.0005 * domainXP)) : 0)
-            )
+                        (typeXP > 0 ? typeXPWeight * (1 - exp(-0.0005 * typeXP)) : 0) +
+                                (domainXP > 0 ? domainXPWeight * (1 - exp(-0.0005 * domainXP)) : 0)
+                )
         );
     }
 
@@ -870,7 +888,7 @@ public class Game {
         return null;
     }
 
-    boolean assignEmployeeToProject(Employee employee, Project project) {
+    void assignEmployeeToProject(Employee employee, Project project) {
         // Get current list of employees working on that project
         try {
             projectEmployeesMap.putIfAbsent(project, new ArrayList<>());
@@ -881,17 +899,14 @@ public class Game {
                 employees.add(employee);
                 projectEmployeesMap.put(project, employees);
                 logger.debug("{} assigned to {}", employee.getName(), project.getName());
-                return true;
             } else {
-                return false;
             }
         } catch (NullPointerException e) {
             logger.error(e.toString());
         }
-        return false;
     }
 
-    boolean removeEmployeeFromProject(Employee employee, Project project) {
+    void removeEmployeeFromProject(Employee employee, Project project) {
         // Get current list of employees working on that project
         ArrayList<Employee> employees = projectEmployeesMap.get(project) ;
 
@@ -899,9 +914,7 @@ public class Game {
             employees.remove(employee);
             projectEmployeesMap.put(project, employees);
             logger.debug("{} unassigned from {}", employee.getName(), project.getName());
-            return true;
         }
-        return false;
     }
 
     public boolean closeIfEmpty() {
@@ -981,7 +994,7 @@ public class Game {
         // Remove any existing employees from the player
         players.forEach((webSocket, player) -> player.getEmployees().clear());
 
-        // Generate first employees for all players (necessary for Level 1)
+        // Generate first employees for all players (necessary for Level 2)
         players.forEach((webSocket, player) -> {
             talentMarket.generateFirstEmployees().forEach(player::addEmployee);
         });
@@ -1032,5 +1045,12 @@ public class Game {
         }
 
         project.setStartedAt(startedAt);
+    }
+
+    public void addProject(Project project) {
+        // Check if project id already exists, if not, add the project
+        if (getProjectById(project.getId()) == null) {
+            projects.add(project);
+        }
     }
 }

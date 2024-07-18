@@ -13,9 +13,9 @@ public class Employee {
     public static final int MINIMUM_SICK_DAYS = 4;
     public static final int MAXIMUM_SICK_DAYS = 22;
     private final Integer id;
-    private final int salary;
-    private final int age;
-    private final String name;
+    private int salary;
+    private int age;
+    private String name;
     private final transient HashMap<Project, Integer> projectExperience;
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
@@ -206,5 +206,17 @@ public class Employee {
     private void addExperienceForType(ProjectType type, int days) {
         Integer existingExperience = projectTypeExperience.getOrDefault(type, 0);
         projectTypeExperience.put(type, existingExperience + days);
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setSalary(int i) {
+        this.salary = i;
+    }
+
+    public void setAge(int i) {
+        this.age = i;
     }
 }
