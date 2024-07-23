@@ -19,8 +19,9 @@ storyElements:
     afterObjective: 3
     lines:
       - Ok, good luck with your project! I'm looking forward to seeing the results. 🤞
-  - id: 5
-    avatar: PROFESSOR
-    afterObjective: 4
-    lines:
-      - Excellent! 😃👍 Your semester project was awarded a cash prize by the university. Keep up the good work!
+  # Uncommented because level 1 ends after the fifth objective, so text won't be displayed.
+  #- id: 5
+  #  avatar: PROFESSOR
+  #  afterObjective: 4
+  #  lines:
+  #    - Excellent! 😃👍 Your semester project was awarded a cash prize by the university. Keep up the good work!
