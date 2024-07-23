@@ -17,10 +17,3 @@ objectives:
     order: 4
     mission: Getting Started
     rewardFunds: 1500
-  - title: Finish 10 projects
-    id: 5
-    order: 10
-    totalSteps: 10
-    mission: Getting Started
-    earliestOccurrence: 10000
-    rewardFunds: 75000
