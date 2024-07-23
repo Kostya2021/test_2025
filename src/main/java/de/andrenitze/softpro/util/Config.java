@@ -1,4 +1,4 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.util;
 
 import java.io.IOException;
 import java.io.InputStream;

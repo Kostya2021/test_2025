@@ -316,11 +316,40 @@ public class Game {
         players.forEach((webSocket, player) -> {
             GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
             List<Objective> allActiveObjectives;
+            boolean updatedNeeded;
 
-            // Calculate progress for all active objectives
+            // Calculate progress for all active (= incomplete) objectives
             for (Objective objective: player.getObjectives()) {
-                // Naive matching approach with exact IDs (=> same logic for ID 1 and ID 2)
-                if ((objective.getId() == 1 || objective.getId() == 2) && !objective.isCompleted()) {
+                updatedNeeded = false;
+
+                if (objective.isCompleted()) {
+                    continue;
+                }
+
+                /*
+                  Naive matching approach with exact IDs from objectives.yaml
+                  Create a new objective in the YAML file, then create a matching case here.
+                 */
+                if (objective.getId() == 1) {
+                    // Criterion: If player has accepted any project from the project market
+                    if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
+                        objective.markAsCompleted();
+                        updatedNeeded = true;
+                    }
+                } else if (objective.getId() == 2) {
+                    // Criterion: If employees have been assigned to any project
+                    if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))) {
+                        objective.markAsCompleted();
+                        updatedNeeded = true;
+                    }
+                } else if (objective.getId() == 3) {
+                    // Criterion: If project has been kicked off
+                    if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
+                            && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
+                        objective.markAsCompleted();
+                        updatedNeeded = true;
+                    }
+                } else if (objective.getId() == 4 || objective.getId() == 5) {
                     // Were conditions met (= projects finished) after the objective occurred?
                     // Only check relevant (= finished) projects
                     ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
@@ -333,15 +362,16 @@ public class Game {
 
                     // Only send when conditions have changed from last time
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
-
                         // The number of relevant projects equals the completed steps
                         objective.setCompletedSteps(relevantProjects.size());
-
-                        // Assemble and send update event
-                        allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
-                        objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                        sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+                        updatedNeeded = true;
                     }
+                }
+
+                if (updatedNeeded) {
+                    allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+                    objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                    sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
                 }
             }
         });

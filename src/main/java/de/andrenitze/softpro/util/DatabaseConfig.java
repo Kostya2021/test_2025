@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.util;
 
-import de.andrenitze.softpro.Config;
 import org.apache.commons.dbcp2.*;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;

@@ -14,9 +14,9 @@ public class Project {
     private static int lastId = 1;
     private final Integer id;
     private final String name;
-    private final int totalValue;
+    private int totalValue;
     private int earnedValue;
-    private final boolean hasTenderProcess;
+    private boolean hasTenderProcess;
     private int tenderDeadlineInDays;
 
     // Deadline: In how many days the project has to be finished, measured from the day the project was acquired.
@@ -100,11 +100,15 @@ public class Project {
         projectTypeDomainMap.put(ProjectType.MAINTENANCE, ProjectType.MAINTENANCE_DOMAINS);
     }
 
-    public Project(ProjectType type, String domain, RiskLevel risk) {
+    public Project(ProjectType type, String domain, RiskLevel risk, boolean hasTenderProcess) {
+        // Warning: The problem with this constructor is that it circumvents
+        // project creation logic (e.g., volume correlates with risk).
         this();
         this.type = type;
         this.domain = domain;
         this.risk = risk;
+        this.totalValue = generateVolume();
+        this.hasTenderProcess = hasTenderProcess;
     }
 
     private int generateDeadline() {

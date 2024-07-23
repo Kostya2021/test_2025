@@ -3,9 +3,6 @@ package de.andrenitze.softpro.entities;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import de.andrenitze.softpro.Game;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Objective {
@@ -27,7 +24,7 @@ public class Objective {
     private int rewardFunds;
 
     @JsonProperty
-    private int totalSteps;
+    private int totalSteps = 1;
 
     @JsonProperty
     private int completedSteps = 0;
@@ -57,7 +54,7 @@ public class Objective {
     }
 
     public boolean isCompleted() {
-        return (completedSteps == totalSteps);
+        return ((completedSteps == totalSteps));
     }
 
     @JsonIgnore
@@ -71,5 +68,9 @@ public class Objective {
 
     public void addCompletedStep() {
         this.completedSteps++;
+    }
+
+    public void markAsCompleted() {
+        this.completedSteps = totalSteps;
     }
 }
