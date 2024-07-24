@@ -1,5 +1,5 @@
 package de.andrenitze.softpro.types;
 
 public enum AvatarType {
-    ADVISOR, BADGUY, AUDITOR, TVNEWS, INTERNETNEWS
+    ADVISOR, BADGUY, AUDITOR, TVNEWS, INTERNETNEWS, PROFESSOR
 }

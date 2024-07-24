@@ -1,11 +1,13 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.util;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import static de.andrenitze.softpro.Main.logger;
+
 public class Config {
-    private static Properties properties = new Properties();
+    private static final Properties properties = new Properties();
 
     static {
         try (InputStream input = Config.class.getClassLoader().getResourceAsStream("project.properties")) {
@@ -14,7 +16,7 @@ public class Config {
             }
             properties.load(input);
         } catch (IOException ex) {
-            ex.printStackTrace();
+            logger.error("Error while loading properties file: {}", ex.getMessage());
         }
     }
 

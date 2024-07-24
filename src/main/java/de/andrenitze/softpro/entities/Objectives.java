@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 
+import static de.andrenitze.softpro.Main.logger;
+
 public class Objectives {
     @JsonProperty
     private ArrayList<Objective> objectives;
@@ -34,7 +36,7 @@ public class Objectives {
             Objectives extractedObjectives = mapper.readValue(getFileFromResourceAsStream("objectives.yaml"), Objectives.class);
             setObjectives(extractedObjectives.getObjectives());
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error while loading objectives from yaml file: {}", e.getMessage());
         }
     }
 

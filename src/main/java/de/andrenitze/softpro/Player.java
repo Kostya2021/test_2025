@@ -9,11 +9,11 @@ import de.andrenitze.softpro.types.Decision;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 
+import static de.andrenitze.softpro.GameServer.RANDOM;
+
 public class Player {
-    private static final Random RANDOM = new Random();
     public static final float INITIAL_FUNDS = 150000;
 
     @JsonIgnore
@@ -43,7 +43,7 @@ public class Player {
     private int skillPoints = 1;
 
     @JsonProperty
-    private int level = 0;
+    private int level = 1;
 
     private LevelDecisions decisions;
 
@@ -202,5 +202,13 @@ public class Player {
 
     public void setDecisions(int level, List<Decision> decisions) {
         this.decisions = new LevelDecisions(level, decisions);
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public void setFunds(int i) {
+        this.funds = i;
     }
 }

@@ -6,14 +6,12 @@ import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.types.Decision;
-import de.andrenitze.softpro.types.DecisionDAO;
-import de.andrenitze.softpro.types.EventType;
-import de.andrenitze.softpro.types.GameOverStatsDAO;
+import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -26,10 +24,7 @@ import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,6 +37,7 @@ public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final Gson GSON = new Gson();
     private GameOverStats dailyHighScore;
+    protected static final Random RANDOM = new Random();
 
     /**
      * Creates a GameServer instance to manage games and players
@@ -112,7 +108,10 @@ public class GameServer extends WebSocketServer {
         Game game = new Game(this);
         player.initializeBeforeGame();
         game.addPlayerToGame(webSocket, player);
-        game.generateFirstEmployeesForPlayers();
+
+        // WARNING! THIS WILL BREAK STARTING IN LEVEL 2!
+        preparePlayerAndGameForNextLevel(player, game);
+
         games.add(game);
 
         // Return generated player to the client
@@ -120,6 +119,40 @@ public class GameServer extends WebSocketServer {
         playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
         webSocket.send(GSON.toJson(playerUpdateEvent));
+    }
+
+    /**
+     * Prepare the player and game instance for the next level while the player is still in the lobby.
+     */
+    private void preparePlayerAndGameForNextLevel(Player player, Game game) {
+        // For level 1, generate the player as his/her own first and only employee
+        if (game.getLevel() == 1) {
+            Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
+            employee.setName(player.getName());
+            employee.setSalary(952);
+            employee.setAge(22);
+            player.setFunds(18000);
+
+            // Increase XP in one random project domain and project type
+            ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
+            String domain = type.getRandomDomain();
+            employee.addXp(type, domain, 400);
+            player.addEmployee(employee);
+
+            // Generate a friendly low-risk project matching the player's skill
+            Project perfectProject = new Project(type, domain, RiskLevel.low, false);
+            game.addProject(perfectProject);
+
+            // Generate two more random projects
+            for (int i = 0; i < 2; i++) {
+                game.addProject(new Project());
+            }
+        }
+
+        if (player.getLevel() == 2) {
+            // For level 2, populate the talent market with employees
+            game.generateFirstEmployeesForPlayers();
+        }
     }
 
     @Override
@@ -209,6 +242,12 @@ public class GameServer extends WebSocketServer {
                     String oldName = player.getName();
                     player.setName(newName);
 
+                    // Change first employee name for level 1 accordingly
+                    if (player.getLevel() == 1) {
+                        Employee employee = player.getEmployees().get(0);
+                        employee.setName(newName);
+                    }
+
                     // Confirm successful name change
                     GameEvent<Player> playerUpdateEvent = new GameEvent<>();
                     playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
@@ -270,7 +309,16 @@ public class GameServer extends WebSocketServer {
             playersList.put(player);
         }
 
-        // Anonymize highscore before sending
+        // Anonymize high-score before sending
+        GameOverStats anonymizedHighScore = getAnonymizedHighScore();
+
+        broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
+                "\"runningGames\": " + games.size() +
+                ", \"players\": " + playersList +
+                ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
+    }
+
+    private @NotNull GameOverStats getAnonymizedHighScore() {
         GameOverStats anonymizedHighScore = new GameOverStats();
         if (dailyHighScore != null && dailyHighScore.getDeliveredProjects() > 0) {
             anonymizedHighScore.setPlayerName(dailyHighScore.getPlayerName());
@@ -279,11 +327,7 @@ public class GameServer extends WebSocketServer {
             anonymizedHighScore.setFinishedAt(dailyHighScore.getFinishedAt());
             anonymizedHighScore.setSurvivedDays(dailyHighScore.getSurvivedDays());
         }
-
-        broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
-                "\"runningGames\": " + games.size() +
-                ", \"players\": " + playersList +
-                ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
+        return anonymizedHighScore;
     }
 
     @Override

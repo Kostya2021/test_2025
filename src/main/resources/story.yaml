@@ -1,32 +1,27 @@
 storyElements:
   - id: 1
-    avatar: ADVISOR
+    avatar: PROFESSOR
+    earliestOccurrence: 7
     lines:
-      - Congratulations to your new role as Junior Project Manager!
-      - Now let's show them how to get projects done, shall we?
+      - Choose one of the semester projects to show what you've learned so far. 🤓
   - id: 2
-    avatar: ADVISOR
+    avatar: PROFESSOR
     afterObjective: 1
-    medium: MESSENGER
     lines:
-      - Excellent work! 😃👍 The CEO is pleased with your bottom line. Way to go!
+      - Interesting choice! Now, you need to staff your project. Of course, for now, you're the only one working on it. 😅
   - id: 3
-    avatar: BADGUY
+    avatar: PROFESSOR
     afterObjective: 2
-    earliestOccurrence: 150
     lines:
-      - Ha! You think you're the best because you finished some easy-peasy projects, huh?
-      - Better watch your back...
+      - Great! Now, it's time to kick off your project using the project folder. 🚀
   - id: 4
-    avatar: ADVISOR
-    afterObjective: 2
-    earliestOccurrence: 170
+    avatar: PROFESSOR
+    afterObjective: 3
     lines:
-      - Being successful will always attract envious people.
-      - Don't worry! She probably won't do anything crazy to stop you. At least for now...
-  - id: 5
-    avatar: ADVISOR
-    earliestOccurrence: 1000
-    lines:
-      - Hey! You still here?
-      - Seriously, you should get outside! 😃
+      - Ok, good luck with your project! I'm looking forward to seeing the results. 🤞
+  # Uncommented because level 1 ends after the fifth objective, so text won't be displayed.
+  #- id: 5
+  #  avatar: PROFESSOR
+  #  afterObjective: 4
+  #  lines:
+  #    - Excellent! 😃👍 Your semester project was awarded a cash prize by the university. Keep up the good work!

@@ -7,15 +7,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import static de.andrenitze.softpro.GameServer.RANDOM;
+
 public class Employee {
     public static final float SICK_DAY_PROBABILITY = 0.02f;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_SICK_DAYS = 4;
     public static final int MAXIMUM_SICK_DAYS = 22;
     private final Integer id;
-    private final int salary;
-    private final int age;
-    private final String name;
+    private int salary;
+    private int age;
+    private String name;
     private final transient HashMap<Project, Integer> projectExperience;
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
@@ -54,7 +56,7 @@ public class Employee {
 
             // Now, add some days of experience in one project domain of this type
             ProjectType type = ProjectType.values()[projectTypeIndex];
-            addXp(type, type.getDomain(), days);
+            addXp(type, type.getRandomDomain(), days);
         }
     }
 
@@ -68,7 +70,7 @@ public class Employee {
     }
 
     private String assignGender() {
-        if (new Random().nextFloat() <= 0.5) {
+        if (RANDOM.nextFloat() <= 0.5) {
             return "male";
         } else {
             return "female";
@@ -206,5 +208,17 @@ public class Employee {
     private void addExperienceForType(ProjectType type, int days) {
         Integer existingExperience = projectTypeExperience.getOrDefault(type, 0);
         projectTypeExperience.put(type, existingExperience + days);
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setSalary(int i) {
+        this.salary = i;
+    }
+
+    public void setAge(int i) {
+        this.age = i;
     }
 }

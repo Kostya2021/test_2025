@@ -5,7 +5,8 @@ import de.andrenitze.softpro.types.ProjectType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+
+import static de.andrenitze.softpro.GameServer.RANDOM;
 
 /**
  * The TalentMarket class is a singleton class that holds all the available talents in a running game instance
@@ -14,7 +15,6 @@ import java.util.Random;
 public class TalentMarket {
     private final Map<Integer, Employee> talents = new HashMap<>();
     public final EmployeeIdGenerator employeeIdGenerator;
-    private static final Random RANDOM = new Random();
 
     public TalentMarket(EmployeeIdGenerator employeeIdGenerator) {
         this.employeeIdGenerator = employeeIdGenerator;
@@ -27,7 +27,7 @@ public class TalentMarket {
         for (int i = 0; i < 2; i++) {
             Employee employeeWithXP = new Employee(employeeIdGenerator.generateId());
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
-            String domain = type.getDomain();
+            String domain = type.getRandomDomain();
             employeeWithXP.addXp(type, domain, RANDOM.nextInt(500) + 750);
             employees.add(employeeWithXP);
         }

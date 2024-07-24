@@ -14,9 +14,9 @@ public class Project {
     private static int lastId = 1;
     private final Integer id;
     private final String name;
-    private final int totalValue;
+    private int totalValue;
     private int earnedValue;
-    private final boolean hasTenderProcess;
+    private boolean hasTenderProcess;
     private int tenderDeadlineInDays;
 
     // Deadline: In how many days the project has to be finished, measured from the day the project was acquired.
@@ -30,9 +30,9 @@ public class Project {
     private float penalty;
     private float profit;
     private static final Random random = new Random();
-    private final RiskLevel risk;
+    private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
-    private final ProjectType type;
+    private ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur".split(","));
     private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen".split(","));
@@ -45,7 +45,7 @@ public class Project {
     private static final Set<String> usedProjectNames = new HashSet<>();
 
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
-    private final String domain;
+    private String domain;
 
     // Description text is generated in the frontend
     private final String description = "";
@@ -79,12 +79,7 @@ public class Project {
 
         this.deadline = generateDeadline();
 
-        // Set matching candidates for project types (e.g., "Development") and domains (e.g., "COBOL")
-        projectTypeDomainMap.put(ProjectType.CONSULTING, ProjectType.CONSULTING_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, ProjectType.CUSTOMIZATION_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.DEVELOPMENT, ProjectType.DEVELOPMENT_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.INTRODUCTION, ProjectType.INTRODUCTION_DOMAINS);
-        projectTypeDomainMap.put(ProjectType.MAINTENANCE, ProjectType.MAINTENANCE_DOMAINS);
+        setMatchingDomainForType();
 
         // Based on the project type, assign a matching domain
         this.domain = generateDomain(this.type);
@@ -94,6 +89,26 @@ public class Project {
         } else {
             this.tenderDeadlineInDays = Integer.MAX_VALUE;
         }
+    }
+
+    private static void setMatchingDomainForType() {
+        // Set matching candidates for project types (e.g., "Development") and domains (e.g., "COBOL")
+        projectTypeDomainMap.put(ProjectType.CONSULTING, ProjectType.CONSULTING_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.CUSTOMIZATION, ProjectType.CUSTOMIZATION_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.DEVELOPMENT, ProjectType.DEVELOPMENT_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.INTRODUCTION, ProjectType.INTRODUCTION_DOMAINS);
+        projectTypeDomainMap.put(ProjectType.MAINTENANCE, ProjectType.MAINTENANCE_DOMAINS);
+    }
+
+    public Project(ProjectType type, String domain, RiskLevel risk, boolean hasTenderProcess) {
+        // Warning: The problem with this constructor is that it circumvents
+        // project creation logic (e.g., volume correlates with risk).
+        this();
+        this.type = type;
+        this.domain = domain;
+        this.risk = risk;
+        this.totalValue = generateVolume();
+        this.hasTenderProcess = hasTenderProcess;
     }
 
     private int generateDeadline() {
@@ -319,5 +334,10 @@ public class Project {
 
     public boolean hasBeenStarted() {
         return getStartedAt() > 0;
+    }
+
+    Project setRiskLevel(RiskLevel riskLevel) {
+        this.risk = riskLevel;
+        return this;
     }
 }
