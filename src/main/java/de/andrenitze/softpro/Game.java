@@ -208,6 +208,11 @@ public class Game {
     }
 
     private void startStaleProjectsPerTick() {
+        // Don't do that in level 1
+        if (getLevel() == 1) {
+            return;
+        }
+
         // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
         for (Project project : projects) {
             if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
