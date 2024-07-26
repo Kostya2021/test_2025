@@ -8,13 +8,22 @@ import de.andrenitze.softpro.entities.Objectives;
 import de.andrenitze.softpro.types.Decision;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
 public class Player {
-    public static final float INITIAL_FUNDS = 150000;
+    private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
+        put(1, 18000f);
+        put(2, 150000f);
+        put(3, 150000f);
+        put(4, 150000f);
+        put(5, 150000f);
+        put(6, 150000f);
+        put(7, 150000f);
+    }};
 
     @JsonIgnore
     private final UUID id;
@@ -26,7 +35,7 @@ public class Player {
     private String company;
 
     @JsonProperty
-    private float funds = INITIAL_FUNDS;
+    private float funds;
 
     @JsonProperty
     private ArrayList<Employee> employees = new ArrayList<>();
@@ -74,7 +83,7 @@ public class Player {
         this.name = name;
         this.company = company;
         this.id = UUID.randomUUID();
-        initializeBeforeGame();
+        initializeBeforeGame(level);
     }
 
     String getName() {
@@ -163,12 +172,14 @@ public class Player {
         this.ready = ready;
     }
 
-    public void initializeBeforeGame() {
+    public void initializeBeforeGame(int level) {
         setReady(false);
-        this.funds = INITIAL_FUNDS;
 
-        Objectives objectives = new Objectives();
-        objectives.loadObjectivesFromYamlFile();
+        // Set initial funds for selected level
+        this.funds = INITIAL_FUNDS.get(level);
+
+        // Load objectives for selected level
+        Objectives objectives = Objectives.getInstance(level);
         this.objectives = objectives.getObjectives();
     }
 
@@ -210,5 +221,9 @@ public class Player {
 
     public void setFunds(int i) {
         this.funds = i;
+    }
+
+    public void setLevel(int i) {
+        this.level = i;
     }
 }

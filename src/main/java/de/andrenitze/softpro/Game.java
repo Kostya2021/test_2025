@@ -341,29 +341,29 @@ public class Game {
                 }
 
                 /*
-                  Naive matching approach with exact IDs from objectives.yaml
+                  Naive matching approach with exact IDs from level-1-objectives.yaml
                   Create a new objective in the YAML file, then create a matching case here.
                  */
-                if (objective.getId() == 1) {
+                if (objective.getId() == 11) {
                     // Criterion: If player has accepted any project from the project market
                     if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
                         objective.markAsCompleted();
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 2) {
+                } else if (objective.getId() == 12) {
                     // Criterion: If employees have been assigned to any project
                     if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))) {
                         objective.markAsCompleted();
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 3) {
+                } else if (objective.getId() == 13) {
                     // Criterion: If project has been kicked off
                     if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
                             && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
                         objective.markAsCompleted();
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 4 || objective.getId() == 5) {
+                } else if (objective.getId() == 14 || objective.getId() == 21) {
                     // Were conditions met (= projects finished) after the objective occurred?
                     // Only check relevant (= finished) projects
                     ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
@@ -412,6 +412,11 @@ public class Game {
                 // Game Over condition #2: All objectives completed
                 gameIsOver = true;
                 playerHasWon = true;
+
+                // Set the player's level to the next one. This will be used to initialize the
+                // correct game state for the next level.
+                logger.debug("Player {} has completed all objectives. Moving to next level.", player.getName());
+                player.setLevel(level + 1);
             }
 
             if (gameIsOver) {
@@ -440,7 +445,6 @@ public class Game {
 
                 // Add community votes to the game over stats
                 DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
-                // Hard-coded placeholder for level 1
                 Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
                 goStats.setCommunityVotes(distributions);
 
@@ -448,9 +452,9 @@ public class Game {
                 sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
 
                 // Keep connection and name but reset other player attributes
-                player.initializeBeforeGame();
+                player.initializeBeforeGame(level);
 
-                // Tell game server to move player back to lobby
+                // Tell game server to move player back to lobby/ briefing screen
                 this.gameServer.addPlayerToLobby(webSocket, player);
 
                 DataSource dataSource = DatabaseConfig.getDataSource();

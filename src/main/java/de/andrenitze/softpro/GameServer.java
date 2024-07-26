@@ -106,7 +106,7 @@ public class GameServer extends WebSocketServer {
     private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
         // Create a new game instance for this player and add her to it
         Game game = new Game(this);
-        player.initializeBeforeGame();
+        player.initializeBeforeGame(player.getLevel());
         game.addPlayerToGame(webSocket, player);
 
         // WARNING! THIS WILL BREAK STARTING IN LEVEL 2!
@@ -131,7 +131,6 @@ public class GameServer extends WebSocketServer {
             employee.setName(player.getName());
             employee.setSalary(952);
             employee.setAge(22);
-            player.setFunds(18000);
 
             // Increase XP in one random project domain and project type
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];

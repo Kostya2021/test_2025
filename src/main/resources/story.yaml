@@ -1,7 +1,7 @@
 storyElements:
   - id: 1
     avatar: PROFESSOR
-    earliestOccurrence: 7
+    earliestOccurrence: 5
     lines:
       - Choose one of the semester projects to show what you've learned so far. 🤓
   - id: 2
