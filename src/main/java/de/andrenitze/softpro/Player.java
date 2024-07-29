@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.Main.logger;
 
 public class Player {
     private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
@@ -173,14 +174,14 @@ public class Player {
     }
 
     public void initializeBeforeGame(int level) {
+        logger.debug("Initializing level {} for player {}", level, id);
         setReady(false);
 
         // Set initial funds for selected level
         this.funds = INITIAL_FUNDS.get(level);
 
-        // Load objectives for selected level
-        Objectives objectives = Objectives.getInstance(level);
-        this.objectives = objectives.getObjectives();
+        // Load objectives for selected level through ObjectivesLoader
+        this.objectives = Objectives.getInstance(level).getObjectives();
     }
 
     public void addXp(int newXP) {

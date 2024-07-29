@@ -146,17 +146,17 @@ public class Game {
                 projects.add(project);
                 projectEmployeesMap.put(project, new ArrayList<>());
             }
+
+            // Send talent market to players at once
+            GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+            employeeEvent.setPayload(talentMarket.getTalents());
+            broadcastToAllPlayers(GSON.toJson(employeeEvent));
         }
 
         // Send all tenders at once
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projects);
         broadcastToAllPlayers(GSON.toJson(projectEvent));
-
-        // Send talent market to players at once
-        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-        employeeEvent.setPayload(talentMarket.getTalents());
-        broadcastToAllPlayers(GSON.toJson(employeeEvent));
     }
 
     protected int getLevel() {
@@ -399,6 +399,7 @@ public class Game {
             });
         }
     }
+
     void checkGameOverConditionsAndKickPlayersPerTick() {
         players.forEach((webSocket, player) -> {
             boolean gameIsOver = false;
@@ -409,13 +410,19 @@ public class Game {
                 gameIsOver = true;
             } else if (!player.getObjectives().isEmpty() &&
                     player.getObjectives().size() == player.getCompletedObjectives().size()) {
+                logger.debug("Objectives completed: {} / {}", player.getCompletedObjectives().size(), player.getObjectives().size());
+                logger.debug("Objective 1 '{}' is completed: {}", player.getObjectives().get(0).getTitle(), player.getObjectives().get(0).isCompleted());
+
                 // Game Over condition #2: All objectives completed
                 gameIsOver = true;
                 playerHasWon = true;
 
+                // Reset objectives for the next level
+                player.getObjectives().clear();
+
                 // Set the player's level to the next one. This will be used to initialize the
                 // correct game state for the next level.
-                logger.debug("Player {} has completed all objectives. Moving to next level.", player.getName());
+                logger.debug("Player {} has completed all objectives. Moving to next level.", player.getId());
                 player.setLevel(level + 1);
             }
 

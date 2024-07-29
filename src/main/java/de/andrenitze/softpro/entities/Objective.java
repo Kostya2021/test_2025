@@ -73,4 +73,28 @@ public class Objective {
     public void markAsCompleted() {
         this.completedSteps = totalSteps;
     }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public int getOrder() {
+        return order;
+    }
+
+    public int getRewardFunds() {
+        return rewardFunds;
+    }
+
+    public String getSuccessMessage() {
+        return successMessage;
+    }
+
+    public String getFailureMessage() {
+        return failureMessage;
+    }
+
+    public String getMission() {
+        return mission;
+    }
 }
