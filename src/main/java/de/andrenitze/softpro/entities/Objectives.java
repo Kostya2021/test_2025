@@ -7,9 +7,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Objectives {
-    private ArrayList<Objective> objectives;
+    private final ArrayList<Objective> objectives;
 
-    private static Map<Integer, Objectives> instances = new ConcurrentHashMap<>();
+    private static final Map<Integer, Objectives> instances = new ConcurrentHashMap<>();
 
     private Objectives(ArrayList<Objective> objectives) {
         this.objectives = objectives;
@@ -36,9 +36,5 @@ public class Objectives {
 
     public ArrayList<Objective> getObjectives() {
         return objectives;
-    }
-
-    public void setObjectives(ArrayList<Objective> objectives) {
-        this.objectives = objectives;
     }
 }
