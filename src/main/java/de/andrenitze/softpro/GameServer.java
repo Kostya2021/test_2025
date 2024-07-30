@@ -106,10 +106,11 @@ public class GameServer extends WebSocketServer {
     private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
         // Create a new game instance for this player and add her to it
         Game game = new Game(this);
-        player.initializeBeforeGame(player.getLevel());
+        logger.debug("GameServer: player.initializeBeforeGame() is called");
+        player.initializeBeforeGame();
         game.addPlayerToGame(webSocket, player);
 
-        // WARNING! THIS WILL BREAK STARTING IN LEVEL 2!
+        logger.debug("GameServer: preparePlayerAndGameForNextLevel() is called");
         preparePlayerAndGameForNextLevel(player, game);
 
         games.add(game);
@@ -125,8 +126,9 @@ public class GameServer extends WebSocketServer {
      * Prepare the player and game instance for the next level while the player is still in the lobby.
      */
     private void preparePlayerAndGameForNextLevel(Player player, Game game) {
+        logger.debug("Preparing player and game for level {}", player.getLevel());
         // For level 1, generate the player as his/her own first and only employee
-        if (game.getLevel() == 1) {
+        if (player.getLevel() == 1) {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setName(player.getName());
             employee.setSalary(952);
@@ -209,8 +211,25 @@ public class GameServer extends WebSocketServer {
 
                     List<Decision> decisions = gameEvent.getPayload().decisions();
                     int level = gameEvent.getPayload().level();
+                    logger.debug("Received PLAYER_READY for level {}", level);
 
                     Player player = lobby.get(webSocket);
+
+                    // Forward this event to the game event handler for level and player initialization tasks
+                    for (Game game : games) {
+                        if (game.hasWebSocket(webSocket)) {
+                            game.getEventHandler().handleEvent(webSocket, message);
+                        }
+                    }
+
+                    logger.debug("Player object has level {}", player.getLevel());
+                    logger.debug("Current game instance has level {}",
+                            Objects.requireNonNull(games.stream()
+                            .filter(game -> game.hasWebSocket(webSocket))
+                            .findFirst()
+                            .orElse(null))
+                            .getLevel()
+                    );
                     lobby.get(webSocket).setDecisions(level, decisions);
                     player.setReady(true);
 
@@ -242,9 +261,10 @@ public class GameServer extends WebSocketServer {
                     player.setName(newName);
 
                     // Change first employee name for level 1 accordingly
-                    if (player.getLevel() == 1) {
-                        Employee employee = player.getEmployees().get(0);
-                        employee.setName(newName);
+                    try {
+                        player.getEmployees().get(0).setName(newName);
+                    } catch (IndexOutOfBoundsException e) {
+                        logger.error("No employees found for player {}", player.getName());
                     }
 
                     // Confirm successful name change

@@ -84,7 +84,7 @@ public class Player {
         this.name = name;
         this.company = company;
         this.id = UUID.randomUUID();
-        initializeBeforeGame(level);
+        initializeBeforeGame();
     }
 
     String getName() {
@@ -173,15 +173,16 @@ public class Player {
         this.ready = ready;
     }
 
-    public void initializeBeforeGame(int level) {
-        logger.debug("Initializing level {} for player {}", level, id);
+    public void initializeBeforeGame() {
+        logger.debug("Player: initializeBeforeGame(): Initializing level {} for player {}", getLevel(), id);
         setReady(false);
 
         // Set initial funds for selected level
-        this.funds = INITIAL_FUNDS.get(level);
+        this.funds = INITIAL_FUNDS.get(getLevel());
 
         // Load objectives for selected level through ObjectivesLoader
-        this.objectives = Objectives.getInstance(level).getObjectives();
+        logger.debug("Player: initializeBeforeGame(): Loading objectives for level {}", getLevel());
+        this.objectives = Objectives.getInstance(getLevel()).getObjectives();
     }
 
     public void addXp(int newXP) {
@@ -226,5 +227,9 @@ public class Player {
 
     public void setLevel(int i) {
         this.level = i;
+    }
+
+    public LevelDecisions getDecisions() {
+        return decisions;
     }
 }

@@ -16,16 +16,18 @@ public class Objectives {
     }
 
     public static Objectives getInstance(int level) {
-        logger.debug("Getting Objectives instance for level {}", level);
+        logger.debug("Trying to get Objectives instance for level {}", level);
         Objectives instance = instances.get(level);
         if (instance == null) {
             synchronized (Objectives.class) {
                 instance = instances.get(level);
                 if (instance == null) {
-                    logger.debug("Creating new Objectives instance for level {}", level);
                     ArrayList<Objective> loadedObjectives = ObjectivesLoader.loadObjectivesFromYamlFile("level-" + level + "-objectives.yaml");
                     instance = new Objectives(loadedObjectives);
                     instances.put(level, instance);
+                    logger.debug("Creating new Objectives instance for level {} with {} objectives",
+                            level,
+                            loadedObjectives.size());
                 }
             }
         }
