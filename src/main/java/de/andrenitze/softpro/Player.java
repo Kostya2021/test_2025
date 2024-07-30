@@ -178,7 +178,7 @@ public class Player {
         setReady(false);
 
         // Set initial funds for selected level
-        setFunds(INITIAL_FUNDS.get(getLevel()));;
+        setFunds(INITIAL_FUNDS.get(getLevel()));
 
         // Load objectives for selected level through ObjectivesLoader
         logger.debug("Player: initializeBeforeGame(): Loading objectives for level {}", getLevel());

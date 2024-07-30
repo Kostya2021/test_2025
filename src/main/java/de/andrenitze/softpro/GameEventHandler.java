@@ -68,11 +68,9 @@ class GameEventHandler {
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, true);
             }
-            case PLAYER_READY -> {
-                // The Player and Game classes both have a "level" attribute, sp
+            case PLAYER_READY -> // The Player and Game classes both have a "level" attribute, sp
                 // make sure the next level is set in the game instance correctly.
-                game.prepareNextLevel();
-            }
+                    game.prepareNextLevel();
             case ROUND_STARTED -> {
             }
             case UNASSIGN_EMPLOYEE -> {
