@@ -1,6 +1,7 @@
 package de.andrenitze.softpro.types;
 
 import javax.sql.DataSource;
+import java.net.ConnectException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -33,7 +34,7 @@ public class DecisionDAO {
         }
     }
 
-    public Map<Integer, List<OptionVoteDistribution>> getVoteDistributionByLevel(int level) {
+    public Map<Integer, List<OptionVoteDistribution>> getVoteDistributionByLevel(int level) throws ConnectException {
         Map<Integer, List<OptionVoteDistribution>> groupedDistributions = new HashMap<>();
         String sql = "SELECT" +
                 " decisionId," +

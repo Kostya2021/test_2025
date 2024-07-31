@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.net.ConnectException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
@@ -430,73 +431,6 @@ public class Game {
                 handleGameOver(player, webSocket); // Decide what to do next
             }
         });
-        /*
-        players.forEach((webSocket, player) -> {
-            boolean gameIsOver = false;
-            boolean playerHasWon = false;
-
-            if (player.getFunds() <= BANKRUPTCY_THRESHOLD.get(level)) {
-                // Game Over condition #1: Bankruptcy
-                gameIsOver = true;
-                logger.debug("Player {} has gone bankrupt.", player.getId());
-            } else if (!player.getObjectives().isEmpty() &&
-                    player.getObjectives().size() == player.getCompletedObjectives().size()) {
-                logger.debug("Objectives completed: {} / {}", player.getCompletedObjectives().size(), player.getObjectives().size());
-
-                // Game Over condition #2: All objectives completed
-                gameIsOver = true;
-                playerHasWon = true;
-
-                // Reset objectives for the next level
-                player.getObjectives().clear();
-
-                // Set the player's level to the next one. This will be used to initialize the
-                // correct game state for the next level.
-                logger.debug("Player {} has completed all objectives. Moving to level {}.", player.getId(), level + 1);
-                player.setLevel(level + 1);
-                // Notice that we DON'T set the game's level here!
-            }
-
-            if (gameIsOver) {
-                int deliveredProjects = 0;
-                int projectsVolume = 0;
-                for (Project project : getProjects()) {
-                    if (project.isCompleted() && project.playerWasInvolved(player)) {
-                        deliveredProjects++;
-                        projectsVolume += project.getTotalValue();
-                    }
-                }
-
-                GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
-                GameOverStats goStats = new GameOverStats();
-                goStats.setDeliveredProjects(deliveredProjects);
-                goStats.setProjectsVolume(projectsVolume);
-                goStats.setSurvivedDays(getCurrentTick());
-                goStats.setPlayedSeconds(getCurrentTick() * GAME_SPEED_IN_MILLISECONDS / 1000);
-                goStats.setReport(playerHasWon ? "win" : "fail");
-
-                if (playerHasWon) {
-                    // Keep connection and name but reset other player attributes
-                    player.loadObjectivesAndFundsForNextLevel();
-                } else {
-                    this.gameServer.movePlayerToLobby(webSocket, player);
-                }
-
-                // Add community votes to the game over stats
-                DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
-                Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
-                goStats.setCommunityVotes(distributions);
-
-                gameOverEvent.setPayload(goStats);
-                sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
-
-                saveGameOverStats(webSocket, player, goStats);
-                checkAndBroadcastHighScore(goStats);
-
-                removePlayerFromGame(webSocket);
-                closeGameIfEmpty();
-            }
-         */
     }
 
     private void handleGameOver(Player player, WebSocket webSocket) {
@@ -511,16 +445,13 @@ public class Game {
             logger.debug("Player {} has completed all objectives. Moving to level {}.", player.getId(), level + 1);
             player.setLevel(level + 1);
             player.loadObjectivesAndFundsForNextLevel();
-
-            // Send a player update to the client
-            // GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
-            // playerUpdateEvent.setPayload(player);
-            // sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
         } else {
-            // Move player back to lobby if they lost
-            logger.debug("Player {} has lost the game. Moving back to lobby...", player.getId());
-            gameServer.movePlayerToLobby(webSocket, player);
+            logger.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
         }
+
+        // Move player back to lobby in any case. The frontend will send the player to the
+        // lobby or briefing screen depending on the report (win/fail).
+        gameServer.movePlayerToLobby(webSocket, player);
 
         saveGameOverStats(webSocket, player, goStats); // This could be handled outside of the game loop (DB access takes time...)
         checkAndBroadcastHighScore(goStats);
@@ -555,7 +486,12 @@ public class Game {
         goStats.setLevel(getLevel());
 
         DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
-        Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
+        Map<Integer, List<OptionVoteDistribution>> distributions = null;
+        try {
+            distributions = dao.getVoteDistributionByLevel(level);
+        } catch (ConnectException e) {
+            logger.warn("Could not fetch vote distributions from database: {}", e.getMessage());
+        }
         goStats.setCommunityVotes(distributions);
 
         return goStats;
