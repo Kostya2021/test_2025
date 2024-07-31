@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.StoryElement;
-import de.andrenitze.softpro.entities.StoryElements;
+import de.andrenitze.softpro.entities.StoryElementsLoader;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
@@ -59,7 +59,7 @@ public class Game {
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     public static final Gson GSON = new Gson();
-    private ArrayList<StoryElement> storyElements;
+    private ArrayList<StoryElement> storyElements; // Level-specific
     private final SkillsManager skillsManager = new SkillsManager();
     private final TalentMarket talentMarket;
     private int level = 1;
@@ -93,7 +93,7 @@ public class Game {
 
         currentTick = 0;
         currentDate = now();
-        loadStoryElementsFromFile();
+        loadStory();
     }
 
     public void start() {
@@ -181,10 +181,9 @@ public class Game {
         return level;
     }
 
-    private void loadStoryElementsFromFile() {
-        StoryElements elements = new StoryElements();
-        elements.loadStoryElementsFromYamlFile();
-        this.storyElements = elements.getStoryElements();
+    private void loadStory() {
+        StoryElementsLoader loader = new StoryElementsLoader();
+        this.storyElements = loader.getStoryElementsForLevel(getLevel());
     }
 
     private void progressGameTime() {
