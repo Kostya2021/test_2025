@@ -14,7 +14,7 @@ import static de.andrenitze.softpro.Main.logger;
 public class StoryElementsLoader {
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     private static final int NUMBER_OF_LEVELS = 2;
-    private Map<Integer, ArrayList<StoryElement>> levelStoryElements = new HashMap<>();
+    private final Map<Integer, ArrayList<StoryElement>> levelStoryElements = new HashMap<>();
 
     public StoryElementsLoader() {
         for (int i = 1; i <= NUMBER_OF_LEVELS; i++) {
