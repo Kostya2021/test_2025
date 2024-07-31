@@ -175,7 +175,7 @@ public class Project {
         return projectName.toString();
     }
 
-    int getTotalValue() {
+    public int getTotalValue() {
         return totalValue;
     }
 

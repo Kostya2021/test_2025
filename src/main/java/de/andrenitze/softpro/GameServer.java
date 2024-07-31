@@ -106,11 +106,8 @@ public class GameServer extends WebSocketServer {
     private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
         // Create a new game instance for this player and add her to it
         Game game = new Game(this);
-        logger.debug("GameServer: player.initializeBeforeGame() is called");
-        player.initializeBeforeGame();
         game.addPlayerToGame(webSocket, player);
 
-        logger.debug("GameServer: preparePlayerAndGameForNextLevel() is called");
         preparePlayerAndGameForNextLevel(player, game);
 
         games.add(game);
@@ -123,10 +120,12 @@ public class GameServer extends WebSocketServer {
     }
 
     /**
-     * Prepare the player and game instance for the next level while the player is still in the lobby.
+     * Prepare the player and game instance for the next level while player is in "BRIEFING" state.
+     * This can be in the lobby OR on the briefing screen.
+     * After connecting, a game instance is immediately created and the player is added to it.
      */
     private void preparePlayerAndGameForNextLevel(Player player, Game game) {
-        logger.debug("Preparing player and game for level {}", player.getLevel());
+        logger.debug("Preparing game for level {} and player {}", player.getLevel(), player.getId());
         // For level 1, generate the player as his/her own first and only employee
         if (player.getLevel() == 1) {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
@@ -179,7 +178,7 @@ public class GameServer extends WebSocketServer {
                 int numberOfPlayers = game.getPlayers().size();
                 logger.debug("A player left the game - {} player(s) left in the game", numberOfPlayers);
 
-                if (game.closeIfEmpty()) {
+                if (game.closeGameIfEmpty()) {
                     // Remove all references to the game
                     if (games.remove(game)) {
                         logger.info("Game closed. {} game(s) left", games.size());
@@ -371,7 +370,7 @@ public class GameServer extends WebSocketServer {
         logger.info("Server started successfully");
     }
 
-    void addPlayerToLobby(WebSocket webSocket, Player player) {
+    void movePlayerToLobby(WebSocket webSocket, Player player) {
         lobby.put(webSocket, player);
         createNewGameWithPlayer(webSocket, player);
         broadcastLobbyState();
@@ -398,7 +397,7 @@ public class GameServer extends WebSocketServer {
         if (!games.isEmpty()) {
             for (Game game : games) {
                 if (game.getPlayers().isEmpty()) {
-                    logger.debug("Found empty game! Closing...");
+                    logger.warn("Found stale game instance! Closing...");
                     games.remove(game);
                     broadcastLobbyState();
                 }

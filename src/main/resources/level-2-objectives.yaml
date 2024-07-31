@@ -1,6 +1,7 @@
 objectives:
-  - title: Finish 10 projects
+  - title: Complete 5 projects
     id: 21
     order: 1
+    totalSteps: 5
     mission: Prove yourself worthy
-    earliestOccurrence: 10
+    earliestOccurrence: 3

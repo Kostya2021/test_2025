@@ -8,12 +8,15 @@ objectives:
     id: 12
     order: 2
     mission: Getting Started
+    earliestOccurrence: 10
   - title: Kick off your project
     id: 13
     order: 3
     mission: Getting Started
+    earliestOccurrence: 10
   - title: Complete your project
     id: 14
     order: 4
     mission: Getting Started
+    earliestOccurrence: 10
     rewardFunds: 1500

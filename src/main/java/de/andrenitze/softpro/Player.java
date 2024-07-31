@@ -84,7 +84,7 @@ public class Player {
         this.name = name;
         this.company = company;
         this.id = UUID.randomUUID();
-        initializeBeforeGame();
+        loadObjectivesAndFundsForNextLevel();
     }
 
     String getName() {
@@ -173,15 +173,19 @@ public class Player {
         this.ready = ready;
     }
 
-    public void initializeBeforeGame() {
-        logger.debug("Player: initializeBeforeGame(): Initializing level {} for player {}", getLevel(), id);
+    /**
+     * This method loads objectives and funds for the next level.
+     * It requires the player's <i>level</i> to be set correctly before calling the method!
+     */
+    public void loadObjectivesAndFundsForNextLevel() {
+        logger.debug("Loading funds and objectives for level {} for player {}", getLevel(), id);
         setReady(false);
 
         // Set initial funds for selected level
         setFunds(INITIAL_FUNDS.get(getLevel()));
 
         // Load objectives for selected level through ObjectivesLoader
-        logger.debug("Player: initializeBeforeGame(): Loading objectives for level {}", getLevel());
+        logger.debug("Loading objectives for level {}", getLevel());
         this.objectives = Objectives.getInstance(getLevel()).getObjectives();
     }
 
