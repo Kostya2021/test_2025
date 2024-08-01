@@ -25,9 +25,6 @@ import java.nio.ByteBuffer;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class GameServer extends WebSocketServer {
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
@@ -49,16 +46,6 @@ public class GameServer extends WebSocketServer {
 
         // Fetch high-score in a separate thread
         new Thread(this::fetchHighScore).start();
-
-        // Find and close empty games regularly in a separate thread
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-        scheduler.scheduleAtFixedRate(() -> {
-            try {
-                findAndCloseEmptyGames();
-            } catch (Exception e) {
-                logger.error("Error while finding and closing empty games: {}", e.getMessage());
-            }
-        }, 0, 2500, TimeUnit.MILLISECONDS);
     }
 
     private void fetchHighScore() {
@@ -399,17 +386,5 @@ public class GameServer extends WebSocketServer {
             logger.warn("No high score found for today.");
         }
         return highScore;
-    }
-
-    private void findAndCloseEmptyGames() {
-        if (!games.isEmpty()) {
-            for (Game game : games) {
-                if (game.getPlayers().isEmpty()) {
-                    logger.warn("Found stale game instance! Closing...");
-                    games.remove(game);
-                    broadcastLobbyState();
-                }
-            }
-        }
     }
 }
