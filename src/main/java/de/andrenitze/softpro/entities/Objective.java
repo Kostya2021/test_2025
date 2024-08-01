@@ -97,4 +97,8 @@ public class Objective {
     public String getMission() {
         return mission;
     }
+
+    public Object getTotalSteps() {
+        return totalSteps;
+    }
 }

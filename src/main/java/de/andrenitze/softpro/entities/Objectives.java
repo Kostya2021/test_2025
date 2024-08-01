@@ -16,7 +16,6 @@ public class Objectives {
     }
 
     public static Objectives getInstance(int level) {
-        logger.debug("Trying to get Objectives instance for level {}", level);
         Objectives instance = instances.get(level);
         if (instance == null) {
             synchronized (Objectives.class) {
@@ -32,6 +31,10 @@ public class Objectives {
             }
         }
         return instance;
+    }
+
+    public static ArrayList<Objective> getObjectivesForLevel(int level) {
+        return getInstance(level).getObjectives();
     }
 
     public ArrayList<Objective> getObjectives() {

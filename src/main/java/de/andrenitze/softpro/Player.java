@@ -26,6 +26,17 @@ public class Player {
         put(7, 150000f);
     }};
 
+    // Hashmap for each levels' bankruptcy threshold
+    private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
+        put(1, -500);
+        put(2, -100000);
+        put(3, 0);
+        put(4, 0);
+        put(5, 0);
+        put(6, 0);
+        put(7, 0);
+    }};
+
     @JsonIgnore
     private final UUID id;
 
@@ -84,7 +95,7 @@ public class Player {
         this.name = name;
         this.company = company;
         this.id = UUID.randomUUID();
-        loadObjectivesAndFundsForNextLevel();
+        initializeObjectives();
     }
 
     String getName() {
@@ -177,15 +188,9 @@ public class Player {
      * This method loads objectives and funds for the next level.
      * It requires the player's <i>level</i> to be set correctly before calling the method!
      */
-    public void loadObjectivesAndFundsForNextLevel() {
-        logger.debug("Loading funds and objectives for level {} for player {}", getLevel(), id);
-        setReady(false);
-
-        // Set initial funds for selected level
-        setFunds(INITIAL_FUNDS.get(getLevel()));
-
-        // Load objectives for selected level through ObjectivesLoader
-        this.objectives = Objectives.getInstance(getLevel()).getObjectives();
+    public void initializeObjectives() {
+        this.objectives = Objectives.getObjectivesForLevel(getLevel());
+        logger.debug("Loaded funds and objectives for level {} for player {}", getLevel(), id);
     }
 
     public void addXp(int newXP) {
@@ -238,5 +243,23 @@ public class Player {
 
     public LevelDecisions getDecisions() {
         return decisions;
+    }
+
+    public void initializeFunds() {
+        this.funds = INITIAL_FUNDS.get(this.level);
+    }
+
+    public boolean completedAllObjectives() {
+        for (Objective objective : objectives) {
+            if (!objective.isCompleted()) {
+                return false;
+            }
+        }
+        logger.debug("Player {} has completed all {} objectives", id, objectives.size());
+        return true;
+    }
+
+    public boolean isBankrupt() {
+        return this.funds < BANKRUPTCY_THRESHOLD.get(this.level);
     }
 }

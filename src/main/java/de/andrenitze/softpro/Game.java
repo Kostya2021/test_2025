@@ -31,16 +31,6 @@ import static java.time.LocalDate.now;
 
 public class Game {
     public static final int GAME_SPEED_IN_MILLISECONDS = 400;
-    // Hashmap for each levels' bankruptcy threshold
-    private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
-        put(1, -500);
-        put(2, -100000);
-        put(3, 0);
-        put(4, 0);
-        put(5, 0);
-        put(6, 0);
-        put(7, 0);
-    }};
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -182,8 +172,7 @@ public class Game {
     }
 
     private void loadStory() {
-        StoryElementsLoader loader = new StoryElementsLoader();
-        this.storyElements = loader.getStoryElementsForLevel(getLevel());
+        this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(getLevel());
     }
 
     private void progressGameTime() {
@@ -399,7 +388,10 @@ public class Game {
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
                         // The number of relevant projects equals the completed steps
                         objective.setCompletedSteps(relevantProjects.size());
-                        logger.debug("Objective {} completed steps: {}", objective.getId(), objective.getCompletedSteps());
+                        logger.debug("Objective {} completed steps: {}/{}",
+                                objective.getId(),
+                                objective.getCompletedSteps(),
+                                objective.getTotalSteps());
                         updatedNeeded = true;
                     }
                 }
@@ -425,37 +417,38 @@ public class Game {
 
     void checkGameOverConditionsPerTick() {
         players.forEach((webSocket, player) -> {
-            if (checkBankruptcy(player) || checkObjectivesCompletion(player)) {
-                stop(); // stop game time
+            if (player.isBankrupt() || player.completedAllObjectives()) {
+                stopGameTime();
                 handleGameOver(player, webSocket); // Decide what to do next
             }
         });
     }
 
     private void handleGameOver(Player player, WebSocket webSocket) {
-        boolean playerHasWon = !player.getObjectives().isEmpty() &&
-                player.getObjectives().size() == player.getCompletedObjectives().size();
+        logger.debug("Game over for player {}.", player.getId());
+        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt();
 
         GameOverStats goStats = createGameOverStats(player);
         goStats.setReport(playerHasWon ? "win" : "fail");
+        logger.debug("Result: {}", playerHasWon ? "win" : "fail");
 
         if (playerHasWon) {
             // Keep the player in the game and prepare for the next level
-            logger.debug("Player {} has completed all objectives. Moving to level {}.", player.getId(), level + 1);
+            logger.debug("Player {} has completed all objectives. Moving to next level ({}).", player.getId(), level + 1);
             player.setLevel(level + 1);
-            player.loadObjectivesAndFundsForNextLevel();
         } else {
             logger.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
         }
-
-        saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
-        checkAndBroadcastHighScore(goStats);
 
         // Send GAME_OVER event after decision
         // TODO Does that work correctly? When should the event be sent?
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
         sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
+        logger.debug("Sent GAME_OVER event to player: {}", Game.GSON.toJson(gameOverEvent));
+
+        saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
+        checkAndBroadcastHighScore(goStats);
 
         // Move player back to lobby in any case. The frontend will send the player to the
         // lobby or briefing screen depending on the report (win/fail).
@@ -491,14 +484,6 @@ public class Game {
         goStats.setCommunityVotes(distributions);
 
         return goStats;
-    }
-
-    private boolean checkBankruptcy(Player player) {
-        if (player.getFunds() <= BANKRUPTCY_THRESHOLD.get(level)) {
-            logger.debug("Player {} has gone bankrupt (funds below {}) and lost level {}.", player.getId(), BANKRUPTCY_THRESHOLD.get(level), level);
-            return true;
-        }
-        return false;
     }
 
     private boolean checkObjectivesCompletion(Player player) {
@@ -953,6 +938,7 @@ public class Game {
 
     void removePlayerFromGame(WebSocket conn) {
         players.remove(conn);
+        conn.close();
         closeGameIfEmpty();
     }
 
@@ -1020,8 +1006,8 @@ public class Game {
         // Close game session if this was the last player
         if (numberOfPlayers == 0) {
             // Stop the game loop to make sure the thread can be interrupted
-            logger.debug("Game has no players left. Stopping game loop.");
-            stop();
+            logger.debug("Game instance {} has no players left. Stopping game loop.", this.hashCode());
+            killGameLoop();
 
             // If the game loop successfully stopped, return true
             return true;
@@ -1056,8 +1042,11 @@ public class Game {
         return skillsManager;
     }
 
-    public void stop() {
+    public void stopGameTime() {
         isRunning = false;
+    }
+
+    public void killGameLoop() {
         shutdownAndAwaitTermination(gameLoop);
     }
 
