@@ -136,7 +136,7 @@ public class Game {
     }
 
     /**
-     * The next level is prepared, after players hit the "Start Level X" button.
+     * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
      */
     protected void prepareNextLevel() {
         // Get next level from players. Highest level wins, but all players in one instance should have the same level.
@@ -191,7 +191,7 @@ public class Game {
 
         // Stop if the game is over
         if (!isRunning) {
-            // TODO Sure 'bout this?
+            // Sure 'bout this?
             gameLoop.shutdownNow();
             return;
         }
@@ -207,7 +207,6 @@ public class Game {
         // This is important because player interactions alter the state between ticks
         conductWorkOnAllProjectsPerTick();
         processSalariesAndAdjustFundsPerTick(currentDate);
-        checkGameOverConditionsPerTick();
         randomlySpawnProjectTendersPerTick();
         removeStaleTendersPerTick();
         assignProjectsPerTick();
@@ -216,6 +215,7 @@ public class Game {
         simulateEmployeeLifePerTick();
         sendStoryElementsPerTick();
         startStaleProjectsPerTick();
+        checkGameOverConditionsPerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -448,11 +448,7 @@ public class Game {
             logger.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
         }
 
-        // Move player back to lobby in any case. The frontend will send the player to the
-        // lobby or briefing screen depending on the report (win/fail).
-        gameServer.movePlayerToLobby(webSocket, player);
-
-        saveGameOverStats(webSocket, player, goStats); // This could be handled outside of the game loop (DB access takes time...)
+        saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
         checkAndBroadcastHighScore(goStats);
 
         // Send GAME_OVER event after decision
@@ -461,10 +457,11 @@ public class Game {
         gameOverEvent.setPayload(goStats);
         sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
 
-        if (!playerHasWon) {
-            removePlayerFromGame(webSocket);
-        }
-        closeGameIfEmpty();
+        // Move player back to lobby in any case. The frontend will send the player to the
+        // lobby or briefing screen depending on the report (win/fail).
+        // This means, that each level will have a new game instance.
+        gameServer.movePlayerToLobby(webSocket, player);
+        removePlayerFromGame(webSocket);
     }
 
     private GameOverStats createGameOverStats(Player player) {
@@ -498,7 +495,7 @@ public class Game {
 
     private boolean checkBankruptcy(Player player) {
         if (player.getFunds() <= BANKRUPTCY_THRESHOLD.get(level)) {
-            logger.debug("Player {} has gone bankrupt.", player.getId());
+            logger.debug("Player {} has gone bankrupt (funds below {}) and lost level {}.", player.getId(), BANKRUPTCY_THRESHOLD.get(level), level);
             return true;
         }
         return false;
@@ -956,7 +953,7 @@ public class Game {
 
     void removePlayerFromGame(WebSocket conn) {
         players.remove(conn);
-        //closeIfEmpty();
+        closeGameIfEmpty();
     }
 
     Map<WebSocket, Player> getPlayers() {

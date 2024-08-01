@@ -11,7 +11,6 @@ import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
-import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -94,6 +93,7 @@ public class GameServer extends WebSocketServer {
         Player newPlayer = new Player();
         lobby.put(webSocket, newPlayer);
 
+        // Create a new game instance for the player
         createNewGameWithPlayer(webSocket, newPlayer);
 
         broadcastLobbyState();
@@ -103,16 +103,21 @@ public class GameServer extends WebSocketServer {
                 lobby.size());
     }
 
+    /**
+     * Creates a new game instance for a player and adds her to it.
+     *
+     * @param webSocket WebSocket   The WebSocket connection to the client
+     * @param player Player         The player to be added to the game
+     */
     private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
-        // Create a new game instance for this player and add her to it
         Game game = new Game(this);
         game.addPlayerToGame(webSocket, player);
 
+        // Prepare both, player and game, for the next level
         preparePlayerAndGameForNextLevel(player, game);
-
         games.add(game);
 
-        // Return generated player to the client
+        // Send updated player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
         playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
@@ -122,10 +127,13 @@ public class GameServer extends WebSocketServer {
     /**
      * Prepare the player and game instance for the next level while player is in "BRIEFING" state.
      * This can be in the lobby OR on the briefing screen.
-     * After connecting, a game instance is immediately created and the player is added to it.
      */
     private void preparePlayerAndGameForNextLevel(Player player, Game game) {
         logger.debug("Preparing game for level {} and player {}", player.getLevel(), player.getId());
+
+        // Make sure the skills are initialized
+        game.getSkillsManager().addPlayer(player);
+
         // For level 1, generate the player as his/her own first and only employee
         if (player.getLevel() == 1) {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
@@ -336,7 +344,7 @@ public class GameServer extends WebSocketServer {
                 ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
     }
 
-    private @NotNull GameOverStats getAnonymizedHighScore() {
+    private GameOverStats getAnonymizedHighScore() {
         GameOverStats anonymizedHighScore = new GameOverStats();
         if (dailyHighScore != null && dailyHighScore.getDeliveredProjects() > 0) {
             anonymizedHighScore.setPlayerName(dailyHighScore.getPlayerName());

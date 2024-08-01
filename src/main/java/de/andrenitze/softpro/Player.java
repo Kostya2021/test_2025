@@ -185,7 +185,6 @@ public class Player {
         setFunds(INITIAL_FUNDS.get(getLevel()));
 
         // Load objectives for selected level through ObjectivesLoader
-        logger.debug("Loading objectives for level {}", getLevel());
         this.objectives = Objectives.getInstance(getLevel()).getObjectives();
     }
 
@@ -231,5 +230,13 @@ public class Player {
 
     public void setLevel(int i) {
         this.level = i;
+    }
+
+    public String getCompany() {
+        return company;
+    }
+
+    public LevelDecisions getDecisions() {
+        return decisions;
     }
 }
