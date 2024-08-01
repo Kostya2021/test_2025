@@ -46,6 +46,26 @@ public class GameServer extends WebSocketServer {
 
         // Fetch high-score in a separate thread
         new Thread(this::fetchHighScore).start();
+
+        // Graceful shutdown hook
+        Thread printingHook = new Thread(this::gracefulShutdown);
+        Runtime.getRuntime().addShutdownHook(printingHook);
+    }
+
+    private void gracefulShutdown() {
+        logger.info("Shutting down server...");
+        // Disconnect all client connections for lobby...
+        for (WebSocket client : lobby.keySet()) {
+            client.close();
+        }
+
+        // ...and for running games
+        for (Game game : games) {
+            for (WebSocket client : game.getPlayers().keySet()) {
+                client.close();
+            }
+        }
+        logger.info("Server stopped.");
     }
 
     private void fetchHighScore() {
@@ -78,9 +98,11 @@ public class GameServer extends WebSocketServer {
 
         // Generate a new player
         Player newPlayer = new Player();
-        lobby.put(webSocket, newPlayer);
 
-        // Create a new game instance for the player
+        // Player is in the lobby and in a game at the same time because the game
+        // needs to be initialized for the level briefing.
+        // This is ok, because for multiplayer, players have to wait in the briefing room.
+        lobby.put(webSocket, newPlayer);
         createNewGameWithPlayer(webSocket, newPlayer);
 
         broadcastLobbyState();
@@ -103,6 +125,7 @@ public class GameServer extends WebSocketServer {
         // Prepare both, player and game, for the next level
         preparePlayerAndGameForNextLevel(player, game);
         games.add(game);
+        logger.debug("New game instance {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
 
         // Send updated player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
@@ -117,6 +140,13 @@ public class GameServer extends WebSocketServer {
      */
     private void preparePlayerAndGameForNextLevel(Player player, Game game) {
         logger.debug("Preparing game for level {} and player {}", player.getLevel(), player.getId());
+
+        // Give player chance to prepare for the next level (read up, make decisions etc.)
+        player.setReady(false);
+
+        // Initialization methods change the player's state according to the player's level
+        player.initializeObjectives();
+        player.initializeFunds();
 
         // Make sure the skills are initialized
         game.getSkillsManager().addPlayer(player);
@@ -219,10 +249,10 @@ public class GameServer extends WebSocketServer {
                     logger.debug("Player object has level {}", player.getLevel());
                     logger.debug("Current game instance has level {}",
                             Objects.requireNonNull(games.stream()
-                            .filter(game -> game.hasWebSocket(webSocket))
-                            .findFirst()
-                            .orElse(null))
-                            .getLevel()
+                                            .filter(game -> game.hasWebSocket(webSocket))
+                                            .findFirst()
+                                            .orElse(null))
+                                    .getLevel()
                     );
                     lobby.get(webSocket).setDecisions(level, decisions);
                     player.setReady(true);
@@ -366,9 +396,12 @@ public class GameServer extends WebSocketServer {
     }
 
     void movePlayerToLobby(WebSocket webSocket, Player player) {
+        logger.debug("Moving player {} back to lobby", player.getName());
         lobby.put(webSocket, player);
-        createNewGameWithPlayer(webSocket, player);
         broadcastLobbyState();
+
+        // TODO Where does it belong?
+        createNewGameWithPlayer(webSocket, player);
     }
 
     public void setNewHighScore(GameOverStats gameOverStats) {
