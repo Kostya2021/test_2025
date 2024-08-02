@@ -125,7 +125,7 @@ public class GameServer extends WebSocketServer {
         // Prepare both, player and game, for the next level
         preparePlayerAndGameForNextLevel(player, game);
         games.add(game);
-        logger.debug("New game instance {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
+        logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
 
         // Send updated player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
@@ -147,6 +147,11 @@ public class GameServer extends WebSocketServer {
         // Initialization methods change the player's state according to the player's level
         player.initializeObjectives();
         player.initializeFunds();
+
+        // Load story elements for the next level
+        // game.getLevel() is "1", because game has not been completely initialized
+        // player.getLevel() is "2" already, because completed all objectives
+        game.loadStory(player.getLevel());
 
         // Make sure the skills are initialized
         game.getSkillsManager().addPlayer(player);
@@ -182,6 +187,7 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
+        logger.debug("Connection {} closed", webSocket.getRemoteSocketAddress());
         removeDisconnectedClient(webSocket);
     }
 
@@ -246,8 +252,8 @@ public class GameServer extends WebSocketServer {
                         }
                     }
 
-                    logger.debug("Player object has level {}", player.getLevel());
-                    logger.debug("Current game instance has level {}",
+                    logger.debug("Player has level {}", player.getLevel());
+                    logger.debug("Current game has level {}",
                             Objects.requireNonNull(games.stream()
                                             .filter(game -> game.hasWebSocket(webSocket))
                                             .findFirst()
@@ -355,8 +361,11 @@ public class GameServer extends WebSocketServer {
         // Anonymize high-score before sending
         GameOverStats anonymizedHighScore = getAnonymizedHighScore();
 
+        // Calculate how many games are currently running (gameLoop.isRunning = true)
+        short runningGames = (short) games.stream().filter(Game::isRunning).count();
+
         broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
-                "\"runningGames\": " + games.size() +
+                "\"runningGames\": " + runningGames +
                 ", \"players\": " + playersList +
                 ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
     }
@@ -398,10 +407,11 @@ public class GameServer extends WebSocketServer {
     void movePlayerToLobby(WebSocket webSocket, Player player) {
         logger.debug("Moving player {} back to lobby", player.getName());
         lobby.put(webSocket, player);
-        broadcastLobbyState();
 
         // TODO Where does it belong?
         createNewGameWithPlayer(webSocket, player);
+
+        broadcastLobbyState();
     }
 
     public void setNewHighScore(GameOverStats gameOverStats) {
@@ -419,5 +429,9 @@ public class GameServer extends WebSocketServer {
             logger.warn("No high score found for today.");
         }
         return highScore;
+    }
+
+    public Set<Game> getGames() {
+        return games;
     }
 }
