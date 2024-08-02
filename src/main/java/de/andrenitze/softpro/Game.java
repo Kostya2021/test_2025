@@ -38,6 +38,7 @@ public class Game {
     // Base productivity value = How much value one person (FTE) can produce in one day
     public static final int BASE_PRODUCTIVITY_VALUE = 1000;
     public static final double PROFIT_MARGIN = 0.3;
+    public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 2;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -83,13 +84,12 @@ public class Game {
 
         currentTick = 0;
         currentDate = now();
-        loadStory();
     }
 
     public void start() {
         // CHeck if there is at least one player in this game instance
         if (players.isEmpty()) {
-            logger.error("No players in this game instance. Cannot start game.");
+            logger.error("No players in this game. Cannot start.");
             return;
         }
 
@@ -171,8 +171,8 @@ public class Game {
         return level;
     }
 
-    private void loadStory() {
-        this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(getLevel());
+    void loadStory(int level) {
+        this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(level);
     }
 
     private void progressGameTime() {
@@ -434,8 +434,15 @@ public class Game {
 
         if (playerHasWon) {
             // Keep the player in the game and prepare for the next level
-            logger.debug("Player {} has completed all objectives. Moving to next level ({}).", player.getId(), level + 1);
-            player.setLevel(level + 1);
+            logger.debug("Player {} has completed all {} objectives. Moving to next level ({}).",
+                    player.getId(),
+                    player.getObjectives().size(),
+                    level + 1);
+
+            // Only increase level for existing levels
+            if (level < NUMBER_OF_LEVELS_IN_THE_GAME) {
+                player.setLevel(level + 1);
+            }
         } else {
             logger.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
         }
@@ -936,9 +943,8 @@ public class Game {
         return currentTick;
     }
 
-    void removePlayerFromGame(WebSocket conn) {
-        players.remove(conn);
-        conn.close();
+    void removePlayerFromGame(WebSocket webSocket) {
+        players.remove(webSocket);
         closeGameIfEmpty();
     }
 
@@ -1006,7 +1012,7 @@ public class Game {
         // Close game session if this was the last player
         if (numberOfPlayers == 0) {
             // Stop the game loop to make sure the thread can be interrupted
-            logger.debug("Game instance {} has no players left. Stopping game loop.", this.hashCode());
+            logger.debug("Game {} has no players left. Stopping game loop.", this.hashCode());
             killGameLoop();
 
             // If the game loop successfully stopped, return true
@@ -1137,5 +1143,9 @@ public class Game {
         if (getProjectById(project.getId()) == null) {
             projects.add(project);
         }
+    }
+
+    public boolean isRunning() {
+        return isRunning;
     }
 }

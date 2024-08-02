@@ -190,7 +190,7 @@ public class Player {
      */
     public void initializeObjectives() {
         this.objectives = Objectives.getObjectivesForLevel(getLevel());
-        logger.debug("Loaded funds and objectives for level {} for player {}", getLevel(), id);
+        logger.debug("Loaded funds and {} objectives for level {} and player {}", this.objectives.size(), getLevel(), id);
     }
 
     public void addXp(int newXP) {
@@ -255,7 +255,6 @@ public class Player {
                 return false;
             }
         }
-        logger.debug("Player {} has completed all {} objectives", id, objectives.size());
         return true;
     }
 

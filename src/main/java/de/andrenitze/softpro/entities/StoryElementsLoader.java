@@ -22,6 +22,8 @@ public class StoryElementsLoader {
         ClassLoader classLoader = getClass().getClassLoader();
         InputStream inputStream = classLoader.getResourceAsStream(filename);
 
+        logger.debug("Loading story elements from file: {}", filename);
+
         if (inputStream == null) {
             throw new IllegalArgumentException("file not found! " + filename);
         } else {
