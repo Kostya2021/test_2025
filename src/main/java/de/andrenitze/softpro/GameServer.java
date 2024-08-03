@@ -231,7 +231,7 @@ public class GameServer extends WebSocketServer {
 
         // Handle lobby events (PLAYER_READY, PLAYER_NAME_UPDATED) here and forward everything else to the game instances
         try {
-            GameEvent genericGameEvent = GSON.fromJson(message, GameEvent.class);
+            GameEvent<?> genericGameEvent = GSON.fromJson(message, GameEvent.class);
 
             // If player is ready to play, make her available to be picked up by game instances.
             if (EventType.PLAYER_READY.equals(genericGameEvent.getType())) {
@@ -429,9 +429,5 @@ public class GameServer extends WebSocketServer {
             logger.warn("No high score found for today.");
         }
         return highScore;
-    }
-
-    public Set<Game> getGames() {
-        return games;
     }
 }

@@ -23,7 +23,7 @@ class GameEventHandler {
     }
 
     void handleEvent(WebSocket websocket, String message) {
-        GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
+        GameEvent<?> event = GSON.fromJson(message, GameEvent.class);
         logger.debug("Received event: {}", event.getType());
 
         switch (event.getType()) {
