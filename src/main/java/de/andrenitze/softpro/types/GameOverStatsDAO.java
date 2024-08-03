@@ -4,6 +4,8 @@ import de.andrenitze.softpro.entities.GameOverStats;
 
 import javax.sql.DataSource;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import static de.andrenitze.softpro.Main.logger;
 
@@ -37,16 +39,38 @@ public class GameOverStatsDAO {
         }
     }
 
-    public GameOverStats getCurrentHighScore() {
-        String sql = "SELECT * FROM GameOverStats WHERE DATE(finishedAt) = CURRENT_DATE ORDER BY projectsVolume DESC LIMIT 1";
-        GameOverStats highScore = null;
+    public List<GameOverStats> getCurrentHighScores() {
+        String sql = "(SELECT 'daily' AS period, id, deliveredProjects, projectsVolume, report, playerName, ipAddress, finishedAt, gameId, survivedDays, playedSeconds FROM GameOverStats" +
+                "        WHERE DATE(finishedAt) = CURRENT_DATE" +
+                "        ORDER BY projectsVolume DESC" +
+                "        LIMIT 3" +
+                ")" +
+                "        UNION ALL" +
+                "        (" +
+                "                SELECT 'monthly' AS period, id, deliveredProjects, projectsVolume, report, playerName, ipAddress, finishedAt, gameId, survivedDays, playedSeconds" +
+                "        FROM GameOverStats" +
+                "        WHERE YEAR(finishedAt) = YEAR(CURRENT_DATE) AND MONTH(finishedAt) = MONTH(CURRENT_DATE)" +
+                "        ORDER BY projectsVolume DESC" +
+                "        LIMIT 3" +
+                ")" +
+                "        UNION ALL" +
+                "        (" +
+                "                SELECT 'quarterly' AS period, id, deliveredProjects, projectsVolume, report, playerName, ipAddress, finishedAt, gameId, survivedDays, playedSeconds" +
+                "        FROM GameOverStats" +
+                "        WHERE YEAR(finishedAt) = YEAR(CURRENT_DATE) AND QUARTER(finishedAt) = QUARTER(CURRENT_DATE)" +
+                "        ORDER BY projectsVolume DESC" +
+                "        LIMIT 3" +
+                ")";
+
+        List<GameOverStats> highScores = new ArrayList<>();
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
 
-            if (rs.next()) {
-                highScore = new GameOverStats();
+            while (rs.next()) {
+                GameOverStats highScore = new GameOverStats();
+                highScore.setPeriod(rs.getString("period"));
                 highScore.setId(rs.getInt("id"));
                 highScore.setDeliveredProjects(rs.getInt("deliveredProjects"));
                 highScore.setProjectsVolume(rs.getInt("projectsVolume"));
@@ -57,11 +81,12 @@ public class GameOverStatsDAO {
                 highScore.setGameId(rs.getString("gameId"));
                 highScore.setSurvivedDays(rs.getInt("survivedDays"));
                 highScore.setPlayedSeconds(rs.getInt("playedSeconds"));
+                highScores.add(highScore);
             }
         } catch (SQLException e) {
             logger.error("Could not fetch high-score from database: {}", e.getMessage());
             return null;
         }
-        return highScore;
+        return highScores;
     }
 }

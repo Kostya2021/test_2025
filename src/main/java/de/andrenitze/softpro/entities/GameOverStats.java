@@ -19,6 +19,7 @@ public class GameOverStats {
     private Integer playedSeconds = 0;
     private Map<Integer, List<OptionVoteDistribution>> communityVotes;
     private Integer level = 0;
+    private String period;
 
     public Integer getId() {
         return id;
@@ -114,5 +115,13 @@ public class GameOverStats {
 
     public void setLevel(Integer level) {
         this.level = level;
+    }
+
+    public void setPeriod(String period) {
+        this.period = period;
+    }
+
+    public String getPeriod() {
+        return period;
     }
 }

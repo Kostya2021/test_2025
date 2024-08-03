@@ -548,13 +548,13 @@ public class Game {
     }
 
     private boolean isNewHighScore(GameOverStats highScoreCandidate) {
-        GameOverStats highScore;
+        List<GameOverStats> highScores;
 
         // Check database to see if this is a new high-score
-        highScore = gameServer.getCurrentHighScore();
-        if (highScore == null) return false;
+        highScores = gameServer.getCurrentHighScores();
+        if (highScores == null) return false;
 
-        return (highScoreCandidate.getProjectsVolume() >= highScore.getProjectsVolume());
+        return highScores.stream().anyMatch(highScore -> highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
     private void randomlySpawnProjectTendersPerTick() {
