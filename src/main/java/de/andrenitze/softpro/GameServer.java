@@ -34,6 +34,9 @@ public class GameServer extends WebSocketServer {
     private static final Gson GSON = new Gson();
     private GameOverStats dailyHighScore;
     protected static final Random RANDOM = new Random();
+    private List<GameOverStats> dailyHighScores;
+    private List<GameOverStats> monthlyHighScores;
+    private List<GameOverStats> quarterlyHighScores;
 
     /**
      * Creates a GameServer instance to manage games and players
@@ -72,12 +75,51 @@ public class GameServer extends WebSocketServer {
         logger.info("Fetching high-score from database");
         GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(DatabaseConfig.getDataSource());
 
-        GameOverStats dailyHighScore = gameOverStatsDAO.getCurrentHighScore();
-        if (dailyHighScore != null && dailyHighScore.getProjectsVolume() > 0) {
-            this.dailyHighScore = dailyHighScore;
-            logger.info("Current high-score ({} € volume) fetched from database", this.dailyHighScore.getProjectsVolume());
+        List<GameOverStats> highScores = gameOverStatsDAO.getCurrentHighScores();
+
+        if (highScores != null && !highScores.isEmpty()) {
+            List<GameOverStats> dailyHighScores = new ArrayList<>();
+            List<GameOverStats> monthlyHighScores = new ArrayList<>();
+            List<GameOverStats> quarterlyHighScores = new ArrayList<>();
+
+            for (GameOverStats highScore : highScores) {
+                switch (highScore.getPeriod()) {
+                    case "daily":
+                        dailyHighScores.add(highScore);
+                        break;
+                    case "monthly":
+                        monthlyHighScores.add(highScore);
+                        break;
+                    case "quarterly":
+                        quarterlyHighScores.add(highScore);
+                        break;
+                    default:
+                        logger.warn("Unknown period: " + highScore.getPeriod());
+                }
+            }
+
+            if (!dailyHighScores.isEmpty()) {
+                this.dailyHighScores = dailyHighScores;
+                logger.info("Daily high-scores fetched from database");
+            } else {
+                logger.info("No daily high-scores set for today, yet.");
+            }
+
+            if (!monthlyHighScores.isEmpty()) {
+                this.monthlyHighScores = monthlyHighScores;
+                logger.info("Monthly high-scores fetched from database");
+            } else {
+                logger.info("No monthly high-scores set for this month, yet.");
+            }
+
+            if (!quarterlyHighScores.isEmpty()) {
+                this.quarterlyHighScores = quarterlyHighScores;
+                logger.info("Quarterly high-scores fetched from database");
+            } else {
+                logger.info("No quarterly high-scores set for this quarter, yet.");
+            }
         } else {
-            logger.info("No high-score set for today, yet.");
+            logger.info("No high-scores found in database");
         }
     }
 
@@ -358,8 +400,10 @@ public class GameServer extends WebSocketServer {
             playersList.put(player);
         }
 
-        // Anonymize high-score before sending
-        GameOverStats anonymizedHighScore = getAnonymizedHighScore();
+        // Anonymize high-scores before sending
+        List<GameOverStats> anonymizedDailyHighScores = getAnonymizedDailyHighScores();
+        List<GameOverStats> anonymizedMonthlyHighScores = getAnonymizedMonthlyHighScores();
+        List<GameOverStats> anonymizedQuarterlyHighScores = getAnonymizedQuarterlyHighScores();
 
         // Calculate how many games are currently running (gameLoop.isRunning = true)
         short runningGames = (short) games.stream().filter(Game::isRunning).count();
@@ -367,19 +411,47 @@ public class GameServer extends WebSocketServer {
         broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
                 "\"runningGames\": " + runningGames +
                 ", \"players\": " + playersList +
-                ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
+                ", \"dailyHighScores\": " + GSON.toJson(anonymizedDailyHighScores) +
+                ", \"monthlyHighScores\": " + GSON.toJson(anonymizedMonthlyHighScores) +
+                ", \"quarterlyHighScores\": " + GSON.toJson(anonymizedQuarterlyHighScores) + "}}");
     }
 
-    private GameOverStats getAnonymizedHighScore() {
-        GameOverStats anonymizedHighScore = new GameOverStats();
-        if (dailyHighScore != null && dailyHighScore.getDeliveredProjects() > 0) {
-            anonymizedHighScore.setPlayerName(dailyHighScore.getPlayerName());
-            anonymizedHighScore.setDeliveredProjects(dailyHighScore.getDeliveredProjects());
-            anonymizedHighScore.setProjectsVolume(dailyHighScore.getProjectsVolume());
-            anonymizedHighScore.setFinishedAt(dailyHighScore.getFinishedAt());
-            anonymizedHighScore.setSurvivedDays(dailyHighScore.getSurvivedDays());
+    private List<GameOverStats> getAnonymizedHighScores(List<GameOverStats> highScores) {
+        List<GameOverStats> anonymizedHighScores = new ArrayList<>();
+        for (GameOverStats highScore : highScores) {
+            GameOverStats anonymizedHighScore = new GameOverStats();
+            anonymizedHighScore.setPlayerName(highScore.getPlayerName());
+            anonymizedHighScore.setDeliveredProjects(highScore.getDeliveredProjects());
+            anonymizedHighScore.setProjectsVolume(highScore.getProjectsVolume());
+            anonymizedHighScore.setFinishedAt(highScore.getFinishedAt());
+            anonymizedHighScore.setSurvivedDays(highScore.getSurvivedDays());
+            anonymizedHighScores.add(anonymizedHighScore);
         }
-        return anonymizedHighScore;
+        return anonymizedHighScores;
+    }
+
+    private List<GameOverStats> getAnonymizedDailyHighScores() {
+        if (dailyHighScores != null && !dailyHighScores.isEmpty()) {
+            return getAnonymizedHighScores(dailyHighScores);
+        } else {
+            return new ArrayList<>();
+        }
+    }
+
+    private List<GameOverStats> getAnonymizedMonthlyHighScores() {
+        if (monthlyHighScores != null && !monthlyHighScores.isEmpty()) {
+            return getAnonymizedHighScores(monthlyHighScores);
+        } else {
+            return new ArrayList<>();
+        }
+    }
+
+    private List<GameOverStats> getAnonymizedQuarterlyHighScores() {
+        if (quarterlyHighScores != null && !quarterlyHighScores.isEmpty()) {
+            return getAnonymizedHighScores(quarterlyHighScores);
+        } else {
+            return new ArrayList<>();
+        }
     }
 
     @Override
@@ -408,7 +480,6 @@ public class GameServer extends WebSocketServer {
         logger.debug("Moving player {} back to lobby", player.getName());
         lobby.put(webSocket, player);
 
-        // TODO Where does it belong?
         createNewGameWithPlayer(webSocket, player);
 
         broadcastLobbyState();
@@ -418,16 +489,16 @@ public class GameServer extends WebSocketServer {
         this.dailyHighScore = gameOverStats;
     }
 
-    GameOverStats getCurrentHighScore() {
+    List<GameOverStats> getCurrentHighScores() {
         DataSource dataSource = DatabaseConfig.getDataSource();
         GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
 
-        GameOverStats highScore = gameOverStatsDAO.getCurrentHighScore();
-        if (highScore != null) {
+        List<GameOverStats> highScores = gameOverStatsDAO.getCurrentHighScores();
+        if (highScores != null) {
             logger.info("Current high score fetched successfully.");
         } else {
             logger.warn("No high score found for today.");
         }
-        return highScore;
+        return highScores;
     }
 }
