@@ -1,0 +1,7 @@
+objectives:
+  - title: Complete 5 projects
+    id: 21
+    order: 1
+    totalSteps: 5
+    mission: Prove yourself worthy
+    earliestOccurrence: 3

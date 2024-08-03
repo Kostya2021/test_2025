@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.StoryElement;
-import de.andrenitze.softpro.entities.StoryElements;
+import de.andrenitze.softpro.entities.StoryElementsLoader;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.net.ConnectException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
@@ -29,17 +30,7 @@ import static java.lang.Math.round;
 import static java.time.LocalDate.now;
 
 public class Game {
-    private static final int GAME_SPEED_IN_MILLISECONDS = 1000;
-    // Hashmap for each levels' bankruptcy threshold
-    private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
-        put(1, -500);
-        put(2, -100000);
-        put(3, 0);
-        put(4, 0);
-        put(5, 0);
-        put(6, 0);
-        put(7, 0);
-    }};
+    public static final int GAME_SPEED_IN_MILLISECONDS = 400;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -47,6 +38,7 @@ public class Game {
     // Base productivity value = How much value one person (FTE) can produce in one day
     public static final int BASE_PRODUCTIVITY_VALUE = 1000;
     public static final double PROFIT_MARGIN = 0.3;
+    public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 2;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -58,8 +50,8 @@ public class Game {
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     public static final Gson GSON = new Gson();
-    private ArrayList<StoryElement> storyElements;
-    private final SkillsManager skillsMananger = new SkillsManager();
+    private ArrayList<StoryElement> storyElements; // Level-specific
+    private final SkillsManager skillsManager = new SkillsManager();
     private final TalentMarket talentMarket;
     private int level = 1;
 
@@ -75,22 +67,29 @@ public class Game {
         // Every game consists of players and a world in a specific state
         this.players = new ConcurrentHashMap<>();
         this.gameServer = gameServer;
+
+        // The event handler of each game will receive events from the frontend
+        // and decide how to change the game's state based on these events.
         this.eventHandler = new GameEventHandler(this);
 
         // Fill talent market with candidates, use global IDs for employees (unique across all games)
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         talentMarket = new TalentMarket(employeeIdGenerator);
-        initializeTalentMarket();
+        talentMarket.clearTalentMarket();
+
+        // Don't initialize the talent market for level 1
+        if (level != 1) {
+            initializeTalentMarket();
+        }
 
         currentTick = 0;
         currentDate = now();
-        loadStoryElementsFromFile();
     }
 
     public void start() {
         // CHeck if there is at least one player in this game instance
         if (players.isEmpty()) {
-            logger.error("No players in this game instance. Cannot start game.");
+            logger.error("No players in this game. Cannot start.");
             return;
         }
 
@@ -103,7 +102,7 @@ public class Game {
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
             // Initialize skills
-            skillsMananger.addPlayer(player);
+            skillsManager.addPlayer(player);
 
             // Send state
             logger.debug("Sending initial state to players");
@@ -111,8 +110,6 @@ public class Game {
             initialPlayerEvent.setPayload(player);
             sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
-
-        prepareNextLevel();
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -125,16 +122,23 @@ public class Game {
             progressGameTime();
         }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
 
-        logger.info("A new game has started with {} players in level {}: {}",
-                players.size(),
-                getLevel(),
-                players.values().stream().map(Player::getName).collect(Collectors.toList()));
+        logger.info("A new game has started with {} players in level {}", players.size(), getLevel());
     }
 
     /**
-     * The next level is prepared, after players hit the "Start Level X" button.
+     * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
      */
-    private void prepareNextLevel() {
+    protected void prepareNextLevel() {
+        // Get next level from players. Highest level wins, but all players in one instance should have the same level.
+        int nextLevel = 0;
+        for (Player player : players.values()) {
+            if (player.getLevel() > nextLevel) {
+                nextLevel = player.getLevel();
+            }
+        }
+        setLevel(nextLevel);
+        logger.debug("Game.prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
+
         if (getLevel() != 1) {
             projects = new ArrayList<>();
             for (int i = 0; i < 100; i++) {
@@ -146,27 +150,29 @@ public class Game {
                 projects.add(project);
                 projectEmployeesMap.put(project, new ArrayList<>());
             }
+
+            // Send talent market to players at once
+            GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+            employeeEvent.setPayload(talentMarket.getTalents());
+            broadcastToAllPlayers(GSON.toJson(employeeEvent));
         }
 
         // Send all tenders at once
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projects);
         broadcastToAllPlayers(GSON.toJson(projectEvent));
+    }
 
-        // Send talent market to players at once
-        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-        employeeEvent.setPayload(talentMarket.getTalents());
-        broadcastToAllPlayers(GSON.toJson(employeeEvent));
+    private void setLevel(int i) {
+        this.level = i;
     }
 
     protected int getLevel() {
         return level;
     }
 
-    private void loadStoryElementsFromFile() {
-        StoryElements elements = new StoryElements();
-        elements.loadStoryElementsFromYamlFile();
-        this.storyElements = elements.getStoryElements();
+    void loadStory(int level) {
+        this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(level);
     }
 
     private void progressGameTime() {
@@ -174,6 +180,7 @@ public class Game {
 
         // Stop if the game is over
         if (!isRunning) {
+            // Sure 'bout this?
             gameLoop.shutdownNow();
             return;
         }
@@ -189,15 +196,15 @@ public class Game {
         // This is important because player interactions alter the state between ticks
         conductWorkOnAllProjectsPerTick();
         processSalariesAndAdjustFundsPerTick(currentDate);
-        checkGameOverConditionsAndKickPlayersPerTick();
         randomlySpawnProjectTendersPerTick();
         removeStaleTendersPerTick();
         assignProjectsPerTick();
-        spawnObjectivesPerTick();
+        sendNewObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
         simulateEmployeeLifePerTick();
         sendStoryElementsPerTick();
         startStaleProjectsPerTick();
+        checkGameOverConditionsPerTick();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -341,29 +348,32 @@ public class Game {
                 }
 
                 /*
-                  Naive matching approach with exact IDs from objectives.yaml
+                  Naive matching approach with exact IDs from level-1-objectives.yaml
                   Create a new objective in the YAML file, then create a matching case here.
                  */
-                if (objective.getId() == 1) {
+                if (objective.getId() == 11) {
                     // Criterion: If player has accepted any project from the project market
                     if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
                         objective.markAsCompleted();
+                        logger.debug("Objective 11 completed.");
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 2) {
+                } else if (objective.getId() == 12) {
                     // Criterion: If employees have been assigned to any project
                     if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))) {
                         objective.markAsCompleted();
+                        logger.debug("Objective 12 completed.");
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 3) {
+                } else if (objective.getId() == 13) {
                     // Criterion: If project has been kicked off
                     if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
                             && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
                         objective.markAsCompleted();
+                        logger.debug("Objective 13 completed.");
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 4 || objective.getId() == 5) {
+                } else if (objective.getId() == 14 || objective.getId() == 21) {
                     // Were conditions met (= projects finished) after the objective occurred?
                     // Only check relevant (= finished) projects
                     ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
@@ -378,11 +388,16 @@ public class Game {
                     if (objective.getCompletedSteps() != relevantProjects.size()) {
                         // The number of relevant projects equals the completed steps
                         objective.setCompletedSteps(relevantProjects.size());
+                        logger.debug("Objective {} completed steps: {}/{}",
+                                objective.getId(),
+                                objective.getCompletedSteps(),
+                                objective.getTotalSteps());
                         updatedNeeded = true;
                     }
                 }
 
                 if (updatedNeeded) {
+                    logger.debug("Sending updated objectives to player.");
                     allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
                     objectivesUpdatedEvent.setPayload(allActiveObjectives);
                     sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
@@ -399,95 +414,125 @@ public class Game {
             });
         }
     }
-    void checkGameOverConditionsAndKickPlayersPerTick() {
+
+    void checkGameOverConditionsPerTick() {
         players.forEach((webSocket, player) -> {
-            boolean gameIsOver = false;
-            boolean playerHasWon = false;
-
-            if (player.getFunds() <= BANKRUPTCY_THRESHOLD.get(level)) {
-                // Game Over condition #1: Bankruptcy
-                gameIsOver = true;
-            } else if (!player.getObjectives().isEmpty() &&
-                    player.getObjectives().size() == player.getCompletedObjectives().size()) {
-                // Game Over condition #2: All objectives completed
-                gameIsOver = true;
-                playerHasWon = true;
-            }
-
-            if (gameIsOver) {
-                GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
-
-                int deliveredProjects = 0;
-                int projectsVolume = 0;
-                for (Project project : getProjects()) {
-                    if (project.isCompleted() && project.playerWasInvolved(player)) {
-                        deliveredProjects++;
-                        projectsVolume += project.getTotalValue();
-                    }
-                }
-
-                GameOverStats goStats = new GameOverStats();
-                goStats.setDeliveredProjects(deliveredProjects);
-                goStats.setProjectsVolume(projectsVolume);
-                goStats.setSurvivedDays(getCurrentTick());
-                goStats.setPlayedSeconds(getCurrentTick() * GAME_SPEED_IN_MILLISECONDS / 1000);
-
-                if (playerHasWon) {
-                    goStats.setReport("win");
-                } else {
-                    goStats.setReport("fail");
-                }
-
-                // Add community votes to the game over stats
-                DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
-                // Hard-coded placeholder for level 1
-                Map<Integer, List<OptionVoteDistribution>> distributions = dao.getVoteDistributionByLevel(level);
-                goStats.setCommunityVotes(distributions);
-
-                gameOverEvent.setPayload(goStats);
-                sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
-
-                // Keep connection and name but reset other player attributes
-                player.initializeBeforeGame();
-
-                // Tell game server to move player back to lobby
-                this.gameServer.addPlayerToLobby(webSocket, player);
-
-                DataSource dataSource = DatabaseConfig.getDataSource();
-                GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
-
-                // Complete the infos for the database
-                goStats.setPlayerName(player.getName());
-                goStats.setFinishedAt(new Date());
-                goStats.setGameId(String.valueOf(this.hashCode()));
-                goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
-
-                // Save high-score in a separate thread
-                if (gameOverStatsDAO.saveGameOverStats(goStats)) {
-                    logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
-                } else {
-                    logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
-                }
-
-                // Check if there's a new high-score and broadcast updates in lobby
-                if (isNewHighScore(goStats)) {
-                    gameServer.setNewHighScore(goStats);
-                    gameServer.broadcastLobbyState();
-                }
-
-                // Remove player from the current game
-                removePlayerFromGame(webSocket);
-
-                // If the game is empty, stop progressing the game time
-                closeIfEmpty();
+            if (player.isBankrupt() || player.completedAllObjectives()) {
+                stopGameTime();
+                handleGameOver(player, webSocket); // Decide what to do next
             }
         });
     }
 
-    void spawnObjectivesPerTick() {
+    private void handleGameOver(Player player, WebSocket webSocket) {
+        logger.debug("Game over for player {}.", player.getId());
+        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt();
+
+        GameOverStats goStats = createGameOverStats(player);
+        goStats.setReport(playerHasWon ? "win" : "fail");
+        logger.debug("Result: {}", playerHasWon ? "win" : "fail");
+
+        if (playerHasWon) {
+            // Keep the player in the game and prepare for the next level
+            logger.debug("Player {} has completed all {} objectives. Moving to next level ({}).",
+                    player.getId(),
+                    player.getObjectives().size(),
+                    level + 1);
+
+            // Only increase level for existing levels
+            if (level < NUMBER_OF_LEVELS_IN_THE_GAME) {
+                player.setLevel(level + 1);
+            }
+        } else {
+            logger.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
+        }
+
+        // Send GAME_OVER event after decision
+        // TODO Does that work correctly? When should the event be sent?
+        GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
+        gameOverEvent.setPayload(goStats);
+        sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
+        logger.debug("Sent GAME_OVER event to player: {}", Game.GSON.toJson(gameOverEvent));
+
+        saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
+        checkAndBroadcastHighScore(goStats);
+
+        // Move player back to lobby in any case. The frontend will send the player to the
+        // lobby or briefing screen depending on the report (win/fail).
+        // This means, that each level will have a new game instance.
+        gameServer.movePlayerToLobby(webSocket, player);
+        removePlayerFromGame(webSocket);
+    }
+
+    private GameOverStats createGameOverStats(Player player) {
+        int deliveredProjects = 0;
+        int projectsVolume = 0;
+        for (Project project : getProjects()) {
+            if (project.isCompleted() && project.playerWasInvolved(player)) {
+                deliveredProjects++;
+                projectsVolume += project.getTotalValue();
+            }
+        }
+
+        GameOverStats goStats = new GameOverStats();
+        goStats.setDeliveredProjects(deliveredProjects);
+        goStats.setProjectsVolume(projectsVolume);
+        goStats.setSurvivedDays(getCurrentTick());
+        goStats.setPlayedSeconds(getCurrentTick() * GAME_SPEED_IN_MILLISECONDS / 1000);
+        goStats.setLevel(getLevel());
+
+        DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
+        Map<Integer, List<OptionVoteDistribution>> distributions = null;
+        try {
+            distributions = dao.getVoteDistributionByLevel(level);
+        } catch (ConnectException e) {
+            logger.warn("Could not fetch vote distributions from database: {}", e.getMessage());
+        }
+        goStats.setCommunityVotes(distributions);
+
+        return goStats;
+    }
+
+    private boolean checkObjectivesCompletion(Player player) {
+        if (!player.getObjectives().isEmpty() &&
+                player.getObjectives().size() == player.getCompletedObjectives().size()) {
+            logger.debug("All objectives completed: {} / {}", player.getCompletedObjectives().size(), player.getObjectives().size());
+            return true;
+        }
+        return false;
+    }
+
+    private void saveGameOverStats(WebSocket webSocket, Player player, GameOverStats goStats) {
+        DataSource dataSource = DatabaseConfig.getDataSource();
+        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
+
+        // Complete the infos for the database
+        goStats.setPlayerName(player.getName());
+        goStats.setFinishedAt(new Date());
+        goStats.setGameId(String.valueOf(this.hashCode()));
+        goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
+
+        // Save high-score in a separate thread
+        if (gameOverStatsDAO.saveGameOverStats(goStats)) {
+            logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
+        } else {
+            logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
+        }
+    }
+
+    private void checkAndBroadcastHighScore(GameOverStats goStats) {
+        // Check if there's a new high-score and broadcast updates in lobby
+        if (isNewHighScore(goStats)) {
+            gameServer.setNewHighScore(goStats);
+            gameServer.broadcastLobbyState();
+        }
+    }
+
+    void sendNewObjectivesPerTick() {
         players.forEach((webSocket, player) -> {
             List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(getCurrentTick());
             if (!newObjectivesInThisTick.isEmpty()) {
+                logger.debug("Sending {} new objectives to player.", newObjectivesInThisTick.size());
                 GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                 List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(getCurrentTick());
                 objectivesUpdatedEvent.setPayload(allActiveObjectives);
@@ -818,7 +863,7 @@ public class Game {
         // If only one player is working on the project
         if (players.size() == 1) {
             Player player = players.get(0);
-            if (skillsMananger.playerHasSkill(player, "pmo")) {
+            if (skillsManager.playerHasSkill(player, "pmo")) {
                 return 1.05f;
             }
         }
@@ -898,9 +943,9 @@ public class Game {
         return currentTick;
     }
 
-    void removePlayerFromGame(WebSocket conn) {
-        players.remove(conn);
-        //closeIfEmpty();
+    void removePlayerFromGame(WebSocket webSocket) {
+        players.remove(webSocket);
+        closeGameIfEmpty();
     }
 
     Map<WebSocket, Player> getPlayers() {
@@ -961,18 +1006,17 @@ public class Game {
         }
     }
 
-    public boolean closeIfEmpty() {
+    public boolean closeGameIfEmpty() {
         int numberOfPlayers = players.size();
 
         // Close game session if this was the last player
         if (numberOfPlayers == 0) {
             // Stop the game loop to make sure the thread can be interrupted
-            logger.debug("Game has no players left. Stopping game loop.");
-            stop();
+            logger.debug("Game {} has no players left. Stopping game loop.", this.hashCode());
+            killGameLoop();
 
             // If the game loop successfully stopped, return true
-            // TODO FIX THIS: It's probably not actually waiting for the game loop to shutdown
-            return gameLoop.isShutdown();
+            return true;
         }
         return false;
     }
@@ -1001,11 +1045,14 @@ public class Game {
     }
 
     public SkillsManager getSkillsManager() {
-        return skillsMananger;
+        return skillsManager;
     }
 
-    public void stop() {
+    public void stopGameTime() {
         isRunning = false;
+    }
+
+    public void killGameLoop() {
         shutdownAndAwaitTermination(gameLoop);
     }
 
@@ -1096,5 +1143,9 @@ public class Game {
         if (getProjectById(project.getId()) == null) {
             projects.add(project);
         }
+    }
+
+    public boolean isRunning() {
+        return isRunning;
     }
 }

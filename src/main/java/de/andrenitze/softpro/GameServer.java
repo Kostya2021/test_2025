@@ -11,7 +11,6 @@ import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
-import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -26,9 +25,6 @@ import java.nio.ByteBuffer;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class GameServer extends WebSocketServer {
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
@@ -51,15 +47,25 @@ public class GameServer extends WebSocketServer {
         // Fetch high-score in a separate thread
         new Thread(this::fetchHighScore).start();
 
-        // Find and close empty games regularly in a separate thread
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-        scheduler.scheduleAtFixedRate(() -> {
-            try {
-                findAndCloseEmptyGames();
-            } catch (Exception e) {
-                logger.error("Error while finding and closing empty games: {}", e.getMessage());
+        // Graceful shutdown hook
+        Thread printingHook = new Thread(this::gracefulShutdown);
+        Runtime.getRuntime().addShutdownHook(printingHook);
+    }
+
+    private void gracefulShutdown() {
+        logger.info("Shutting down server...");
+        // Disconnect all client connections for lobby...
+        for (WebSocket client : lobby.keySet()) {
+            client.close();
+        }
+
+        // ...and for running games
+        for (Game game : games) {
+            for (WebSocket client : game.getPlayers().keySet()) {
+                client.close();
             }
-        }, 0, 2500, TimeUnit.MILLISECONDS);
+        }
+        logger.info("Server stopped.");
     }
 
     private void fetchHighScore() {
@@ -92,8 +98,11 @@ public class GameServer extends WebSocketServer {
 
         // Generate a new player
         Player newPlayer = new Player();
-        lobby.put(webSocket, newPlayer);
 
+        // Player is in the lobby and in a game at the same time because the game
+        // needs to be initialized for the level briefing.
+        // This is ok, because for multiplayer, players have to wait in the briefing room.
+        lobby.put(webSocket, newPlayer);
         createNewGameWithPlayer(webSocket, newPlayer);
 
         broadcastLobbyState();
@@ -103,18 +112,22 @@ public class GameServer extends WebSocketServer {
                 lobby.size());
     }
 
+    /**
+     * Creates a new game instance for a player and adds her to it.
+     *
+     * @param webSocket WebSocket   The WebSocket connection to the client
+     * @param player Player         The player to be added to the game
+     */
     private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
-        // Create a new game instance for this player and add her to it
         Game game = new Game(this);
-        player.initializeBeforeGame();
         game.addPlayerToGame(webSocket, player);
 
-        // WARNING! THIS WILL BREAK STARTING IN LEVEL 2!
+        // Prepare both, player and game, for the next level
         preparePlayerAndGameForNextLevel(player, game);
-
         games.add(game);
+        logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
 
-        // Return generated player to the client
+        // Send updated player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
         playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
@@ -122,16 +135,33 @@ public class GameServer extends WebSocketServer {
     }
 
     /**
-     * Prepare the player and game instance for the next level while the player is still in the lobby.
+     * Prepare the player and game instance for the next level while player is in "BRIEFING" state.
+     * This can be in the lobby OR on the briefing screen.
      */
     private void preparePlayerAndGameForNextLevel(Player player, Game game) {
+        logger.debug("Preparing game for level {} and player {}", player.getLevel(), player.getId());
+
+        // Give player chance to prepare for the next level (read up, make decisions etc.)
+        player.setReady(false);
+
+        // Initialization methods change the player's state according to the player's level
+        player.initializeObjectives();
+        player.initializeFunds();
+
+        // Load story elements for the next level
+        // game.getLevel() is "1", because game has not been completely initialized
+        // player.getLevel() is "2" already, because completed all objectives
+        game.loadStory(player.getLevel());
+
+        // Make sure the skills are initialized
+        game.getSkillsManager().addPlayer(player);
+
         // For level 1, generate the player as his/her own first and only employee
-        if (game.getLevel() == 1) {
+        if (player.getLevel() == 1) {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setName(player.getName());
             employee.setSalary(952);
             employee.setAge(22);
-            player.setFunds(18000);
 
             // Increase XP in one random project domain and project type
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
@@ -157,6 +187,7 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
+        logger.debug("Connection {} closed", webSocket.getRemoteSocketAddress());
         removeDisconnectedClient(webSocket);
     }
 
@@ -178,7 +209,7 @@ public class GameServer extends WebSocketServer {
                 int numberOfPlayers = game.getPlayers().size();
                 logger.debug("A player left the game - {} player(s) left in the game", numberOfPlayers);
 
-                if (game.closeIfEmpty()) {
+                if (game.closeGameIfEmpty()) {
                     // Remove all references to the game
                     if (games.remove(game)) {
                         logger.info("Game closed. {} game(s) left", games.size());
@@ -200,7 +231,7 @@ public class GameServer extends WebSocketServer {
 
         // Handle lobby events (PLAYER_READY, PLAYER_NAME_UPDATED) here and forward everything else to the game instances
         try {
-            GameEvent genericGameEvent = GSON.fromJson(message, GameEvent.class);
+            GameEvent<?> genericGameEvent = GSON.fromJson(message, GameEvent.class);
 
             // If player is ready to play, make her available to be picked up by game instances.
             if (EventType.PLAYER_READY.equals(genericGameEvent.getType())) {
@@ -210,8 +241,25 @@ public class GameServer extends WebSocketServer {
 
                     List<Decision> decisions = gameEvent.getPayload().decisions();
                     int level = gameEvent.getPayload().level();
+                    logger.debug("Received PLAYER_READY for level {}", level);
 
                     Player player = lobby.get(webSocket);
+
+                    // Forward this event to the game event handler for level and player initialization tasks
+                    for (Game game : games) {
+                        if (game.hasWebSocket(webSocket)) {
+                            game.getEventHandler().handleEvent(webSocket, message);
+                        }
+                    }
+
+                    logger.debug("Player has level {}", player.getLevel());
+                    logger.debug("Current game has level {}",
+                            Objects.requireNonNull(games.stream()
+                                            .filter(game -> game.hasWebSocket(webSocket))
+                                            .findFirst()
+                                            .orElse(null))
+                                    .getLevel()
+                    );
                     lobby.get(webSocket).setDecisions(level, decisions);
                     player.setReady(true);
 
@@ -243,9 +291,10 @@ public class GameServer extends WebSocketServer {
                     player.setName(newName);
 
                     // Change first employee name for level 1 accordingly
-                    if (player.getLevel() == 1) {
-                        Employee employee = player.getEmployees().get(0);
-                        employee.setName(newName);
+                    try {
+                        player.getEmployees().get(0).setName(newName);
+                    } catch (IndexOutOfBoundsException e) {
+                        logger.error("No employees found for player {}", player.getName());
                     }
 
                     // Confirm successful name change
@@ -312,13 +361,16 @@ public class GameServer extends WebSocketServer {
         // Anonymize high-score before sending
         GameOverStats anonymizedHighScore = getAnonymizedHighScore();
 
+        // Calculate how many games are currently running (gameLoop.isRunning = true)
+        short runningGames = (short) games.stream().filter(Game::isRunning).count();
+
         broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
-                "\"runningGames\": " + games.size() +
+                "\"runningGames\": " + runningGames +
                 ", \"players\": " + playersList +
                 ", \"highscore\": " + GSON.toJson(anonymizedHighScore) + "}}");
     }
 
-    private @NotNull GameOverStats getAnonymizedHighScore() {
+    private GameOverStats getAnonymizedHighScore() {
         GameOverStats anonymizedHighScore = new GameOverStats();
         if (dailyHighScore != null && dailyHighScore.getDeliveredProjects() > 0) {
             anonymizedHighScore.setPlayerName(dailyHighScore.getPlayerName());
@@ -352,9 +404,13 @@ public class GameServer extends WebSocketServer {
         logger.info("Server started successfully");
     }
 
-    void addPlayerToLobby(WebSocket webSocket, Player player) {
+    void movePlayerToLobby(WebSocket webSocket, Player player) {
+        logger.debug("Moving player {} back to lobby", player.getName());
         lobby.put(webSocket, player);
+
+        // TODO Where does it belong?
         createNewGameWithPlayer(webSocket, player);
+
         broadcastLobbyState();
     }
 
@@ -373,17 +429,5 @@ public class GameServer extends WebSocketServer {
             logger.warn("No high score found for today.");
         }
         return highScore;
-    }
-
-    private void findAndCloseEmptyGames() {
-        if (!games.isEmpty()) {
-            for (Game game : games) {
-                if (game.getPlayers().isEmpty()) {
-                    logger.debug("Found empty game! Closing...");
-                    games.remove(game);
-                    broadcastLobbyState();
-                }
-            }
-        }
     }
 }

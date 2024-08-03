@@ -1,0 +1,11 @@
+storyElements:
+  - id: 1
+    avatar: ADVISOR
+    earliestOccurrence: 3
+    lines:
+      - Good luck with your projects! 🍀
+  - id: 2
+    avatar: ADVISOR
+    afterObjective: 21
+    lines:
+      - Excellent! Keep up the good work!

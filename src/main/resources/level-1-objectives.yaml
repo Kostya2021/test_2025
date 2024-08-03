@@ -1,19 +1,22 @@
 objectives:
   - title: Choose your first project
-    id: 1
+    id: 11
     order: 1
     mission: Getting Started
     earliestOccurrence: 10
   - title: Staff your project
-    id: 2
+    id: 12
     order: 2
     mission: Getting Started
+    earliestOccurrence: 10
   - title: Kick off your project
-    id: 3
+    id: 13
     order: 3
     mission: Getting Started
+    earliestOccurrence: 10
   - title: Complete your project
-    id: 4
+    id: 14
     order: 4
     mission: Getting Started
+    earliestOccurrence: 10
     rewardFunds: 1500

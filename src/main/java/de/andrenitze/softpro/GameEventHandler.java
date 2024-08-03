@@ -23,7 +23,7 @@ class GameEventHandler {
     }
 
     void handleEvent(WebSocket websocket, String message) {
-        GameEvent<Object> event = GSON.fromJson(message, GameEvent.class);
+        GameEvent<?> event = GSON.fromJson(message, GameEvent.class);
         logger.debug("Received event: {}", event.getType());
 
         switch (event.getType()) {
@@ -68,8 +68,9 @@ class GameEventHandler {
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, true);
             }
-            case PLAYER_READY -> {
-            }
+            case PLAYER_READY -> // The Player and Game classes both have a "level" attribute, sp
+                // make sure the next level is set in the game instance correctly.
+                    game.prepareNextLevel();
             case ROUND_STARTED -> {
             }
             case UNASSIGN_EMPLOYEE -> {

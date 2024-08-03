@@ -8,13 +8,34 @@ import de.andrenitze.softpro.entities.Objectives;
 import de.andrenitze.softpro.types.Decision;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.Main.logger;
 
 public class Player {
-    public static final float INITIAL_FUNDS = 150000;
+    private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
+        put(1, 18000f);
+        put(2, 150000f);
+        put(3, 150000f);
+        put(4, 150000f);
+        put(5, 150000f);
+        put(6, 150000f);
+        put(7, 150000f);
+    }};
+
+    // Hashmap for each levels' bankruptcy threshold
+    private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
+        put(1, -500);
+        put(2, -100000);
+        put(3, 0);
+        put(4, 0);
+        put(5, 0);
+        put(6, 0);
+        put(7, 0);
+    }};
 
     @JsonIgnore
     private final UUID id;
@@ -26,7 +47,7 @@ public class Player {
     private String company;
 
     @JsonProperty
-    private float funds = INITIAL_FUNDS;
+    private float funds;
 
     @JsonProperty
     private ArrayList<Employee> employees = new ArrayList<>();
@@ -74,7 +95,7 @@ public class Player {
         this.name = name;
         this.company = company;
         this.id = UUID.randomUUID();
-        initializeBeforeGame();
+        initializeObjectives();
     }
 
     String getName() {
@@ -163,13 +184,13 @@ public class Player {
         this.ready = ready;
     }
 
-    public void initializeBeforeGame() {
-        setReady(false);
-        this.funds = INITIAL_FUNDS;
-
-        Objectives objectives = new Objectives();
-        objectives.loadObjectivesFromYamlFile();
-        this.objectives = objectives.getObjectives();
+    /**
+     * This method loads objectives and funds for the next level.
+     * It requires the player's <i>level</i> to be set correctly before calling the method!
+     */
+    public void initializeObjectives() {
+        this.objectives = Objectives.getObjectivesForLevel(getLevel());
+        logger.debug("Loaded funds and {} objectives for level {} and player {}", this.objectives.size(), getLevel(), id);
     }
 
     public void addXp(int newXP) {
@@ -208,7 +229,36 @@ public class Player {
         return level;
     }
 
-    public void setFunds(int i) {
+    public void setFunds(Float i) {
         this.funds = i;
+    }
+
+    public void setLevel(int i) {
+        this.level = i;
+    }
+
+    public String getCompany() {
+        return company;
+    }
+
+    public LevelDecisions getDecisions() {
+        return decisions;
+    }
+
+    public void initializeFunds() {
+        this.funds = INITIAL_FUNDS.get(this.level);
+    }
+
+    public boolean completedAllObjectives() {
+        for (Objective objective : objectives) {
+            if (!objective.isCompleted()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean isBankrupt() {
+        return this.funds < BANKRUPTCY_THRESHOLD.get(this.level);
     }
 }
