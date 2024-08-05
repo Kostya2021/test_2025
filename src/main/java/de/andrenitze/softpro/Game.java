@@ -448,7 +448,6 @@ public class Game {
         }
 
         // Send GAME_OVER event after decision
-        // TODO Does that work correctly? When should the event be sent?
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
         sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));

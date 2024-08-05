@@ -101,4 +101,12 @@ public class Objective {
     public Object getTotalSteps() {
         return totalSteps;
     }
+
+    public void setCompleted(boolean b) {
+        if (b) {
+            this.completedSteps = totalSteps;
+        } else {
+            this.completedSteps = 0;
+        }
+    }
 }

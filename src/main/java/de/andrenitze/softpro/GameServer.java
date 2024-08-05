@@ -166,6 +166,7 @@ public class GameServer extends WebSocketServer {
 
         // Prepare both, player and game, for the next level
         preparePlayerAndGameForNextLevel(player, game);
+
         games.add(game);
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
 

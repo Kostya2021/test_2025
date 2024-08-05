@@ -190,6 +190,10 @@ public class Player {
      */
     public void initializeObjectives() {
         this.objectives = Objectives.getObjectivesForLevel(getLevel());
+
+        // Make sure all objectives are not completed
+        this.objectives.forEach(objective -> objective.setCompleted(false));
+
         logger.debug("Loaded funds and {} objectives for level {} and player {}", this.objectives.size(), getLevel(), id);
     }
 
