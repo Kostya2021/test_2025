@@ -15,13 +15,13 @@ public class Employee {
     public static final int MINIMUM_SICK_DAYS = 4;
     public static final int MAXIMUM_SICK_DAYS = 22;
     private final Integer id;
-    private int salary;
+    private int salary; // monthly salary
     private int age;
     private String name;
     private final transient HashMap<Project, Integer> projectExperience;
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
-    private final int happiness;
+    private int satisfaction;
     private int annualSickDays;
     private boolean isSick = false;
     private int lastSickDay = -1;
@@ -38,7 +38,7 @@ public class Employee {
         // Randomize age between 20 and 60
         this.age = new Random().nextInt(40) + 20;
 
-        this.happiness = new Random().nextInt(45) + 50;
+        calculateSatisfaction();
         this.id = id;
         initializeSickDays();
 
@@ -216,6 +216,38 @@ public class Employee {
 
     public void setSalary(int i) {
         this.salary = i;
+
+        // Change happiness based on salary (with diminishing returns)
+        this.calculateSatisfaction();
+    }
+
+    private void calculateSatisfaction() {
+        double salaryInThousands = this.salary / 1000.0;
+        double otherSatisfactionFactors = calculateOtherSatisfactionFactors();
+        double baseHappiness = calculateBaseHappiness();
+
+        // Calculate the salary component
+        double salaryComponent = (Math.log(salaryInThousands) * 30 + Math.sqrt(salaryInThousands) * 20);
+        salaryComponent = Math.min(salaryComponent, 100);
+
+        // Weighted components
+        double salaryWeight = 0.5;
+        double factorsWeight = 0.5;
+
+        // Calculate total satisfaction
+        this.satisfaction = (int) ((salaryWeight * salaryComponent) + (factorsWeight * otherSatisfactionFactors) + baseHappiness);
+        this.satisfaction = Math.min(Math.max(this.satisfaction, 1), 100); // Clamp to [1, 100]
+    }
+
+    // Intrinsic happiness of an employee
+    private double calculateBaseHappiness() {
+        return 5;
+    }
+
+    // Job satisfaction factors not related to salary
+    private int calculateOtherSatisfactionFactors() {
+        // Dummy value, refine later (work environment, career opportunities, mentoring etc.)
+        return 50;
     }
 
     public void setAge(int i) {
