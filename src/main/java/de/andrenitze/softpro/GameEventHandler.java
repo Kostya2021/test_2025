@@ -26,6 +26,7 @@ class GameEventHandler {
         GameEvent<?> event = GSON.fromJson(message, GameEvent.class);
         logger.debug("Received event: {}", event.getType());
 
+        // These are messages coming in from the websocket clients (aka the frontend)
         switch (event.getType()) {
             case JOIN_TENDER -> {
                 // Fancy way to parse the "tenderId" int out of the message
@@ -186,7 +187,29 @@ class GameEventHandler {
             }
             case T -> {
             }
-            case EMPLOYEE_UPDATED -> {
+            case EMPLOYEE_SALARY_UPDATED -> {
+                Player player = game.getPlayerByWebSocket(websocket);
+
+                // Extract employee id and salary fields
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
+                GameEvent<HashMap<String, Integer>> employeeUpdatedEvent = GSON.fromJson(message, payloadType);
+
+                // Extract employee id field and find employee in player's list
+                int employeeId = employeeUpdatedEvent.getPayload().get("employeeId");
+                Employee employee = player.getEmployeeById(employeeId);
+                if (employee == null) {
+                    logger.warn("Could not update employee. Employee {} not found.", employeeId);
+                    break;
+                }
+
+                // Extract salary field and update employee's salary
+                int salary = employeeUpdatedEvent.getPayload().get("salary");
+                employee.setSalary(salary);
+
+                // Notify the player about employee update
+                GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+                employeeUpdateEvent.setPayload(employee);
+                game.sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
             }
             case PLAYER_NAME_UPDATED -> {
             }
