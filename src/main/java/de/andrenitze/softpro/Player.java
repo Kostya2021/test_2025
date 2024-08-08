@@ -1,11 +1,11 @@
 package de.andrenitze.softpro;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
 import de.andrenitze.softpro.types.Decision;
+import net.bytebuddy.build.ToStringPlugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,7 +19,7 @@ public class Player {
     private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
         put(1, 18000f);
         put(2, 150000f);
-        put(3, 150000f);
+        put(3, 1000f);
         put(4, 150000f);
         put(5, 150000f);
         put(6, 150000f);
@@ -37,7 +37,6 @@ public class Player {
         put(7, 0);
     }};
 
-    @JsonIgnore
     private final UUID id;
 
     @JsonProperty
@@ -58,20 +57,20 @@ public class Player {
     @JsonProperty
     private ArrayList<Employee> employees = new ArrayList<>();
 
-    @JsonIgnore
     private ArrayList<Objective> objectives;
 
-    @JsonIgnore
     private boolean ready;
 
     @JsonProperty
     private int xp = 0;
+
     @JsonProperty
     private int skillPoints = 1;
 
     @JsonProperty
-    private int level = 2;
+    private int level = 1;
 
+    @ToStringPlugin.Exclude
     private LevelDecisions decisions;
 
     Player() {
@@ -250,20 +249,8 @@ public class Player {
         return level;
     }
 
-    public void setFunds(Float i) {
-        this.funds = i;
-    }
-
     public void setLevel(int i) {
         this.level = i;
-    }
-
-    public String getCompany() {
-        return company;
-    }
-
-    public LevelDecisions getDecisions() {
-        return decisions;
     }
 
     public void initializeFunds() {
@@ -281,5 +268,13 @@ public class Player {
 
     public boolean isBankrupt() {
         return this.funds < BANKRUPTCY_THRESHOLD.get(this.level);
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
     }
 }
