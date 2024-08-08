@@ -1,13 +1,13 @@
 package de.andrenitze.softpro;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
+import net.bytebuddy.build.ToStringPlugin;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -31,7 +31,7 @@ public class GameServer extends WebSocketServer {
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private static final Gson GSON = new Gson();
+    protected static Gson GSON = null;
     private GameOverStats dailyHighScore;
     protected static final Random RANDOM = new Random();
     private List<GameOverStats> dailyHighScores;
@@ -47,12 +47,30 @@ public class GameServer extends WebSocketServer {
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
+        initializeGson();
+
         // Fetch high-score in a separate thread
         new Thread(this::fetchHighScore).start();
 
         // Graceful shutdown hook
         Thread printingHook = new Thread(this::gracefulShutdown);
         Runtime.getRuntime().addShutdownHook(printingHook);
+    }
+
+    private static void initializeGson() {
+        // Add strategies for GSON serialization and deserialization
+        ExclusionStrategy strategy = new ExclusionStrategy() {
+            @Override
+            public boolean shouldSkipClass(Class<?> clazz) {
+                return false;
+            }
+
+            @Override
+            public boolean shouldSkipField(FieldAttributes field) {
+                return field.getAnnotation(ToStringPlugin.Exclude.class) != null;
+            }
+        };
+        GSON = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
     }
 
     private void gracefulShutdown() {
@@ -202,7 +220,8 @@ public class GameServer extends WebSocketServer {
         // For level 1, generate the player as his/her own first and only employee
         if (player.getLevel() == 1) {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
-            employee.setName(player.getName());
+            employee.setFirstName(player.getFirstName());
+            employee.setLastName(player.getLastName());
             employee.setSalary(952);
             employee.setAge(22);
 
@@ -335,7 +354,8 @@ public class GameServer extends WebSocketServer {
 
                     // Change first employee name for level 1 accordingly
                     try {
-                        player.getEmployees().get(0).setName(newName);
+                        player.getEmployees().get(0).setFirstName(player.getFirstName());
+                        player.getEmployees().get(0).setLastName(player.getLastName());
                     } catch (IndexOutOfBoundsException e) {
                         logger.error("No employees found for player {}", player.getName());
                     }
