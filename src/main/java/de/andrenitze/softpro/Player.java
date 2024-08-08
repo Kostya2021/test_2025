@@ -44,6 +44,12 @@ public class Player {
     private String name;
 
     @JsonProperty
+    private String firstName;
+
+    @JsonProperty
+    private String lastName;
+
+    @JsonProperty
     private String company;
 
     @JsonProperty
@@ -88,11 +94,12 @@ public class Player {
         String subject = subjects[RANDOM.nextInt(subjects.length)];
         subject = subject.substring(0, 1).toUpperCase() + subject.substring(1);
 
-        return adjective + subject + RANDOM.nextInt(99);
+        return adjective + " " + subject;
     }
 
     Player(String name, String company) {
-        this.name = name;
+        setName(name);
+
         this.company = company;
         this.id = UUID.randomUUID();
         initializeObjectives();
@@ -104,6 +111,16 @@ public class Player {
 
     public void setName(String name) {
         this.name = name;
+
+        // Best guess name splitting
+        this.firstName = name.split(" ")[0];
+
+        // Prevent errors from one-word names
+        if (name.split(" ").length < 2) {
+            this.lastName = "";
+            return;
+        }
+        this.lastName = name.split(" ")[1];
     }
 
     public float addFunds(float additionalFunds) {
