@@ -70,7 +70,7 @@ public class Player {
     private int skillPoints = 1;
 
     @JsonProperty
-    private int level = 1;
+    private int level = 2;
 
     private LevelDecisions decisions;
 
