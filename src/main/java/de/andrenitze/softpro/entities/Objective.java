@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -57,7 +56,6 @@ public class Objective {
         return ((completedSteps == totalSteps));
     }
 
-    @JsonIgnore
     public int getEarliestOccurrence() {
         return earliestOccurrence;
     }

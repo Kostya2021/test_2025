@@ -1,6 +1,5 @@
 package de.andrenitze.softpro;
 
-import com.google.gson.Gson;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.StoryElement;
@@ -25,6 +24,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import static de.andrenitze.softpro.GameServer.GSON;
 import static java.lang.Math.exp;
 import static java.lang.Math.round;
 import static java.time.LocalDate.now;
@@ -38,7 +38,7 @@ public class Game {
     // Base productivity value = How much value one person (FTE) can produce in one day
     public static final int BASE_PRODUCTIVITY_VALUE = 1000;
     public static final double PROFIT_MARGIN = 0.3;
-    public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 2;
+    public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -49,7 +49,6 @@ public class Game {
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
-    public static final Gson GSON = new Gson();
     private ArrayList<StoryElement> storyElements; // Level-specific
     private final SkillsManager skillsManager = new SkillsManager();
     private final TalentMarket talentMarket;
@@ -450,8 +449,8 @@ public class Game {
         // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
-        sendMessageToPlayer(player, Game.GSON.toJson(gameOverEvent));
-        logger.debug("Sent GAME_OVER event to player: {}", Game.GSON.toJson(gameOverEvent));
+        sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
+        logger.debug("Sent GAME_OVER event to player: {}", GSON.toJson(gameOverEvent));
 
         saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
         checkAndBroadcastHighScore(goStats);
@@ -535,7 +534,7 @@ public class Game {
                 GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                 List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(getCurrentTick());
                 objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                sendMessageToPlayer(player, Game.GSON.toJson(objectivesUpdatedEvent));
+                sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
             }
         });
     }

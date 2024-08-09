@@ -1,11 +1,11 @@
 package de.andrenitze.softpro;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
 import de.andrenitze.softpro.types.Decision;
+import net.bytebuddy.build.ToStringPlugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,7 +19,7 @@ public class Player {
     private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
         put(1, 18000f);
         put(2, 150000f);
-        put(3, 150000f);
+        put(3, 1000f);
         put(4, 150000f);
         put(5, 150000f);
         put(6, 150000f);
@@ -37,11 +37,16 @@ public class Player {
         put(7, 0);
     }};
 
-    @JsonIgnore
     private final UUID id;
 
     @JsonProperty
     private String name;
+
+    @JsonProperty
+    private String firstName;
+
+    @JsonProperty
+    private String lastName;
 
     @JsonProperty
     private String company;
@@ -52,20 +57,20 @@ public class Player {
     @JsonProperty
     private ArrayList<Employee> employees = new ArrayList<>();
 
-    @JsonIgnore
     private ArrayList<Objective> objectives;
 
-    @JsonIgnore
     private boolean ready;
 
     @JsonProperty
     private int xp = 0;
+
     @JsonProperty
     private int skillPoints = 1;
 
     @JsonProperty
     private int level = 1;
 
+    @ToStringPlugin.Exclude
     private LevelDecisions decisions;
 
     Player() {
@@ -88,11 +93,12 @@ public class Player {
         String subject = subjects[RANDOM.nextInt(subjects.length)];
         subject = subject.substring(0, 1).toUpperCase() + subject.substring(1);
 
-        return adjective + subject + RANDOM.nextInt(99);
+        return adjective + " " + subject;
     }
 
     Player(String name, String company) {
-        this.name = name;
+        setName(name);
+
         this.company = company;
         this.id = UUID.randomUUID();
         initializeObjectives();
@@ -104,6 +110,16 @@ public class Player {
 
     public void setName(String name) {
         this.name = name;
+
+        // Best guess name splitting
+        this.firstName = name.split(" ")[0];
+
+        // Prevent errors from one-word names
+        if (name.split(" ").length < 2) {
+            this.lastName = "";
+            return;
+        }
+        this.lastName = name.split(" ")[1];
     }
 
     public float addFunds(float additionalFunds) {
@@ -233,20 +249,8 @@ public class Player {
         return level;
     }
 
-    public void setFunds(Float i) {
-        this.funds = i;
-    }
-
     public void setLevel(int i) {
         this.level = i;
-    }
-
-    public String getCompany() {
-        return company;
-    }
-
-    public LevelDecisions getDecisions() {
-        return decisions;
     }
 
     public void initializeFunds() {
@@ -264,5 +268,13 @@ public class Player {
 
     public boolean isBankrupt() {
         return this.funds < BANKRUPTCY_THRESHOLD.get(this.level);
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
     }
 }
