@@ -1,17 +1,13 @@
 package de.andrenitze.softpro.entities;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.ArrayList;
 
+@Setter
+@Getter
 public class StoryElements {
-    @JsonProperty("storyElements")
     private ArrayList<StoryElement> storyElements = new ArrayList<>();
 
-    public ArrayList<StoryElement> getStoryElements() {
-        return storyElements;
-    }
-
-    public void setStoryElements(ArrayList<StoryElement> storyElements) {
-        this.storyElements = storyElements;
-    }
 }

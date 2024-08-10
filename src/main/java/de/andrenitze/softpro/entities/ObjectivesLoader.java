@@ -1,8 +1,9 @@
 package de.andrenitze.softpro.entities;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,8 +11,9 @@ import java.util.ArrayList;
 
 import static de.andrenitze.softpro.Main.logger;
 
+@Setter
+@Getter
 public class ObjectivesLoader {
-    @JsonProperty
     private ArrayList<Objective> objectives;
 
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -38,7 +40,4 @@ public class ObjectivesLoader {
         }
     }
 
-    public ArrayList<Objective> getObjectives() {
-        return objectives;
-    }
 }
