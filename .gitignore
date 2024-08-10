@@ -6,4 +6,4 @@ target
 /simulation-java-backend.iml
 /loadTestResults.json
 /loadTestResults.json.html
-/out/artifacts/MeinSpiel_jar/MeinSpiel.jar
+out

@@ -1,16 +1,13 @@
 package de.andrenitze.softpro;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
 import de.andrenitze.softpro.types.Decision;
-import net.bytebuddy.build.ToStringPlugin;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
@@ -25,8 +22,6 @@ public class Player {
         put(6, 150000f);
         put(7, 150000f);
     }};
-
-    // Hashmap for each levels' bankruptcy threshold
     private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
         put(1, -500);
         put(2, -100000);
@@ -36,42 +31,33 @@ public class Player {
         put(6, 0);
         put(7, 0);
     }};
-
+    @Getter
     private final UUID id;
-
-    @JsonProperty
     private String name;
-
-    @JsonProperty
+    @Getter @Setter
     private String firstName;
-
-    @JsonProperty
+    @Getter @Setter
     private String lastName;
-
-    @JsonProperty
+    @Getter @Setter
     private String company;
-
-    @JsonProperty
+    @Getter @Setter
     private float funds;
-
-    @JsonProperty
+    @Getter @Setter
     private ArrayList<Employee> employees = new ArrayList<>();
-
+    @Getter @Setter
     private ArrayList<Objective> objectives;
-
+    @Getter @Setter
     private boolean ready;
-
-    @JsonProperty
+    @Setter
     private int xp = 0;
-
-    @JsonProperty
+    @Getter @Setter
     private int skillPoints = 1;
-
-    @JsonProperty
+    @Setter
+    @Getter
     private int level = 1;
 
-    @ToStringPlugin.Exclude
-    private LevelDecisions decisions;
+    @EqualsAndHashCode.Exclude
+    private Map<Integer, List<Decision>> decisions = new HashMap<>();
 
     Player() {
         this(generatePlayerName(), generateCompanyName());
@@ -131,14 +117,6 @@ public class Player {
         this.funds -= fundsToSubtract;
     }
 
-    public float getFunds() {
-        return funds;
-    }
-
-    ArrayList<Employee> getEmployees() {
-        return employees;
-    }
-
     void calculateAndSubtractSalaries() {
         employees.forEach(employee -> this.subtractFunds(employee.getSalary()));
     }
@@ -152,14 +130,6 @@ public class Player {
         return null;
     }
 
-    public UUID getId() {
-        return id;
-    }
-
-    public ArrayList<Objective> getObjectives() {
-        return objectives;
-    }
-
     public ArrayList<Objective> getNewObjectivesForThisTick(int tick) {
         ArrayList<Objective> allObjectives = this.getObjectives();
         ArrayList<Objective> newObjectivesForThisTick = new ArrayList<>();
@@ -170,6 +140,7 @@ public class Player {
         });
         return newObjectivesForThisTick;
     }
+
     public ArrayList<Objective> getActiveObjectivesUntilThisTick(int tick) {
         ArrayList<Objective> allObjectives = getObjectives();
         ArrayList<Objective> allActiveObjectives = new ArrayList<>();
@@ -192,25 +163,17 @@ public class Player {
         return completedObjectives;
     }
 
-    public boolean isReady() {
-        return ready;
-    }
-
-    public void setReady(boolean ready) {
-        this.ready = ready;
-    }
-
     /**
      * This method loads objectives and funds for the next level.
      * It requires the player's <i>level</i> to be set correctly before calling the method!
      */
     public void initializeObjectives() {
-        this.objectives = Objectives.getObjectivesForLevel(getLevel());
+        this.objectives = Objectives.getObjectivesForLevel(this.level);
 
         // Make sure all objectives are not completed
         this.objectives.forEach(objective -> objective.setCompleted(false));
 
-        logger.debug("Loaded funds and {} objectives for level {} and player {}", this.objectives.size(), getLevel(), id);
+        logger.debug("Loaded funds and {} objectives for level {} and player {}", this.objectives.size(), this.level, id);
     }
 
     public void addXp(int newXP) {
@@ -225,14 +188,6 @@ public class Player {
         }
     }
 
-    public int getSkillPoints() {
-        return skillPoints;
-    }
-
-    public void setSkillPoints(int skillPoints) {
-        this.skillPoints = skillPoints;
-    }
-
     public void addEmployee(Employee employee) {
         this.employees.add(employee);
     }
@@ -242,15 +197,7 @@ public class Player {
     }
 
     public void setDecisions(int level, List<Decision> decisions) {
-        this.decisions = new LevelDecisions(level, decisions);
-    }
-
-    public int getLevel() {
-        return level;
-    }
-
-    public void setLevel(int i) {
-        this.level = i;
+        this.decisions.put(level, decisions);
     }
 
     public void initializeFunds() {
@@ -270,11 +217,7 @@ public class Player {
         return this.funds < BANKRUPTCY_THRESHOLD.get(this.level);
     }
 
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
+    public List<Decision> getDecisionsByLevel(int level) {
+        return decisions.get(level);
     }
 }

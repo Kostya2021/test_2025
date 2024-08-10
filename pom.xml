@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>de.andrenitze.sim</groupId>
     <artifactId>softpro</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
     <name>Software Project Simulator</name>
     <url>https://softpro.andrenitze.de</url>
     <properties>
@@ -123,6 +123,12 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-dbcp2</artifactId>
             <version>2.12.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.20</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
     <build>
@@ -267,6 +273,8 @@
                             <class>de.andrenitze.softpro.types.ProjectType</class>
                             <class>de.andrenitze.softpro.types.DeliveryMediumType</class>
                             <class>de.andrenitze.softpro.types.RiskLevel</class>
+                            <class>de.andrenitze.softpro.types.StatusEffect</class>
+                            <class>de.andrenitze.softpro.types.StatusEffectType</class>
                         </classes>
                         <outputKind>module</outputKind>
                     </configuration>

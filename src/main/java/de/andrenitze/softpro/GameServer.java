@@ -3,10 +3,10 @@ package de.andrenitze.softpro;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
-import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
+import lombok.Getter;
 import net.bytebuddy.build.ToStringPlugin;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,6 +31,7 @@ public class GameServer extends WebSocketServer {
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     protected static Gson GSON = null;
+    @Getter
     private GameOverStats dailyHighScore;
     protected static final Random RANDOM = new Random();
     private List<GameOverStats> dailyHighScores;
@@ -208,6 +208,7 @@ public class GameServer extends WebSocketServer {
         // Initialization methods change the player's state according to the player's level
         player.initializeObjectives();
         player.initializeFunds();
+        player.setXp(0);
 
         // Load story elements for the next level
         // game.getLevel() is "1", because game has not been completely initialized
@@ -217,13 +218,17 @@ public class GameServer extends WebSocketServer {
         // Make sure the skills are initialized
         game.getSkillsManager().addPlayer(player);
 
+        logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
+
         // For level 1, generate the player as his/her own first and only employee
         if (player.getLevel() == 1) {
+            player.setEmployees(new ArrayList<>());
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setFirstName(player.getFirstName());
             employee.setLastName(player.getLastName());
             employee.setSalary(952);
             employee.setAge(22);
+            employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
             // Increase XP in one random project domain and project type
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
@@ -298,13 +303,6 @@ public class GameServer extends WebSocketServer {
             // If player is ready to play, make her available to be picked up by game instances.
             if (EventType.PLAYER_READY.equals(genericGameEvent.getType())) {
                 try {
-                    Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
-                    GameEvent<LevelDecisions> gameEvent = GSON.fromJson(message, payloadType);
-
-                    List<Decision> decisions = gameEvent.getPayload().decisions();
-                    int level = gameEvent.getPayload().level();
-                    logger.debug("Received PLAYER_READY for level {}", level);
-
                     Player player = lobby.get(webSocket);
 
                     // Forward this event to the game event handler for level and player initialization tasks
@@ -314,26 +312,10 @@ public class GameServer extends WebSocketServer {
                         }
                     }
 
-                    logger.debug("Player has level {}", player.getLevel());
-                    logger.debug("Current game has level {}",
-                            Objects.requireNonNull(games.stream()
-                                            .filter(game -> game.hasWebSocket(webSocket))
-                                            .findFirst()
-                                            .orElse(null))
-                                    .getLevel()
-                    );
-                    lobby.get(webSocket).setDecisions(level, decisions);
+                    logger.debug("Player has level {}.", player.getLevel());
                     player.setReady(true);
 
                     broadcastLobbyState();
-
-                    // Persist player decision(s) to database
-                    DecisionDAO decisionDao = new DecisionDAO(DatabaseConfig.getDataSource());
-                    try {
-                        decisionDao.saveDecisions(player.getId().toString(), level, decisions);
-                    } catch (SQLException e) {
-                        logger.error("Could not persist player decisions to database: {}", e.getMessage());
-                    }
                 } catch (Exception e) {
                     logger.debug(e.getMessage());
                     logger.error("Websocket message was malformed!");

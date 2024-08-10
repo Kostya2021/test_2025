@@ -3,14 +3,20 @@ package de.andrenitze.softpro;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.serialization.ProjectPartyExclusionStrategy;
+import de.andrenitze.softpro.types.Decision;
+import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
+import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import static de.andrenitze.softpro.Main.logger;
 
@@ -69,9 +75,31 @@ class GameEventHandler {
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, true);
             }
-            case PLAYER_READY -> // The Player and Game classes both have a "level" attribute, sp
+            case PLAYER_READY -> {
+                // Extract decisions sample and save them to the player object
+                Player player = game.getPlayerByWebSocket(websocket);
+                Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
+                GameEvent<LevelDecisions> playerReadyEvent = GSON.fromJson(message, payloadType);
+
+                int level = playerReadyEvent.getPayload().level();
+                List<Decision> decisions = playerReadyEvent.getPayload().decisions();
+
+                player.setDecisions(level, decisions);
+                logger.debug("Saved {} player decision(s) for level {}.",
+                        player.getDecisionsByLevel(level).size(), level);
+
+                // Persist player decision(s) to database
+                DecisionDAO decisionDao = new DecisionDAO(DatabaseConfig.getDataSource());
+                try {
+                    decisionDao.saveDecisions(player.getId().toString(), level, decisions);
+                } catch (SQLException e) {
+                    logger.error("Could not persist player decisions to database: {}", e.getMessage());
+                }
+
+                // The Player and Game classes both have a "level" attribute, sp
                 // make sure the next level is set in the game instance correctly.
-                    game.prepareNextLevel();
+                game.prepareNextLevel();
+            }
             case ROUND_STARTED -> {
             }
             case UNASSIGN_EMPLOYEE -> {

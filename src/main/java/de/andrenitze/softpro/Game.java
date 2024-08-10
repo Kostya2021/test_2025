@@ -5,11 +5,9 @@ import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.StoryElement;
 import de.andrenitze.softpro.entities.StoryElementsLoader;
 import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.types.DecisionDAO;
-import de.andrenitze.softpro.types.EventType;
-import de.andrenitze.softpro.types.GameOverStatsDAO;
-import de.andrenitze.softpro.types.OptionVoteDistribution;
+import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
+import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -44,13 +42,16 @@ public class Game {
     private final GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
     private ArrayList<Project> projects = new ArrayList<>();
+    @Getter
     private int currentTick;
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
+    @Getter
     private final SkillsManager skillsManager = new SkillsManager();
+    @Getter
     private final TalentMarket talentMarket;
     private int level = 1;
 
@@ -160,6 +161,43 @@ public class Game {
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projects);
         broadcastToAllPlayers(GSON.toJson(projectEvent));
+
+        // Logic for decisions and their consequences
+        if (getLevel() == 1) {
+            handleLevel1Decisions();
+        } else if (getLevel() == 2) {
+            handleLevel2Decisions();
+        }
+    }
+
+    private void handleLevel1Decisions() {
+    }
+
+    private void handleLevel2Decisions() {
+        // Adjust gameplay for each player according to decisions made in briefing
+        players.forEach((webSocket, player) -> {
+            if (player.getDecisionsByLevel(2).isEmpty()) {
+                logger.warn("Player {} has no decisions for level 2", player.getId());
+                return;
+            }
+
+            // "Backup decision"
+            int option = player.getDecisionsByLevel(2).get(0).getOptionId();
+            logger.debug("Player chose option {}", option);
+            if (option == 1) {
+                // Option 1 "Employee does it": Lower productivity of first employee as status effect for the whole level
+                // Make sure that the effect stays even if employee is fired. Always use the first employee.
+                player.setFunds(player.getFunds() - 5000);
+                Employee firstEmployee = player.getEmployees().get(0);
+                firstEmployee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
+                // For now, status effects will stay forever.
+
+                // Option 2 "Do nothing": No effect in this level. Later on, the player will have to deal with the consequences
+            } else if (option == 3) {
+                // Option 3 "Vendor does it", decrease funds by 15000.
+                player.setFunds(player.getFunds() - 15000);
+            }
+        });
     }
 
     private void setLevel(int i) {
@@ -441,6 +479,9 @@ public class Game {
             // Only increase level for existing levels
             if (level < NUMBER_OF_LEVELS_IN_THE_GAME) {
                 player.setLevel(level + 1);
+                logger.debug("Player {} has reached level {}.", player.getId(), level + 1);
+            } else {
+                logger.debug("Player {} has reached the final level.", player.getId());
             }
         } else {
             logger.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
@@ -451,6 +492,12 @@ public class Game {
         gameOverEvent.setPayload(goStats);
         sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
         logger.debug("Sent GAME_OVER event to player: {}", GSON.toJson(gameOverEvent));
+
+        // Update player one last time in this level to make sure, client is up-to-date
+        GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+        playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+        playerUpdateEvent.setPayload(player);
+        webSocket.send(GSON.toJson(playerUpdateEvent));
 
         saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
         checkAndBroadcastHighScore(goStats);
@@ -489,15 +536,6 @@ public class Game {
         goStats.setCommunityVotes(distributions);
 
         return goStats;
-    }
-
-    private boolean checkObjectivesCompletion(Player player) {
-        if (!player.getObjectives().isEmpty() &&
-                player.getObjectives().size() == player.getCompletedObjectives().size()) {
-            logger.debug("All objectives completed: {} / {}", player.getCompletedObjectives().size(), player.getObjectives().size());
-            return true;
-        }
-        return false;
     }
 
     private void saveGameOverStats(WebSocket webSocket, Player player, GameOverStats goStats) {
@@ -833,6 +871,15 @@ public class Game {
             // Rule #5: Organizational skills affect productivity.
             earnedValue *= calculateSkillsFactor(project);
 
+            // Rule #6: Employees are affected by external status effects
+            if (!employee.getStatusEffects().isEmpty()) {
+                for (StatusEffect effect : employee.getStatusEffects()) {
+                    if (effect.getType().equals(StatusEffectType.PRODUCTIVITY)) {
+                        earnedValue *= effect.getMultiplier();
+                    }
+                }
+            }
+
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
         }
@@ -937,10 +984,6 @@ public class Game {
                 .findFirst().orElse(null);
     }
 
-    public int getCurrentTick() {
-        return currentTick;
-    }
-
     void removePlayerFromGame(WebSocket webSocket) {
         players.remove(webSocket);
         closeGameIfEmpty();
@@ -1042,10 +1085,6 @@ public class Game {
         }
     }
 
-    public SkillsManager getSkillsManager() {
-        return skillsManager;
-    }
-
     public void stopGameTime() {
         isRunning = false;
     }
@@ -1056,10 +1095,6 @@ public class Game {
 
     public void addPlayerToGame(WebSocket key, Player value) {
         players.put(key, value);
-    }
-
-    public TalentMarket getTalentMarket() {
-        return talentMarket;
     }
 
     public void assessProjectRiskForPlayer(int projectId, Player player) {
@@ -1084,9 +1119,7 @@ public class Game {
         players.forEach((webSocket, player) -> player.getEmployees().clear());
 
         // Generate first employees for all players (necessary for Level 2)
-        players.forEach((webSocket, player) -> {
-            talentMarket.generateFirstEmployees().forEach(player::addEmployee);
-        });
+        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(player::addEmployee));
     }
 
     // Move Employee from Player back to TalentMarket
