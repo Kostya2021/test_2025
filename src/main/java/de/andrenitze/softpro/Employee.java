@@ -1,11 +1,12 @@
 package de.andrenitze.softpro;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import de.andrenitze.softpro.types.ProjectType;
+import de.andrenitze.softpro.types.StatusEffect;
+import de.andrenitze.softpro.types.StatusEffectType;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.Random;
+import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
@@ -16,23 +17,24 @@ public class Employee {
     public static final int MAXIMUM_SICK_DAYS = 22;
     private final Integer id;
     private int salary; // monthly salary
-    @JsonProperty
+    @Setter
     private int age;
-    @JsonProperty
+    @Setter
     private String firstName;
-    @JsonProperty
+    @Setter
     private String lastName;
     private final transient HashMap<Project, Integer> projectExperience;
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
-    @JsonProperty
     private int satisfaction;
     private int annualSickDays;
     private boolean isSick = false;
     private int lastSickDay = -1;
     private float health = 0.0f;
-    @JsonProperty
+    @Getter
     private String gender;
+    @Getter
+    private List<StatusEffect> statusEffects = new ArrayList<>();
 
     Employee(Integer id) {
         generateName();
@@ -138,6 +140,10 @@ public class Employee {
         }
     }
 
+    private void setLastSickDay(int currentTick) {
+        lastSickDay = currentTick;
+    }
+
     public boolean isSick() {
         return isSick;
     }
@@ -168,12 +174,8 @@ public class Employee {
         return getLastSickDay() == currentTick-1;
     }
 
-    public int getLastSickDay() {
+    private int getLastSickDay() {
         return lastSickDay;
-    }
-
-    public void setLastSickDay(int lastSickDay) {
-        this.lastSickDay = lastSickDay;
     }
 
     public void addXp(ProjectType type, String domain, int days) {
@@ -238,19 +240,11 @@ public class Employee {
         return 50;
     }
 
-    public void setAge(int i) {
-        this.age = i;
-    }
-
     public String getName() {
         return firstName + " " + lastName;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
+    public void setStatusEffect(StatusEffectType effectType, float mutliplier, String description) {
+        statusEffects.add(new StatusEffect(effectType, mutliplier, description));
     }
 }
