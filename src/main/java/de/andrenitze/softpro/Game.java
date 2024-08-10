@@ -7,6 +7,7 @@ import de.andrenitze.softpro.entities.StoryElementsLoader;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
+import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -41,13 +42,16 @@ public class Game {
     private final GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
     private ArrayList<Project> projects = new ArrayList<>();
+    @Getter
     private int currentTick;
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
+    @Getter
     private final SkillsManager skillsManager = new SkillsManager();
+    @Getter
     private final TalentMarket talentMarket;
     private int level = 1;
 
@@ -187,7 +191,7 @@ public class Game {
                 Employee firstEmployee = player.getEmployees().get(0);
                 firstEmployee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
                 // For now, status effects will stay forever.
-            } else if (option == 2) {
+
                 // Option 2 "Do nothing": No effect in this level. Later on, the player will have to deal with the consequences
             } else if (option == 3) {
                 // Option 3 "Vendor does it", decrease funds by 15000.
@@ -532,15 +536,6 @@ public class Game {
         goStats.setCommunityVotes(distributions);
 
         return goStats;
-    }
-
-    private boolean checkObjectivesCompletion(Player player) {
-        if (!player.getObjectives().isEmpty() &&
-                player.getObjectives().size() == player.getCompletedObjectives().size()) {
-            logger.debug("All objectives completed: {} / {}", player.getCompletedObjectives().size(), player.getObjectives().size());
-            return true;
-        }
-        return false;
     }
 
     private void saveGameOverStats(WebSocket webSocket, Player player, GameOverStats goStats) {
@@ -989,10 +984,6 @@ public class Game {
                 .findFirst().orElse(null);
     }
 
-    public int getCurrentTick() {
-        return currentTick;
-    }
-
     void removePlayerFromGame(WebSocket webSocket) {
         players.remove(webSocket);
         closeGameIfEmpty();
@@ -1094,10 +1085,6 @@ public class Game {
         }
     }
 
-    public SkillsManager getSkillsManager() {
-        return skillsManager;
-    }
-
     public void stopGameTime() {
         isRunning = false;
     }
@@ -1108,10 +1095,6 @@ public class Game {
 
     public void addPlayerToGame(WebSocket key, Player value) {
         players.put(key, value);
-    }
-
-    public TalentMarket getTalentMarket() {
-        return talentMarket;
     }
 
     public void assessProjectRiskForPlayer(int projectId, Player player) {
@@ -1136,9 +1119,7 @@ public class Game {
         players.forEach((webSocket, player) -> player.getEmployees().clear());
 
         // Generate first employees for all players (necessary for Level 2)
-        players.forEach((webSocket, player) -> {
-            talentMarket.generateFirstEmployees().forEach(player::addEmployee);
-        });
+        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(player::addEmployee));
     }
 
     // Move Employee from Player back to TalentMarket
