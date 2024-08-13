@@ -33,7 +33,7 @@ public class GameServer extends WebSocketServer {
     protected static Gson GSON = null;
     @Getter
     private GameOverStats dailyHighScore;
-    protected static final Random RANDOM = new Random();
+    public static final Random RANDOM = new Random();
     private List<GameOverStats> dailyHighScores;
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
@@ -248,6 +248,9 @@ public class GameServer extends WebSocketServer {
 
         if (player.getLevel() == 2) {
             // For level 2, populate the talent market with employees
+            game.initializeTalentMarket();
+
+            // ...and generate first employees for the player
             game.generateFirstEmployeesForPlayers();
         }
     }

@@ -1150,7 +1150,7 @@ public class Game {
         broadcastToAllPlayers(GSON.toJson(employeeEvent));
     }
 
-    private void initializeTalentMarket() {
+    void initializeTalentMarket() {
         talentMarket.clearTalentMarket();
 
         for (int i = 0; i < 30; i++) {
