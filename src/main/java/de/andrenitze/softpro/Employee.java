@@ -1,5 +1,6 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.entities.NameGenerator;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.StatusEffect;
 import de.andrenitze.softpro.types.StatusEffectType;
@@ -8,7 +9,7 @@ import lombok.Setter;
 
 import java.util.*;
 
-import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.Main.logger;
 
 public class Employee {
     public static final float SICK_DAY_PROBABILITY = 0.02f;
@@ -26,6 +27,7 @@ public class Employee {
     private final transient HashMap<Project, Integer> projectExperience;
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
+    @Getter
     private int satisfaction;
     private int annualSickDays;
     private boolean isSick = false;
@@ -35,10 +37,15 @@ public class Employee {
     private String gender;
     @Getter
     private List<StatusEffect> statusEffects = new ArrayList<>();
+    private static final NameGenerator nameGenerator = NameGenerator.getInstance();
 
     Employee(Integer id) {
-        generateName();
-        assignGender();
+        logger.debug("Creating new employee");
+        String[] generatedName = nameGenerator.generateName();
+        logger.debug("Generated name: " + generatedName[0] + " " + generatedName[1] + " " + generatedName[2]);
+        this.firstName = generatedName[0];
+        this.lastName = generatedName[1];
+        this.gender = generatedName[2];
 
         // Randomize salary between 3000 and 4500
         this.salary = new Random().nextInt(0, 1500) + 3000;
@@ -75,21 +82,6 @@ public class Employee {
         } else {
             projectDomainExperience.put(domain, days);
         }
-    }
-
-    private void assignGender() {
-        if (RANDOM.nextFloat() <= 0.5) {
-            this.gender = "male";
-        } else {
-            this.gender = "female";
-        }
-    }
-
-    private void generateName() {
-        String[] firstNames = {"Rahul","Siddharth","Rutuja","Neelam","Khushi","Ramanan","Pratik","Prashant","Arusha","Sasashy","Tanya","Priyanka","Deepak","Mahesh","Manoj","Naveen","Radhika","Krishna","Nishant","Priya","Adam","Alex","Aaron","Ben","Carl","Dan","David","Edward","Fred","Frank","George","Hal","Hank","Ike","John","Jack","Joe","Larry","Monte","Matthew","Mark","Nathan","Otto","Paul","Peter","Roger","Roger","Steve","Thomas","Tim","Ty","Victor","Walter","Olivia","Emma","Charlotte","Amelia","Ava","Sophia","Isabella","Mia","Evelyn","Harper","Luna","Camila","Gianna","Elizabeth","Eleanor","Ella","Abigail","Sofia","Avery","Scarlett","Emily","Aria","Penelope","Chloe","Layla","Mila","Nora","Hazel","Madison","Ellie","Lily","Nova","Isla","Grace","Violet","Aurora","Riley","Zoey","Willow","Emilia","Stella","Zoe","Victoria","Hannah","Addison","Leah","Lucy","Eliana","Ivy","Everly","Lillian","Paisley","Elena","Naomi","Maya","Natalie","Kinsley","Delilah","Claire","Audrey","Aaliyah","Ruby","Brooklyn","Alice","Aubrey","Autumn","Leilani","Savannah","Valentina","Kennedy","Madelyn","Josephine","Bella","Skylar","Genesis","Sophie","Hailey","Sadie","Natalia","Quinn","Caroline","Allison","Gabriella","Anna","Serenity","Nevaeh","Cora","Ariana","Emery","Lydia","Jade","Sarah","Eva","Adeline","Madeline","Piper","Rylee","Athena","Peyton","Everleigh"};
-        String[] lastNames = {"Agarwal","Khatri","Ahuja","Anand","Patel","Babu","Balakrishnan","Banerjee","Varma","Dara","Chakrabarti","Deshpande","Gupta","Shah","Parekh","Singh","Modi","Acharya","Anderson","Ashwoon","Aikin","Bateman","Bongard","Bowers","Boyd","Cannon","Cast","Deitz","Dewalt","Ebner","Frick","Hancock","Haworth","Hesch","Hoffman","Kassing","Knutson","Lawless","Lawicki","Mccord","McCormack","Miller","Myers","Nugent","Ortiz","Orwig","Ory","Paiser","Pak","Pettigrew","Quinn","Quizoz","Ramachandran","Resnick","Sagar","Schickowski","Schiebel","Sellon","Severson","Shaffer","Solberg","Soloman","Sonderling","Soukup","Soulis","Stahl","Sweeney","Tandy","Trebil","Trusela","Trussel","Turco","Uddin","Uflan","Ulrich","Upson","Vader","Vail","Valente","Van Zandt","Vanderpoel","Ventotla","Vogal","Wagle","Wagner","Wakefield","Weinstein","Weiss","Woo","Yang","Yates","Yocum","Zeaser","Zeller","Ziegler","Bauer","Baxster","Casal","Cataldi","Caswell","Celedon","Chambers","Chapman","Christensen","Darnell","Davidson","Davis","DeLorenzo","Dinkins","Doran","Dugelman","Dugan","Duffman","Eastman","Ferro","Ferry","Fletcher","Fietzer","Hylan","Hydinger","Illingsworth","Ingram","Irwin","Jagtap","Jenson","Johnson","Johnsen","Jones","Jurgenson","Kalleg","Kaskel","Keller","Leisinger","LePage","Lewis","Linde","Lulloff","Maki","Martin","McGinnis","Mills","Moody","Moore","Napier","Nelson","Norquist","Nuttle","Olson","Ostrander","Reamer","Reardon","Reyes","Rice","Ripka","Roberts","Rogers","Root","Sandstrom","Sawyer","Schlicht","Schmitt","Schwager","Schutz","Schuster","Tapia","Thompson","Tiernan","Tisler" };
-        this.firstName = firstNames[new Random().nextInt(firstNames.length)];
-        this.lastName = lastNames[(new Random().nextInt(firstNames.length))];
     }
 
     int getId() {
