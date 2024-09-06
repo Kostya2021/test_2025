@@ -1,18 +1,19 @@
 package de.andrenitze.softpro.entities;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static de.andrenitze.softpro.Main.logger;
 
 public class Objectives {
-    private final ArrayList<Objective> objectives;
+    private final List<Mission> missions;
 
     private static final Map<Integer, Objectives> instances = new ConcurrentHashMap<>();
 
-    private Objectives(ArrayList<Objective> objectives) {
-        this.objectives = objectives;
+    private Objectives(List<Mission> missions) {
+        this.missions = missions;
     }
 
     public static Objectives getInstance(int level) {
@@ -21,23 +22,27 @@ public class Objectives {
             synchronized (Objectives.class) {
                 instance = instances.get(level);
                 if (instance == null) {
-                    ArrayList<Objective> loadedObjectives = ObjectivesLoader.loadObjectivesFromYamlFile("level-" + level + "-objectives.yaml");
-                    instance = new Objectives(loadedObjectives);
+                    List<Mission> loadedMissions = MissionsLoader.loadMissionsFromYamlFile("level-" + level + "-objectives.yaml");
+                    instance = new Objectives(loadedMissions);
                     instances.put(level, instance);
-                    logger.debug("Creating new Objectives instance for level {} with {} objectives",
+                    logger.debug("Creating new Objectives instance for level {} with {} missions",
                             level,
-                            loadedObjectives.size());
+                            loadedMissions.size());
                 }
             }
         }
         return instance;
     }
 
-    public static ArrayList<Objective> getObjectivesForLevel(int level) {
-        return getInstance(level).getObjectives();
+    public static List<Objective> getObjectivesForLevel(int level) {
+        List<Objective> objectives = new ArrayList<>();
+        for (Mission mission : getInstance(level).getMissions()) {
+            objectives.addAll(mission.getObjectives());
+        }
+        return objectives;
     }
 
-    public ArrayList<Objective> getObjectives() {
-        return objectives;
+    public List<Mission> getMissions() {
+        return missions;
     }
 }

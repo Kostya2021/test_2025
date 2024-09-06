@@ -1,14 +1,12 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.entities.GameOverStats;
-import de.andrenitze.softpro.entities.Objective;
-import de.andrenitze.softpro.entities.StoryElement;
-import de.andrenitze.softpro.entities.StoryElementsLoader;
+import de.andrenitze.softpro.entities.*;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
+import org.jetbrains.annotations.Nullable;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -329,7 +327,7 @@ public class Game {
             // Compile a list of all relevant story elements
             relevantStoryElements.forEach(storyElement -> {
                 // Check if there are any required objectives before sending
-                ArrayList<Objective> completedObjectives = player.getCompletedObjectives();
+                ArrayList<Objective> completedObjectives = (ArrayList<Objective>) player.getCompletedObjectives();
                 if (storyElement.getAfterObjective() != 0) {
                     completedObjectives.forEach(objective -> {
                         if (storyElement.getAfterObjective() == objective.getId()) {
@@ -376,18 +374,18 @@ public class Game {
             List<Objective> allActiveObjectives;
             boolean updatedNeeded;
 
-            // Calculate progress for all active (= incomplete) objectives
-            for (Objective objective: player.getObjectives()) {
+            // Calculate progress for all incomplete objectives
+            for (Objective objective : player.getIncompleteObjectivesUntilThisTick(currentTick)) {
                 updatedNeeded = false;
 
                 if (objective.isCompleted()) {
                     continue;
                 }
 
-                /*
-                  Naive matching approach with exact IDs from level-1-objectives.yaml
-                  Create a new objective in the YAML file, then create a matching case here.
-                 */
+            /*
+              Naive matching approach with exact IDs from level-1-objectives.yaml
+              For new objectives, create a new objective in the YAML file, then create a case with matching id here.
+             */
                 if (objective.getId() == 11) {
                     // Criterion: If player has accepted any project from the project market
                     if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
@@ -410,13 +408,16 @@ public class Game {
                         logger.debug("Objective 13 completed.");
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 14 || objective.getId() == 21) {
-                    // Were conditions met (= projects finished) after the objective occurred?
+                } else if (objective.getId() == 14 || objective.getId() == 15 || objective.getId() == 21) {
+                    Mission mission = getMissionByObjective(player, objective);
+                    if (mission == null) return;
+
+                    // Were conditions met (= projects finished) after the mission occurred?
                     // Only check relevant (= finished) projects
                     ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
                             .stream()
                             .filter(project -> project.isCompleted()
-                                    && project.getCompletedAt() > objective.getEarliestOccurrence()
+                                    && project.getCompletedAt() > mission.getEarliestOccurrence()
                                     && project.playerWasInvolved(player))
                             // The following line can NOT be replaced with "toList()"!
                             .collect(Collectors.toList());
@@ -435,12 +436,26 @@ public class Game {
 
                 if (updatedNeeded) {
                     logger.debug("Sending updated objectives to player.");
-                    allActiveObjectives = player.getActiveObjectivesUntilThisTick(currentTick);
+                    allActiveObjectives = player.getIncompleteObjectivesUntilThisTick(currentTick);
                     objectivesUpdatedEvent.setPayload(allActiveObjectives);
                     sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
                 }
             }
         });
+    }
+
+    private @Nullable Mission getMissionByObjective(Player player, Objective objective) {
+        // Get mission by objective
+        Mission mission = player.getMissions().stream()
+                .filter(m -> m.getObjectives().contains(objective))
+                .findFirst()
+                .orElse(null);
+
+        if (mission == null) {
+            logger.warn("Objective {} has no mission.", objective.getId());
+            return null;
+        }
+        return mission;
     }
 
     private void processSalariesAndAdjustFundsPerTick(LocalDate d) {
@@ -471,9 +486,9 @@ public class Game {
 
         if (playerHasWon) {
             // Keep the player in the game and prepare for the next level
-            logger.debug("Player {} has completed all {} objectives. Moving to next level ({}).",
+            logger.debug("Player {} has completed all {} missions. Moving to next level ({}).",
                     player.getId(),
-                    player.getObjectives().size(),
+                    player.getMissions().size(),
                     level + 1);
 
             // Only increase level for existing levels
@@ -566,11 +581,11 @@ public class Game {
 
     void sendNewObjectivesPerTick() {
         players.forEach((webSocket, player) -> {
-            List<Objective> newObjectivesInThisTick = player.getNewObjectivesForThisTick(getCurrentTick());
+            List<Objective> newObjectivesInThisTick = player.getNewMissionsForThisTick(getCurrentTick());
             if (!newObjectivesInThisTick.isEmpty()) {
                 logger.debug("Sending {} new objectives to player.", newObjectivesInThisTick.size());
                 GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-                List<Objective> allActiveObjectives = player.getActiveObjectivesUntilThisTick(getCurrentTick());
+                List<Objective> allActiveObjectives = player.getIncompleteObjectivesUntilThisTick(getCurrentTick());
                 objectivesUpdatedEvent.setPayload(allActiveObjectives);
                 sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
             }

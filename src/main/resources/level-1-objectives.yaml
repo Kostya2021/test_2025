@@ -1,22 +1,23 @@
-objectives:
-  - title: Choose your first project
-    id: 11
+missions:
+  - title: All beginnings are hard
     order: 1
-    mission: Getting Started
     earliestOccurrence: 10
-  - title: Staff your project
-    id: 12
+    objectives:
+      - title: Choose your first project
+        id: 11
+      - title: Staff your project
+        id: 12
+      - title: Kick off your project
+        id: 13
+      - title: Complete your project
+        id: 14
+        rewardFunds: 1500
+  - title: Baby steps
     order: 2
-    mission: Getting Started
-    earliestOccurrence: 10
-  - title: Kick off your project
-    id: 13
-    order: 3
-    mission: Getting Started
-    earliestOccurrence: 10
-  - title: Complete your project
-    id: 14
-    order: 4
-    mission: Getting Started
-    earliestOccurrence: 10
-    rewardFunds: 1500
+    earliestOccurrence: 100
+    objectives:
+      - title: Complete 5 projects
+        id: 15
+        totalSteps: 5
+      - title: Unlock your first skill
+        id: 16

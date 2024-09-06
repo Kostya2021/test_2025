@@ -1,5 +1,6 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.entities.Mission;
 import de.andrenitze.softpro.entities.Objective;
 import de.andrenitze.softpro.entities.Objectives;
 import de.andrenitze.softpro.types.Decision;
@@ -45,7 +46,7 @@ public class Player {
     @Getter @Setter
     private ArrayList<Employee> employees = new ArrayList<>();
     @Getter @Setter
-    private ArrayList<Objective> objectives;
+    private List<Mission> missions;
     @Getter @Setter
     private boolean ready;
     @Setter
@@ -130,36 +131,42 @@ public class Player {
         return null;
     }
 
-    public ArrayList<Objective> getNewObjectivesForThisTick(int tick) {
-        ArrayList<Objective> allObjectives = this.getObjectives();
-        ArrayList<Objective> newObjectivesForThisTick = new ArrayList<>();
-        allObjectives.forEach(objective -> {
-            if (objective.getEarliestOccurrence() == tick) {
-                newObjectivesForThisTick.add(objective);
-            }
-        });
-        return newObjectivesForThisTick;
+    public List<Objective> getNewMissionsForThisTick(int tick) {
+        List<Objective> newObjectives = new ArrayList<>();
+        for (Mission mission : this.missions) {
+                if (!mission.isCompleted() && mission.getEarliestOccurrence() == tick) {
+                    for (Objective objective : mission.getObjectives()) {
+                        if (!objective.isCompleted()) {
+                            newObjectives.add(objective);
+                        }
+                    }
+                }
+        }
+        return newObjectives;
     }
 
-    public ArrayList<Objective> getActiveObjectivesUntilThisTick(int tick) {
-        ArrayList<Objective> allObjectives = getObjectives();
-        ArrayList<Objective> allActiveObjectives = new ArrayList<>();
-        allObjectives.forEach(objective -> {
-            if (objective.getEarliestOccurrence() == 0 ||
-                    objective.getEarliestOccurrence() <= tick) {
+    public List<Objective> getIncompleteObjectivesUntilThisTick(int tick) {
+    List<Objective> allActiveObjectives = new ArrayList<>();
+    for (Mission mission : this.missions) {
+        if (mission.getEarliestOccurrence() == 0 || mission.getEarliestOccurrence() <= tick) {
+            for (Objective objective : mission.getObjectives()) {
+                objective.setMission(mission.getTitle()); // Only for the frontend
                 allActiveObjectives.add(objective);
             }
-        });
-        return allActiveObjectives;
+        }
     }
+    return allActiveObjectives;
+}
 
-    public ArrayList<Objective> getCompletedObjectives() {
-        ArrayList<Objective> completedObjectives = new ArrayList<>();
-        getObjectives().forEach(objective -> {
-            if (objective.isCompleted()) {
-                completedObjectives.add(objective);
+    public List<Objective> getCompletedObjectives() {
+        List<Objective> completedObjectives = new ArrayList<>();
+        for (Mission mission : this.missions) {
+            for (Objective objective : mission.getObjectives()) {
+                if (objective.isCompleted()) {
+                    completedObjectives.add(objective);
+                }
             }
-        });
+        }
         return completedObjectives;
     }
 
@@ -168,12 +175,16 @@ public class Player {
      * It requires the player's <i>level</i> to be set correctly before calling the method!
      */
     public void initializeObjectives() {
-        this.objectives = Objectives.getObjectivesForLevel(this.level);
+        this.missions = Objectives.getInstance(this.level).getMissions();
 
         // Make sure all objectives are not completed
-        this.objectives.forEach(objective -> objective.setCompleted(false));
+        for (Mission mission : this.missions) {
+            for (Objective objective : mission.getObjectives()) {
+                objective.setCompleted(false);
+            }
+        }
 
-        logger.debug("Loaded funds and {} objectives for level {} and player {}", this.objectives.size(), this.level, id);
+        logger.debug("Loaded funds and {} missions for level {} and player {}", this.missions.size(), this.level, id);
     }
 
     public void addXp(int newXP) {
@@ -205,9 +216,11 @@ public class Player {
     }
 
     public boolean completedAllObjectives() {
-        for (Objective objective : objectives) {
-            if (!objective.isCompleted()) {
-                return false;
+        for (Mission mission : this.missions) {
+            for (Objective objective : mission.getObjectives()) {
+                if (!objective.isCompleted()) {
+                    return false;
+                }
             }
         }
         return true;
