@@ -409,7 +409,22 @@ public class Game {
                         logger.debug("Objective 13 completed.");
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 14 || objective.getId() == 15 || objective.getId() == 21) {
+                } else if (objective.getId() == 15) {
+                    // Criterion: Gain 250 XP by completing projects
+                    if (player.getXp() >= 250) {
+                        objective.markAsCompleted();
+                        logger.debug("Objective 15 completed.");
+                        updatedNeeded = true;
+                    }
+                } else if (objective.getId() == 16) {
+                    // Criterion: Any skill is unlocked
+                    HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+                    if (skills.values().stream().anyMatch(Skill::isUnlocked)) {
+                        objective.markAsCompleted();
+                        logger.debug("Objective 16 completed.");
+                        updatedNeeded = true;
+                    }
+                } else if (objective.getId() == 14 || objective.getId() == 21) {
                     Mission mission = getMissionByObjective(player, objective);
                     if (mission == null) return;
 

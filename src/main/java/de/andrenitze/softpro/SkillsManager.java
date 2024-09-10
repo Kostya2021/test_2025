@@ -42,4 +42,8 @@ public class SkillsManager {
     void addPlayer(Player player) {
         playersSkills.putIfAbsent(player, new HashMap<>());
     }
+
+    public HashMap<String, Skill> getSkillsByPlayer(Player player) {
+        return playersSkills.get(player);
+    }
 }

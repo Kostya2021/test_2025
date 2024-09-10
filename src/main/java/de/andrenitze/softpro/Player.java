@@ -49,12 +49,11 @@ public class Player {
     private List<Mission> missions;
     @Getter @Setter
     private boolean ready;
-    @Setter
+    @Getter @Setter
     private int xp = 0;
     @Getter @Setter
     private int skillPoints = 0;
-    @Setter
-    @Getter
+    @Setter @Getter
     private int level = 1;
 
     @EqualsAndHashCode.Exclude
