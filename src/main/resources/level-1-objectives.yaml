@@ -15,8 +15,8 @@ missions:
   - title: Baby steps
     order: 2
     objectives:
-      - title: Gain 250 XP by completing projects
+      - title: Gain 125 XP by completing projects
         id: 15
-        totalSteps: 250
+        totalSteps: 125
       - title: Unlock your first skill
         id: 16

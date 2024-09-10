@@ -410,8 +410,17 @@ public class Game {
                         updatedNeeded = true;
                     }
                 } else if (objective.getId() == 15) {
-                    // Criterion: Gain 250 XP by completing projects
-                    if (player.getXp() >= 250) {
+                    // Criterion: Gain 125 XP by completing projects
+                    // Objective has 125 total steps (=XP points to gain)
+
+                    // If the player has gained more XP than the last time, update the objective
+                    if (player.getXp() != objective.getCompletedSteps()) {
+                        objective.setCompletedSteps(player.getXp());
+                        updatedNeeded = true;
+                    }
+
+                    // If the player has gained the desired amount of XP, mark the objective as completed
+                    if (player.getXp() >= 125) {
                         objective.markAsCompleted();
                         logger.debug("Objective 15 completed.");
                         updatedNeeded = true;
