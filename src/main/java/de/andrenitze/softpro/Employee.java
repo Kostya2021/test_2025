@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.util.*;
 
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Employee {
@@ -24,8 +25,11 @@ public class Employee {
     private String firstName;
     @Setter
     private String lastName;
+    @Getter
     private final transient HashMap<Project, Integer> projectExperience;
+    @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
+    @Getter
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
     @Getter
     private int satisfaction;
@@ -48,10 +52,10 @@ public class Employee {
         this.gender = generatedName[2];
 
         // Randomize salary between 3000 and 4500
-        this.salary = new Random().nextInt(0, 1500) + 3000;
+        this.salary = RANDOM.nextInt(0, 1500) + 3000;
 
         // Randomize age between 20 and 60
-        this.age = new Random().nextInt(40) + 20;
+        this.age = RANDOM.nextInt(40) + 20;
 
         calculateSatisfaction();
         this.id = id;
@@ -66,8 +70,8 @@ public class Employee {
         // Add some days of experience in a few of the project types
         int maxDaysOfXP = 365;
         for (int i = 0; i < NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN; i++) {
-            int projectTypeIndex = new Random().nextInt(ProjectType.values().length);
-            int days = new Random().nextInt(maxDaysOfXP);
+            int projectTypeIndex = RANDOM.nextInt(ProjectType.values().length);
+            int days = RANDOM.nextInt(maxDaysOfXP);
 
             // Now, add some days of experience in one project domain of this type
             ProjectType type = ProjectType.values()[projectTypeIndex];
@@ -124,7 +128,7 @@ public class Employee {
 
     public void haveSickLeaveDay(int currentTick) {
         --annualSickDays;
-        health += new Random().nextFloat();
+        health += RANDOM.nextFloat();
 
         if (health >= 1) {
             setSick(false);
@@ -150,7 +154,7 @@ public class Employee {
 
     public void beAtWork(int currentTick) {
         if (!this.isSick()) {
-            if (this.annualSickDays > 0 && new Random().nextDouble() <= SICK_DAY_PROBABILITY) {
+            if (this.annualSickDays > 0 && RANDOM.nextDouble() <= SICK_DAY_PROBABILITY) {
                 this.setSick(true);
             }
         } else {
@@ -159,7 +163,7 @@ public class Employee {
     }
 
     public void initializeSickDays() {
-        this.annualSickDays = MINIMUM_SICK_DAYS + new Random().nextInt(MAXIMUM_SICK_DAYS - MINIMUM_SICK_DAYS);
+        this.annualSickDays = MINIMUM_SICK_DAYS + RANDOM.nextInt(MAXIMUM_SICK_DAYS - MINIMUM_SICK_DAYS);
     }
 
     public boolean hasFirstDayAfterSickLeave(int currentTick) {
@@ -238,5 +242,28 @@ public class Employee {
 
     public void setStatusEffect(StatusEffectType effectType, float mutliplier, String description) {
         statusEffects.add(new StatusEffect(effectType, mutliplier, description));
+    }
+
+    public Integer getExperience() {
+        // Count the days of experience in all projects
+        Integer totalExperience = 0;
+        for (Integer experience : projectExperience.values()) {
+            totalExperience += experience;
+        }
+        return totalExperience;
+    }
+
+    public String getDomainOfExpertise() {
+        // Find the domain with the most experience
+        Map.Entry<String, Integer> maxEntry = null;
+        for (Map.Entry<String, Integer> entry : projectDomainExperience.entrySet()) {
+            if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
+                maxEntry = entry;
+            }
+        }
+        if (maxEntry == null) {
+            return null;
+        }
+        return maxEntry.getKey();
     }
 }

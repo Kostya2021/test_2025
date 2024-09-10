@@ -2,9 +2,12 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.*;
 
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Project {
@@ -14,28 +17,42 @@ public class Project {
     private static int lastId = 1;
     private final Integer id;
     private final String name;
+    @Getter
     private int totalValue;
     private int earnedValue;
     private boolean hasTenderProcess;
+    @Setter
     private int tenderDeadlineInDays;
 
     // Deadline: In how many days the project has to be finished, measured from the day the project was acquired.
+    @Getter
     private final int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
+    @Setter
+    @Getter
     private int acquiredAt;
+    @Getter
+    @Setter
     private int startedAt;
+    @Setter
+    @Getter
     private int completedAt = 0;
+    @Setter
     private int quality;
+    @Getter
+    @Setter
     private int publishedAt;
+    @Setter
     private float penalty;
+    @Setter
     private float profit;
-    private static final Random random = new Random();
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
+    @Getter
     private ProjectType type;
     private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
-    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur".split(","));
-    private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen".split(","));
+    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur,Byte,Zero,System,Cypher,Kernel,Logic,Protocol,Nexus,Mainframe,Quantum,Bit,Octet,Hex,Cluster,Cloud,Node,Stack".split(","));
+    private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen,Protocol,System,Bit,Stream,Array,Packet,Frame,Sync,Cache,Wire,Loop,Cipher,Source".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
     private static final int projectNameSnippetsSize = PROJECT_NAME_SNIPPETS.size();
     private static final int projectNameSpacersSize = PROJECT_NAME_SPACERS.size();
@@ -45,6 +62,7 @@ public class Project {
     private static final Set<String> usedProjectNames = new HashSet<>();
 
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
+    @Getter
     private String domain;
 
     // Description text is generated in the frontend
@@ -66,13 +84,13 @@ public class Project {
         ++lastId;
 
         // Assign random risk level
-        this.risk = RISK_LEVELS.get(random.nextInt(RISK_LEVELS.size()));
+        this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
 
         // Assign random project type
-        this.type = PROJECT_TYPES.get(random.nextInt(PROJECT_TYPES.size()));
+        this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
 
         // +40% chance of a tender process
-        this.hasTenderProcess = (Math.round(random.nextFloat()+0.4) < 1);
+        this.hasTenderProcess = (Math.round(RANDOM.nextFloat()+0.4) < 1);
 
         // Order is important. Volume depends on risk.
         this.totalValue = generateVolume();
@@ -123,11 +141,11 @@ public class Project {
         };
 
         // Generate random deadline, loosely based on project volume
-        return (int) (getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE * riskMultiplier * random.nextFloat(0.8f, 1.9f));
+        return (int) (getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
     }
 
     private static String generateDomain(ProjectType type) {
-        return projectTypeDomainMap.get(type).get(new Random().nextInt(projectTypeDomainMap.get(type).size()));
+        return projectTypeDomainMap.get(type).get(RANDOM.nextInt(projectTypeDomainMap.get(type).size()));
     }
 
     private int generateVolume() {
@@ -139,7 +157,7 @@ public class Project {
             case extreme -> 8.0f;
         };
 
-        int randomVolume = random.nextInt(1000) * 100;
+        int randomVolume = RANDOM.nextInt(1000) * 100;
         return (int) (PROJECT_VOLUME_MIN + riskMultiplier * randomVolume);
     }
 
@@ -150,13 +168,13 @@ public class Project {
 
         while (!isUniqueName) {
             // Pick a random name
-            projectName.append(PROJECT_NAME_SNIPPETS.get(random.nextInt(projectNameSnippetsSize)));
+            projectName.append(PROJECT_NAME_SNIPPETS.get(RANDOM.nextInt(projectNameSnippetsSize)));
             //projectName = PROJECT_NAME_SNIPPETS.get(random.nextInt(projectNameSnippetsSize));
 
             // Add 50% chance for suffixes
-            if (random.nextInt(100) < 50) {
-                String spacer = PROJECT_NAME_SPACERS.get(random.nextInt(projectNameSpacersSize));
-                String secondPart = PROJECT_NAME_SUFFIXES.get(random.nextInt(projectNameSuffixesSize));
+            if (RANDOM.nextInt(100) < 50) {
+                String spacer = PROJECT_NAME_SPACERS.get(RANDOM.nextInt(projectNameSpacersSize));
+                String secondPart = PROJECT_NAME_SUFFIXES.get(RANDOM.nextInt(projectNameSuffixesSize));
 
                 projectName.append(spacer);
                 projectName.append(secondPart);
@@ -175,10 +193,6 @@ public class Project {
         return projectName.toString();
     }
 
-    public int getTotalValue() {
-        return totalValue;
-    }
-
     String getName() {
         return name;
     }
@@ -191,9 +205,6 @@ public class Project {
         return tenderDeadlineInDays;
     }
 
-    public void setTenderDeadlineInDays(int tenderDeadlineInDays) {
-        this.tenderDeadlineInDays = tenderDeadlineInDays;
-    }
     /**
      * Several companies can be associated with the same project.
      * Several companies can take part in the tender process.
@@ -245,50 +256,6 @@ public class Project {
         return getInvolvedPlayers().contains(player);
     }
 
-    public int getCompletedAt() {
-        return completedAt;
-    }
-
-    public void setCompletedAt(int completedAt) {
-        this.completedAt = completedAt;
-    }
-
-    public ProjectType getType() {
-        return type;
-    }
-
-    public String getDomain() {
-        return domain;
-    }
-
-    public int getDeadline() {
-        return deadline;
-    }
-
-    public int getAcquiredAt() {
-        return acquiredAt;
-    }
-
-    public void setAcquiredAt(int acquiredAt) {
-        this.acquiredAt = acquiredAt;
-    }
-
-    public void setStartedAt(int startedAt) {
-        this.startedAt = startedAt;
-    }
-
-    public void setQuality(int quality) {
-        this.quality = quality;
-    }
-
-    public void setPenalty(float penalty) {
-        this.penalty = penalty;
-    }
-
-    public void setProfit(float profit) {
-        this.profit = profit;
-    }
-
     public boolean hasOnboardingEmployees(ArrayList<Employee> employees) {
         // After "safe period": Does any of the employees need on-boarding?
         int safePeriodInDays = (int) (Params.SAFE_PERIOD_PERCENT * getScheduledDuration())
@@ -316,20 +283,8 @@ public class Project {
         return getDeadline() - getAcquiredAt();
     }
 
-    public void setPublishedAt(int currentTick) {
-        this.publishedAt = currentTick;
-    }
-
-    public int getPublishedAt() {
-        return this.publishedAt;
-    }
-
     public boolean hasBeenRiskAssessed() {
         return hasBeenRiskAssessed;
-    }
-
-    public int getStartedAt() {
-        return startedAt;
     }
 
     public boolean hasBeenStarted() {
