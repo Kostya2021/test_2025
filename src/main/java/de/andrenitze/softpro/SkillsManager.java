@@ -13,7 +13,7 @@ public class SkillsManager {
     private final ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
 
     // Required XP to progress to the next level and earn a skill point
-    protected static final int[] LEVEL_THRESHOLDS = {250, 500, 1000, 2000, 4000, 8000, 15000, 20000, 30000};
+    protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
 
     public SkillsManager() {
         playersSkills = new ConcurrentHashMap<>();

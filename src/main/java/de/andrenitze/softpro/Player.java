@@ -49,10 +49,20 @@ public class Player {
     private List<Mission> missions;
     @Getter @Setter
     private boolean ready;
+
+    // Experience points (XP) are gained by completing projects
     @Getter @Setter
     private int xp = 0;
+
+    // XP level is calculated based on the XP points and thresholds defined in SkillsManager
+    @Getter @Setter
+    private int xpLevel = 0;
+
+    // Skill points are acquired after gaining a certain amount of XP and are invested to unlock skills
     @Getter @Setter
     private int skillPoints = 0;
+
+    // The level the player has reached in the game
     @Setter @Getter
     private int level = 1;
 
@@ -210,14 +220,15 @@ public class Player {
     }
 
     public void addXp(int newXP) {
-        this.xp += newXP;
+        // Check if the new XP level exceeds an XP_LEVEL_THRESHOLD and increase the xpLevel if necessary
+        int xpToLevelUp = SkillsManager.XP_LEVEL_THRESHOLDS[this.xpLevel];
 
-        // Check if new XP is enough to level up
-        int xpToLevelUp = SkillsManager.LEVEL_THRESHOLDS[this.level];
-
-        if (this.xp >= xpToLevelUp) {
-            this.skillPoints++;
-            this.level++;
+        if (this.xp + newXP >= xpToLevelUp) {
+            this.xp += newXP; // Add the new XP
+            this.xpLevel++; // Level up
+            this.skillPoints++; // Receive a skill point when leveling up
+        } else {
+            this.xp += newXP; // Only add the new XP
         }
     }
 

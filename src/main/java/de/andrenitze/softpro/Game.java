@@ -775,6 +775,7 @@ public class Game {
                         case high -> xp *= 2;
                         case extreme -> xp *= 4;
                     }
+
                     player.addXp((int) xp);
 
                     GameEvent<Player> playerUpdateEvent = new GameEvent<>();

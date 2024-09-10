@@ -1,7 +1,5 @@
 package de.andrenitze.softpro.entities;
 
-import java.util.Random;
-
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
 public class NameGenerator {

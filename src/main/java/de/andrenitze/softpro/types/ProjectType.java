@@ -1,7 +1,6 @@
 package de.andrenitze.softpro.types;
 
 import java.util.List;
-import java.util.Random;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
