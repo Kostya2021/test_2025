@@ -19,3 +19,9 @@ storyElements:
     afterObjective: 13
     lines:
       - Ok, good luck with your project! I'm looking forward to seeing the results. 🤞
+  - id: 5
+    avatar: PROFESSOR
+    afterObjective: 14
+    lines:
+      - Congratulations! You've completed your first project. The university awarded you 1500 funds. 💰
+      - Now you can see that more projects are available. Choose wisely and continue your journey!

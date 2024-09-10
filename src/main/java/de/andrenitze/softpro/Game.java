@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameServer.GSON;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static java.lang.Math.exp;
 import static java.lang.Math.round;
 import static java.time.LocalDate.now;
@@ -374,18 +375,18 @@ public class Game {
             List<Objective> allActiveObjectives;
             boolean updatedNeeded;
 
-            // Calculate progress for all incomplete objectives
-            for (Objective objective : player.getIncompleteObjectivesUntilThisTick(currentTick)) {
+            // Calculate progress for all active (= incomplete) objectives
+            for (Objective objective : player.getObjectivesUntilThisTick(currentTick)) {
                 updatedNeeded = false;
 
                 if (objective.isCompleted()) {
                     continue;
                 }
 
-            /*
-              Naive matching approach with exact IDs from level-1-objectives.yaml
-              For new objectives, create a new objective in the YAML file, then create a case with matching id here.
-             */
+                /*
+                  Naive matching approach with exact IDs from level-1-objectives.yaml
+                  For new objectives, create a new objective in the YAML file, then create a case with matching id here.
+                 */
                 if (objective.getId() == 11) {
                     // Criterion: If player has accepted any project from the project market
                     if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
@@ -436,7 +437,7 @@ public class Game {
 
                 if (updatedNeeded) {
                     logger.debug("Sending updated objectives to player.");
-                    allActiveObjectives = player.getIncompleteObjectivesUntilThisTick(currentTick);
+                    allActiveObjectives = player.getObjectivesUntilThisTick(getCurrentTick());
                     objectivesUpdatedEvent.setPayload(allActiveObjectives);
                     sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
                 }
@@ -579,14 +580,19 @@ public class Game {
         }
     }
 
+    // Note: This method sends an OBJECTIVES_UPDATED event (i.e., it includes ALL objectives of this level),
+    // because the frontend needs to show the completed objectives of other missions as well as the new objectives.
     void sendNewObjectivesPerTick() {
         players.forEach((webSocket, player) -> {
-            List<Objective> newObjectivesInThisTick = player.getNewMissionsForThisTick(getCurrentTick());
-            if (!newObjectivesInThisTick.isEmpty()) {
-                logger.debug("Sending {} new objectives to player.", newObjectivesInThisTick.size());
+            boolean thereAreNewObjectives = !player.getNewObjectivesByTick(getCurrentTick()).isEmpty();
+            if (thereAreNewObjectives) {
+                logger.debug("Sending {} new objectives to player.", player.getNewObjectivesByTick(getCurrentTick()).size());
+
                 GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-                List<Objective> allActiveObjectives = player.getIncompleteObjectivesUntilThisTick(getCurrentTick());
-                objectivesUpdatedEvent.setPayload(allActiveObjectives);
+
+                // For the frontend, still include ALL objectives, even completed ones, in this event
+                List<Objective> allObjectives = player.getObjectivesUntilThisTick(getCurrentTick());
+                objectivesUpdatedEvent.setPayload(allObjectives);
                 sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
             }
         });
@@ -609,14 +615,40 @@ public class Game {
     }
 
     private void randomlySpawnProjectTendersPerTick() {
-        // Don't spawn new projects in level 1
-        if (getLevel() == 1) {
+        // Don't spawn new projects in level 1 before the first mission is completed
+        Player player = players.values().iterator().next();
+        if (getLevel() == 1 && !player.getMissions().get(0).isCompleted()) {
             return;
         }
 
-        if (new Random().nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
+        if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
             // Generate a new project
-            Project project = new Project();
+            Project project;
+
+            // For level 1, make sure that it's only easy and small projects
+            if (getLevel() == 1) {
+                // 25% chance for a perfect project
+                if (RANDOM.nextFloat() <= 0.75) {
+                    project = new Project();
+                } else {
+                    // There's only one player in level 1
+                    Player p = players.values().iterator().next();
+
+                    // Find the project type and domain where one employee has the most experience
+                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.comparing(Employee::getExperience)).orElse(null);
+                    if (bestEmployee == null) {
+                        logger.error("No employee found for player {}.", p.getId());
+                        return;
+                    }
+                    String domain = bestEmployee.getDomainOfExpertise();
+                    ProjectType type = ProjectType.getTypeByDomain(domain);
+
+                    project = new Project(type, domain, RiskLevel.low, false);
+                }
+            } else {
+                project = new Project();
+            }
+
             project.setPublishedAt(getCurrentTick());
             projects.add(project);
 

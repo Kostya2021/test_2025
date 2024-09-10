@@ -180,7 +180,7 @@ public class NameGenerator {
 
         // Global population distribution
         float[] regionDistribution = {0.595f, 0.172f, 0.096f, 0.084f, 0.048f, 0.005f};
-        float rand = new Random().nextFloat();
+        float rand = RANDOM.nextFloat();
 
         String[] selectedFirstNames;
         String[] selectedLastNames;
@@ -214,8 +214,8 @@ public class NameGenerator {
         }
 
         // Assign random name from selected list
-        String firstName = selectedFirstNames[new Random().nextInt(selectedFirstNames.length)];
-        String lastName = selectedLastNames[new Random().nextInt(selectedLastNames.length)];
+        String firstName = selectedFirstNames[RANDOM.nextInt(selectedFirstNames.length)];
+        String lastName = selectedLastNames[RANDOM.nextInt(selectedLastNames.length)];
 
         return new String[]{firstName, lastName, gender};
     }

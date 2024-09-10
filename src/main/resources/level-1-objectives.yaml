@@ -1,7 +1,7 @@
 missions:
   - title: All beginnings are hard
     order: 1
-    earliestOccurrence: 10
+    earliestOccurrence: 5
     objectives:
       - title: Choose your first project
         id: 11
@@ -14,10 +14,9 @@ missions:
         rewardFunds: 1500
   - title: Baby steps
     order: 2
-    earliestOccurrence: 100
     objectives:
-      - title: Complete 5 projects
+      - title: Gain 250 XP by completing projects
         id: 15
-        totalSteps: 5
+        totalSteps: 250
       - title: Unlock your first skill
         id: 16

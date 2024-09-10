@@ -1,6 +1,7 @@
 package de.andrenitze.softpro.entities;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -10,6 +11,8 @@ public class Mission {
     private int order;
     private int earliestOccurrence;
     private List<Objective> objectives;
+    @Getter @Setter
+    private boolean processed = false;
 
     public boolean isCompleted() {
         for (Objective objective : objectives) {
@@ -19,4 +22,5 @@ public class Mission {
         }
         return true;
     }
+
 }

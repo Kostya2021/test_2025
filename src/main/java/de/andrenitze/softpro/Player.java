@@ -52,7 +52,7 @@ public class Player {
     @Setter
     private int xp = 0;
     @Getter @Setter
-    private int skillPoints = 1;
+    private int skillPoints = 0;
     @Setter
     @Getter
     private int level = 1;
@@ -131,27 +131,50 @@ public class Player {
         return null;
     }
 
-    public List<Objective> getNewMissionsForThisTick(int tick) {
+    public List<Objective> getNewObjectivesByTick(int tick) {
         List<Objective> newObjectives = new ArrayList<>();
         for (Mission mission : this.missions) {
-                if (!mission.isCompleted() && mission.getEarliestOccurrence() == tick) {
+            if (!mission.isCompleted() && (mission.getEarliestOccurrence() == tick || (mission.getEarliestOccurrence() == 0 && !mission.isProcessed()))) {
+                boolean canAddObjectives = true;
+                for (Mission m : this.missions) {
+                    if (m.getOrder() < mission.getOrder() && !m.isCompleted()) {
+                        canAddObjectives = false;
+                        break;
+                    }
+                }
+                if (canAddObjectives) {
                     for (Objective objective : mission.getObjectives()) {
                         if (!objective.isCompleted()) {
+                            objective.setMission(mission.getTitle()); // Helper attribute for the frontend
                             newObjectives.add(objective);
                         }
                     }
+                    mission.setProcessed(true);
                 }
+            }
         }
         return newObjectives;
     }
 
-    public List<Objective> getIncompleteObjectivesUntilThisTick(int tick) {
+    // Returns objectives until the given tick, but depending on order.
+    public List<Objective> getObjectivesUntilThisTick(int tick) {
     List<Objective> allActiveObjectives = new ArrayList<>();
     for (Mission mission : this.missions) {
         if (mission.getEarliestOccurrence() == 0 || mission.getEarliestOccurrence() <= tick) {
-            for (Objective objective : mission.getObjectives()) {
-                objective.setMission(mission.getTitle()); // Only for the frontend
-                allActiveObjectives.add(objective);
+            boolean canAddObjectives = true;
+            for (Mission m : this.missions) {
+                // Order: Objectives in a mission with "order == 2" will only be shown
+                // if all objectives in a mission with "order == 1" are completed.
+                if (m.getOrder() < mission.getOrder() && !m.isCompleted()) {
+                    canAddObjectives = false;
+                    break;
+                }
+            }
+            if (canAddObjectives) {
+                for (Objective objective : mission.getObjectives()) {
+                    objective.setMission(mission.getTitle()); // Only for the frontend
+                    allActiveObjectives.add(objective);
+                }
             }
         }
     }
