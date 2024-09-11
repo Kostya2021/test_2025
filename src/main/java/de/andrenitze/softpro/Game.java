@@ -36,6 +36,7 @@ public class Game {
     public static final int BASE_PRODUCTIVITY_VALUE = 1000;
     public static final double PROFIT_MARGIN = 0.3;
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
+    public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -359,6 +360,33 @@ public class Game {
 
             if (currentTick % 365 == 0) {
                 employee.initializeSickDays();
+            }
+
+            // If employee is assigned to a project, in which he/she has low experience, satisfaction decreases (status effect)
+            if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee))) {
+                projectEmployeesMap.forEach((project, employees) -> {
+
+                    StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION,
+                            0.85f,
+                            "Familiarization with new project type");
+
+                    StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION,
+                            0.85f,
+                            "Familiarization with new project domain");
+
+                    // Make sure it's only applied once
+                    if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
+                        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
+                            employee.setStatusEffect(newProjectTypeEffect);
+                        }
+                    }
+
+                    if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
+                        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
+                            employee.setStatusEffect(newProjectDomainEffect);
+                        }
+                    }
+                });
             }
         }));
     }

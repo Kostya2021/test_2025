@@ -31,8 +31,8 @@ public class Employee {
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     @Getter
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
-    @Getter
-    private int satisfaction;
+    @Setter @Getter
+    private float satisfaction;
     private int annualSickDays;
     private boolean isSick = false;
     private int lastSickDay = -1;
@@ -57,7 +57,7 @@ public class Employee {
         // Randomize age between 20 and 60
         this.age = RANDOM.nextInt(40) + 20;
 
-        calculateSatisfaction();
+        calculateSatisfactionBasedOnSalary();
         this.id = id;
         initializeSickDays();
 
@@ -160,6 +160,13 @@ public class Employee {
         } else {
             haveSickLeaveDay(currentTick);
         }
+
+        // Apply status effect on satisfaction
+        for (StatusEffect effect : statusEffects) {
+            if (effect.getType() == StatusEffectType.SATISFACTION) {
+                this.satisfaction *= effect.getMultiplier();
+            }
+        }
     }
 
     public void initializeSickDays() {
@@ -204,10 +211,10 @@ public class Employee {
         this.salary = i;
 
         // Change happiness based on salary (with diminishing returns)
-        this.calculateSatisfaction();
+        this.calculateSatisfactionBasedOnSalary();
     }
 
-    private void calculateSatisfaction() {
+    private void calculateSatisfactionBasedOnSalary() {
         double salaryInThousands = this.salary / 1000.0;
         double otherSatisfactionFactors = calculateOtherSatisfactionFactors();
         double baseHappiness = calculateBaseHappiness();
@@ -221,7 +228,7 @@ public class Employee {
         double factorsWeight = 0.5;
 
         // Calculate total satisfaction
-        this.satisfaction = (int) ((salaryWeight * salaryComponent) + (factorsWeight * otherSatisfactionFactors) + baseHappiness);
+        this.satisfaction = (float) ((salaryWeight * salaryComponent) + (factorsWeight * otherSatisfactionFactors) + baseHappiness);
         this.satisfaction = Math.min(Math.max(this.satisfaction, 1), 100); // Clamp to [1, 100]
     }
 
@@ -240,6 +247,10 @@ public class Employee {
         return firstName + " " + lastName;
     }
 
+    public void setStatusEffect(StatusEffect effect) {
+        statusEffects.add(effect);
+    }
+
     public void setStatusEffect(StatusEffectType effectType, float mutliplier, String description) {
         statusEffects.add(new StatusEffect(effectType, mutliplier, description));
     }
@@ -251,6 +262,14 @@ public class Employee {
             totalExperience += experience;
         }
         return totalExperience;
+    }
+
+    public Integer getExperienceByType(ProjectType type) {
+        return projectTypeExperience.getOrDefault(type, 0);
+    }
+
+    public Integer getExperienceByDomain(String domain) {
+        return projectDomainExperience.getOrDefault(domain, 0);
     }
 
     public String getDomainOfExpertise() {

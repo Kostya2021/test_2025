@@ -228,6 +228,7 @@ public class GameServer extends WebSocketServer {
             employee.setLastName(player.getLastName());
             employee.setSalary(952);
             employee.setAge(22);
+            employee.setSatisfaction(0.8f);
             employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
             // Increase XP in one random project domain and project type
