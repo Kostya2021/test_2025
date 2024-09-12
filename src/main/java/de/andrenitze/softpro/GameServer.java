@@ -226,9 +226,8 @@ public class GameServer extends WebSocketServer {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setFirstName(player.getFirstName());
             employee.setLastName(player.getLastName());
-            employee.setSalary(952);
+            employee.setSalary(458);
             employee.setAge(22);
-            employee.setSatisfaction(0.8f);
             employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
             // Increase XP in one random project domain and project type
@@ -280,14 +279,7 @@ public class GameServer extends WebSocketServer {
                 int numberOfPlayers = game.getPlayers().size();
                 logger.debug("A player left the game - {} player(s) left in the game", numberOfPlayers);
 
-                if (game.closeGameIfEmpty()) {
-                    // Remove all references to the game
-                    if (games.remove(game)) {
-                        logger.info("Game closed. {} game(s) left", games.size());
-                    } else {
-                        logger.error("Could not remove game from games set");
-                    }
-                }
+                game.closeGameIfEmpty();
 
                 // Don't search any further
                 break;
@@ -507,5 +499,9 @@ public class GameServer extends WebSocketServer {
             logger.warn("No high score found for today.");
         }
         return highScores;
+    }
+
+    public void removeGame(Game game) {
+        games.remove(game);
     }
 }

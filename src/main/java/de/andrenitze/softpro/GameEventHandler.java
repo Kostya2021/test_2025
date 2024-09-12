@@ -269,5 +269,10 @@ class GameEventHandler {
         } else {
             game.removeEmployeeFromProject(employee, project);
         }
+
+        // Notify frontend about change
+        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+        projectUpdatedEvent.setPayload(project);
+        game.broadcastToAllPlayers(GSON.toJson(projectUpdatedEvent));
     }
 }

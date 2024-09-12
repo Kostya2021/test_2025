@@ -238,7 +238,7 @@ public class Game {
         assignProjectsPerTick();
         sendNewObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
-        simulateEmployeeLifePerTick();
+        simulateEmployeeLivesPerTick();
         sendStoryElementsPerTick();
         startStaleProjectsPerTick();
         checkGameOverConditionsPerTick();
@@ -350,7 +350,7 @@ public class Game {
         });
     }
 
-    private void simulateEmployeeLifePerTick() {
+    private void simulateEmployeeLivesPerTick() {
         players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
             employee.beAtWork(currentTick);
 
@@ -362,33 +362,48 @@ public class Game {
                 employee.initializeSickDays();
             }
 
-            // If employee is assigned to a project, in which he/she has low experience, satisfaction decreases (status effect)
-            if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee))) {
-                projectEmployeesMap.forEach((project, employees) -> {
-
-                    StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION,
-                            0.85f,
-                            "Familiarization with new project type");
-
-                    StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION,
-                            0.85f,
-                            "Familiarization with new project domain");
-
-                    // Make sure it's only applied once
-                    if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
-                        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
-                            employee.setStatusEffect(newProjectTypeEffect);
-                        }
-                    }
-
-                    if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
-                        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
-                            employee.setStatusEffect(newProjectDomainEffect);
-                        }
-                    }
-                });
-            }
+            applyStatusEffectsForStressfulOnboarding(player, employee);
         }));
+    }
+
+    public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
+        // If employee is assigned to a project, in which he/she has low experience, satisfaction decreases (status effect)
+        if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee))) {
+            projectEmployeesMap.forEach((project, employees) -> {
+                // Make sure project has started to prevent status effect from being applied
+                if (project.getStartedAt() == 0) {
+                    return;
+                }
+
+                StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION,
+                        0.7f,
+                        "Familiarization with new project type");
+
+                StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION,
+                        0.85f,
+                        "Familiarization with new project domain");
+
+                // Make sure it's only applied once
+                if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
+                    if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS) {
+                        employee.setStatusEffect(newProjectTypeEffect);
+                    }
+                }
+
+                if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
+                    if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
+                        employee.setStatusEffect(newProjectDomainEffect);
+                    }
+                }
+
+                // Notify frontend about status effect
+                sendEmployeeUpdate(player, employee);
+            });
+        } else {
+            // Remove SATISFACTION status effects if the employee is not assigned to any project
+            employee.clearStatusEffectsByType(StatusEffectType.SATISFACTION);
+            sendEmployeeUpdate(player, employee);
+        }
     }
 
     private void sendEmployeeUpdate(Player player, Employee employee) {
@@ -783,6 +798,12 @@ public class Game {
 
             // Finish the project
             if (project.isCompleted()) {
+                // Remove all status effects on employees related to this project
+                projectEmployeesMap.get(project).forEach(employee -> {
+                    // May cause problems with other satisfaction-related status effects later
+                    employee.clearStatusEffectsByType(StatusEffectType.SATISFACTION);
+                });
+
                 // Send reward
                 for (Player player : project.getInvolvedPlayers()) {
                     int profit = (int) round(project.getTotalValue() * PROFIT_MARGIN);
@@ -1129,7 +1150,6 @@ public class Game {
                 employees.add(employee);
                 projectEmployeesMap.put(project, employees);
                 logger.debug("{} assigned to {}", employee.getName(), project.getName());
-            } else {
             }
         } catch (NullPointerException e) {
             logger.error(e.toString());
@@ -1147,19 +1167,20 @@ public class Game {
         }
     }
 
-    public boolean closeGameIfEmpty() {
+    public void closeGameIfEmpty() {
         int numberOfPlayers = players.size();
 
         // Close game session if this was the last player
         if (numberOfPlayers == 0) {
             // Stop the game loop to make sure the thread can be interrupted
-            logger.debug("Game {} has no players left. Stopping game loop.", this.hashCode());
-            killGameLoop();
+            logger.debug("Game {} has no players left. Stopping game loop and closing game.", this.hashCode());
 
-            // If the game loop successfully stopped, return true
-            return true;
+            // Stop the game loop asynchronously (no guarantees)
+            shutdownAndAwaitTermination(gameLoop);
+
+            // Remove the game from the server
+            gameServer.removeGame(this);
         }
-        return false;
     }
 
     void shutdownAndAwaitTermination(ExecutorService pool) {
@@ -1187,10 +1208,6 @@ public class Game {
 
     public void stopGameTime() {
         isRunning = false;
-    }
-
-    public void killGameLoop() {
-        shutdownAndAwaitTermination(gameLoop);
     }
 
     public void addPlayerToGame(WebSocket key, Player value) {

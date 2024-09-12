@@ -17,6 +17,7 @@ public class Employee {
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_SICK_DAYS = 4;
     public static final int MAXIMUM_SICK_DAYS = 22;
+    public static final int MINIMUM_AGE = 20;
     private final Integer id;
     private int salary; // monthly salary
     @Setter
@@ -44,9 +45,7 @@ public class Employee {
     private static final NameGenerator nameGenerator = NameGenerator.getInstance();
 
     Employee(Integer id) {
-        logger.debug("Creating new employee");
         String[] generatedName = nameGenerator.generateName();
-        logger.debug("Generated name: " + generatedName[0] + " " + generatedName[1] + " " + generatedName[2]);
         this.firstName = generatedName[0];
         this.lastName = generatedName[1];
         this.gender = generatedName[2];
@@ -55,9 +54,9 @@ public class Employee {
         this.salary = RANDOM.nextInt(0, 1500) + 3000;
 
         // Randomize age between 20 and 60
-        this.age = RANDOM.nextInt(40) + 20;
+        this.age = RANDOM.nextInt(40) + MINIMUM_AGE;
 
-        calculateSatisfactionBasedOnSalary();
+        calculateSatisfaction();
         this.id = id;
         initializeSickDays();
 
@@ -160,13 +159,6 @@ public class Employee {
         } else {
             haveSickLeaveDay(currentTick);
         }
-
-        // Apply status effect on satisfaction
-        for (StatusEffect effect : statusEffects) {
-            if (effect.getType() == StatusEffectType.SATISFACTION) {
-                this.satisfaction *= effect.getMultiplier();
-            }
-        }
     }
 
     public void initializeSickDays() {
@@ -211,10 +203,10 @@ public class Employee {
         this.salary = i;
 
         // Change happiness based on salary (with diminishing returns)
-        this.calculateSatisfactionBasedOnSalary();
+        calculateSatisfaction();
     }
 
-    private void calculateSatisfactionBasedOnSalary() {
+    private void calculateSatisfaction() {
         double salaryInThousands = this.salary / 1000.0;
         double otherSatisfactionFactors = calculateOtherSatisfactionFactors();
         double baseHappiness = calculateBaseHappiness();
@@ -229,17 +221,27 @@ public class Employee {
 
         // Calculate total satisfaction
         this.satisfaction = (float) ((salaryWeight * salaryComponent) + (factorsWeight * otherSatisfactionFactors) + baseHappiness);
-        this.satisfaction = Math.min(Math.max(this.satisfaction, 1), 100); // Clamp to [1, 100]
+
+        // Apply all status effects of type SATISFACTION
+        for (StatusEffect effect : statusEffects) {
+            if (effect.getType() == StatusEffectType.SATISFACTION) {
+                this.satisfaction *= effect.getMultiplier();
+            }
+        }
+
+        this.satisfaction = (int) Math.min(Math.max(this.satisfaction, 1), 100); // Clamp to [1, 100]
     }
 
     // Intrinsic happiness of an employee
     private double calculateBaseHappiness() {
-        return 5;
+        // Value between 5 and 20, depending on age
+        return Math.min(20, Math.max(5, 20 - (age - MINIMUM_AGE)));
     }
 
     // Job satisfaction factors not related to salary
     private int calculateOtherSatisfactionFactors() {
         // Dummy value, refine later (work environment, career opportunities, mentoring etc.)
+        // Satisfaction 0-100
         return 50;
     }
 
@@ -249,10 +251,11 @@ public class Employee {
 
     public void setStatusEffect(StatusEffect effect) {
         statusEffects.add(effect);
+        calculateSatisfaction();
     }
 
-    public void setStatusEffect(StatusEffectType effectType, float mutliplier, String description) {
-        statusEffects.add(new StatusEffect(effectType, mutliplier, description));
+    public void setStatusEffect(StatusEffectType effectType, float multiplier, String description) {
+        setStatusEffect(new StatusEffect(effectType, multiplier, description));
     }
 
     public Integer getExperience() {
@@ -284,5 +287,10 @@ public class Employee {
             return null;
         }
         return maxEntry.getKey();
+    }
+
+    public void clearStatusEffectsByType(StatusEffectType type) {
+        statusEffects.removeIf(effect -> effect.getType() == type);
+        calculateSatisfaction();
     }
 }
