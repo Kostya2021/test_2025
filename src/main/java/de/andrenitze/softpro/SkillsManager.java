@@ -3,7 +3,6 @@ package de.andrenitze.softpro;
 import de.andrenitze.softpro.entities.Skill;
 
 import java.util.HashMap;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -20,18 +19,16 @@ public class SkillsManager {
     }
 
     void unlockSkill(Player player, String skillId, int unlockSkillPoints) {
-        if (Objects.equals(skillId, "pmo")) {
-            Skill skill = new Skill();
-            skill.setId(skillId);
-            skill.setUnlocked(true);
+        Skill skill = new Skill();
+        skill.setId(skillId);
+        skill.setUnlocked(true);
 
-            // Decrease the player's skill points
-            player.setSkillPoints(player.getSkillPoints() - unlockSkillPoints);
+        // Decrease the player's skill points
+        player.setSkillPoints(player.getSkillPoints() - unlockSkillPoints);
 
-            HashMap<String, Skill> skills = playersSkills.get(player);
-            skills.putIfAbsent(skillId, skill);
-            playersSkills.put(player, skills);
-        }
+        HashMap<String, Skill> skills = playersSkills.get(player);
+        skills.putIfAbsent(skillId, skill);
+        playersSkills.put(player, skills);
     }
 
     boolean playerHasSkill(Player player, String skillId) {
