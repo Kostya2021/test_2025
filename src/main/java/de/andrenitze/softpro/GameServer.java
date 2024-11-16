@@ -220,6 +220,9 @@ public class GameServer extends WebSocketServer {
 
         logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
 
+        // Reset all status effects of all employees (Not sure about side effects though...)
+        player.getEmployees().forEach(Employee::clearStatusEffects);
+
         // For level 1, generate the player as his/her own first and only employee
         if (player.getLevel() == 1) {
             player.setEmployees(new ArrayList<>());

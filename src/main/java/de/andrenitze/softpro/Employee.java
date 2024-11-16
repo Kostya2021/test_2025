@@ -293,4 +293,9 @@ public class Employee {
         statusEffects.removeIf(effect -> effect.getType() == type);
         calculateSatisfaction();
     }
+
+    public void clearStatusEffects() {
+        statusEffects.clear();
+        calculateSatisfaction();
+    }
 }
