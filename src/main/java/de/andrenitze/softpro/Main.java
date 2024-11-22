@@ -13,7 +13,9 @@ public class Main {
     public static void main(String[] args) {
         try {
             String hostAddress = InetAddress.getLocalHost().getHostAddress();
-            int port = 8070;
+
+            // Accept first external ajva argument for port or use 80
+            int port = args.length > 0 ? Integer.parseInt(args[0]) : 80;
 
             GameServer server = new GameServer(hostAddress, port);
             server.setConnectionLostTimeout(5);

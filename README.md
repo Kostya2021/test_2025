@@ -11,7 +11,7 @@ To run the server:
 
 To build a ```*.jar``` with all dependencies in the "/target" folder:
 
-```mvn package assembly:single```
+```mvn clean package assembly:single```
 
 The server will be waiting for incoming connection requests via HTTP port 80. It will upgrade all valid requests to a WebSocket connection (HTTP 101 - Switching Protocols) on the same port.
 
