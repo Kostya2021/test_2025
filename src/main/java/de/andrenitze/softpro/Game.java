@@ -38,7 +38,7 @@ public class Game {
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final String RESTORE_LOST_DATA = "Restore lost data";
-    public static final int LEVEL_BACKUP_BLUES = 1; // TODO Move back to level 2 after testing
+    public static final int LEVEL_BACKUP_BLUES = 2;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -186,8 +186,14 @@ public class Game {
 
     private void triggerLevel1Consequences() {
         players.forEach((webSocket, player) -> {
+
+        });
+    }
+
+    private void triggerLevel2Consequences() {
+        // Adjust gameplay for each player according to decisions made in briefing
+        players.forEach((webSocket, player) -> {
             // "Backup decision"
-            // TODO Move back to level 2 consequences when done testing!!!
             int option = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
             if (option == 1) {
                 // Option 1 "Employee does it": Lower productivity of first employee as status effect for the whole level
@@ -205,27 +211,16 @@ public class Game {
         });
     }
 
-    private void triggerLevel2Consequences() {
-        // Adjust gameplay for each player according to decisions made in briefing
-        players.forEach((webSocket, player) -> {
-
-        });
-    }
-
     private void triggerLevel3Consequences() {
         players.forEach((webSocket, player) -> {
             // "Backup decision"
             int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> {
-                    employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA);
-                });
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA));
             } else if (backupOption == 1) {
                 // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> {
-                    employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA);
-                });
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
             }
         });
     }
@@ -236,14 +231,10 @@ public class Game {
             int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> {
-                    employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA);
-                });
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA));
             } else if (backupOption == 1) {
                 // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> {
-                    employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA);
-                });
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
             }
         });
     }
@@ -866,7 +857,12 @@ public class Game {
                         project.setPenalty(penalty);
                         logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
                     }
-                    profit = (int) (profit * overduePenaltyMultiplier);
+
+                    // Prevent losses in level 1
+                    if (level != 1) {
+                        profit = (int) (profit * overduePenaltyMultiplier);
+                    }
+
                     projectObject.put("profit", profit);
                     project.setProfit(profit);
                     player.addFunds(profit);
