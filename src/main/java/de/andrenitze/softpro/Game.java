@@ -814,13 +814,21 @@ public class Game {
                         // Per 1% delayed delivery, return 2% less win margin
                         overduePenaltyMultiplier = 1 - ((float) Math.abs(daysLeft) / project.getDeadline() * 2);
                         float penalty = profit * (1 - overduePenaltyMultiplier);
+                        if (level == 1) {
+                            penalty = 0;
+                        }
                         projectObject.put("penalty", penalty);
+
                         project.setPenalty(penalty);
                         logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
                     }
                     profit = (int) (profit * overduePenaltyMultiplier);
                     projectObject.put("profit", profit);
                     project.setProfit(profit);
+                    // Don't win or lose anything in level
+                    if (level == 1) {
+                        profit = 0;
+                    }
                     player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
 
