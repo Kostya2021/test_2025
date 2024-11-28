@@ -92,7 +92,7 @@ public class Player {
         return adjective + " " + subject;
     }
 
-    Player(String name, String company) {
+    public Player(String name, String company) {
         setName(name);
 
         this.company = company;

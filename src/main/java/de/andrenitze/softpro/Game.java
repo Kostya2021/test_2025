@@ -37,6 +37,8 @@ public class Game {
     public static final double PROFIT_MARGIN = 0.3;
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
+    public static final String RESTORE_LOST_DATA = "Restore lost data";
+    public static final int LEVEL_BACKUP_BLUES = 2;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
@@ -163,39 +165,76 @@ public class Game {
         broadcastToAllPlayers(GSON.toJson(projectEvent));
 
         // Logic for decisions and their consequences
+        // Beware: Decisions from previous levels might have consequences in other levels
         if (getLevel() == 1) {
-            handleLevel1Decisions();
+            triggerLevel1Consequences();
         } else if (getLevel() == 2) {
-            handleLevel2Decisions();
+            triggerLevel2Consequences();
+        } else if (getLevel() == 3) {
+            triggerLevel3Consequences();
+        } else if (getLevel() == 4) {
+            triggerLevel4Consequences();
         }
+
+        players.forEach((webSocket, player) -> {
+            if (player.getDecisionsByLevel(getLevel()).isEmpty()) {
+                logger.warn("Player {} has no decisions for level {}", player.getId(), getLevel());
+            }
+        });
     }
 
-    private void handleLevel1Decisions() {
+
+    private void triggerLevel1Consequences() {
+        players.forEach((webSocket, player) -> {
+
+        });
     }
 
-    private void handleLevel2Decisions() {
+    private void triggerLevel2Consequences() {
         // Adjust gameplay for each player according to decisions made in briefing
         players.forEach((webSocket, player) -> {
-            if (player.getDecisionsByLevel(2).isEmpty()) {
-                logger.warn("Player {} has no decisions for level 2", player.getId());
-                return;
-            }
-
             // "Backup decision"
-            int option = player.getDecisionsByLevel(2).get(0).getOptionId();
-            logger.debug("Player chose option {}", option);
+            int option = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
             if (option == 1) {
                 // Option 1 "Employee does it": Lower productivity of first employee as status effect for the whole level
                 // Make sure that the effect stays even if employee is fired. Always use the first employee.
                 player.setFunds(player.getFunds() - 5000);
                 Employee firstEmployee = player.getEmployees().get(0);
                 firstEmployee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
-                // For now, status effects will stay forever.
+                // All status effects will be reset when the next level is prepared
 
                 // Option 2 "Do nothing": No effect in this level. Later on, the player will have to deal with the consequences
             } else if (option == 3) {
                 // Option 3 "Vendor does it", decrease funds by 15000.
                 player.setFunds(player.getFunds() - 15000);
+            }
+        });
+    }
+
+    private void triggerLevel3Consequences() {
+        players.forEach((webSocket, player) -> {
+            // "Backup decision"
+            int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
+            if (backupOption == 2) {
+                // Dramatically decrease productivity of all employees as status effect for the whole level
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA));
+            } else if (backupOption == 1) {
+                // Slightly decrease productivity of all employees as status effect for the whole level
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
+            }
+        });
+    }
+
+    private void triggerLevel4Consequences() {
+        players.forEach((webSocket, player) -> {
+            // "Backup decision"
+            int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
+            if (backupOption == 2) {
+                // Dramatically decrease productivity of all employees as status effect for the whole level
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA));
+            } else if (backupOption == 1) {
+                // Slightly decrease productivity of all employees as status effect for the whole level
+                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
             }
         });
     }
@@ -822,7 +861,12 @@ public class Game {
                         project.setPenalty(penalty);
                         logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
                     }
-                    profit = (int) (profit * overduePenaltyMultiplier);
+
+                    // Prevent losses in level 1
+                    if (level != 1) {
+                        profit = (int) (profit * overduePenaltyMultiplier);
+                    }
+
                     projectObject.put("profit", profit);
                     project.setProfit(profit);
                     // Don't win or lose anything in level
@@ -1130,7 +1174,7 @@ public class Game {
         return eventHandler;
     }
 
-    ArrayList<Project> getProjects() {
+    public ArrayList<Project> getProjects() {
         return projects;
     }
 

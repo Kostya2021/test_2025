@@ -232,7 +232,7 @@ public class Project {
         return risk;
     }
 
-    int getId() {
+    public int getId() {
         return id;
     }
 
