@@ -17,6 +17,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -49,7 +50,7 @@ public class Game {
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
-    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
     private final SkillsManager skillsManager = new SkillsManager();
@@ -392,16 +393,23 @@ public class Game {
     private void simulateEmployeeLivesPerTick() {
         players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
             employee.beAtWork(currentTick);
+            boolean needsUpdate = false;
 
-            if (employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick)) {
-                sendEmployeeUpdate(player, employee);
+            if (employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects()) {
+                needsUpdate = true;
             }
 
             if (currentTick % 365 == 0) {
                 employee.initializeSickDays();
             }
 
+            // This could be refactored so that the "needsUpdate" logic can be used here as well
             applyStatusEffectsForStressfulOnboarding(player, employee);
+
+            // Send an employee update, if anything has changed
+            if (needsUpdate) {
+                sendEmployeeUpdate(player, employee);
+            }
         }));
     }
 

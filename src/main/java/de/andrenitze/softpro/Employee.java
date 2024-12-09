@@ -10,14 +10,11 @@ import lombok.Setter;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.Main.logger;
 
 public class Employee {
-    public static final float SICK_DAY_PROBABILITY = 0.02f;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
-    public static final int MINIMUM_SICK_DAYS = 4;
-    public static final int MAXIMUM_SICK_DAYS = 22;
     public static final int MINIMUM_AGE = 20;
+    private float sickDayProbability = 0.02f;
     private final Integer id;
     private int salary; // monthly salary
     @Setter
@@ -35,8 +32,11 @@ public class Employee {
     @Setter @Getter
     private float satisfaction;
     private int annualSickDays;
+    private int minimumSickDays;
+    private int maximumSickDays;
     private boolean isSick = false;
     private int lastSickDay = -1;
+    @Getter @Setter
     private float health = 0.0f;
     @Getter
     private String gender;
@@ -49,6 +49,9 @@ public class Employee {
         this.firstName = generatedName[0];
         this.lastName = generatedName[1];
         this.gender = generatedName[2];
+
+        this.minimumSickDays = 4;
+        this.maximumSickDays = 20;
 
         // Randomize salary between 3000 and 4500
         this.salary = RANDOM.nextInt(0, 1500) + 3000;
@@ -126,11 +129,13 @@ public class Employee {
     }
 
     public void haveSickLeaveDay(int currentTick) {
+        // Get better every day until fully recovered
         --annualSickDays;
-        health += RANDOM.nextFloat();
+        setHealth(getHealth() + RANDOM.nextFloat());
 
-        if (health >= 1) {
-            setSick(false);
+        if (getHealth() >= 1) {
+            setHealth(1f);
+            makeSick(false);
             setLastSickDay(currentTick);
         }
     }
@@ -143,30 +148,37 @@ public class Employee {
         return isSick;
     }
 
-    public void setSick(boolean sick) {
+    public void makeSick(boolean sick) {
         isSick = sick;
 
         if (sick) {
-            health = 0;
+            health = 0; // Decrease health to 0 when getting sick
         }
     }
 
     public void beAtWork(int currentTick) {
         if (!this.isSick()) {
-            if (this.annualSickDays > 0 && RANDOM.nextDouble() <= SICK_DAY_PROBABILITY) {
-                this.setSick(true);
+            if (this.annualSickDays > 0 && RANDOM.nextDouble() <= sickDayProbability) {
+                this.makeSick(true);
             }
         } else {
             haveSickLeaveDay(currentTick);
         }
+
+        // Cooldown all status effects (if they have a cooldown)
+        statusEffects.forEach(StatusEffect::cooldown);
+    }
+
+    public boolean anyStatusEffectHasExpired() {
+        return statusEffects.stream().anyMatch(StatusEffect::isExpired);
     }
 
     public void initializeSickDays() {
-        this.annualSickDays = MINIMUM_SICK_DAYS + RANDOM.nextInt(MAXIMUM_SICK_DAYS - MINIMUM_SICK_DAYS);
+        this.annualSickDays = minimumSickDays + RANDOM.nextInt(maximumSickDays - minimumSickDays);
     }
 
     public boolean hasFirstDayAfterSickLeave(int currentTick) {
-        return getLastSickDay() == currentTick-1;
+        return getLastSickDay() == currentTick - 1;
     }
 
     private int getLastSickDay() {
@@ -175,7 +187,7 @@ public class Employee {
 
     public void addXp(ProjectType type, String domain, int days) {
         // Check if the project domain is valid
-        if (domain == null || domain.isEmpty() ) {
+        if (domain == null || domain.isEmpty()) {
             throw new IllegalArgumentException("Domain must be one of the following: " + projectDomainExperience.keySet());
         }
 
@@ -202,14 +214,14 @@ public class Employee {
     public void setSalary(int i) {
         this.salary = i;
 
-        // Change happiness based on salary (with diminishing returns)
+        // Change satisfaction based on salary (with diminishing returns)
         calculateSatisfaction();
     }
 
     private void calculateSatisfaction() {
         double salaryInThousands = this.salary / 1000.0;
         double otherSatisfactionFactors = calculateOtherSatisfactionFactors();
-        double baseHappiness = calculateBaseHappiness();
+        double baseSatisfaction = calculateBaseSatisfaction();
 
         // Calculate the salary component
         double salaryComponent = (Math.log(salaryInThousands) * 30 + Math.sqrt(salaryInThousands) * 20);
@@ -220,7 +232,7 @@ public class Employee {
         double factorsWeight = 0.5;
 
         // Calculate total satisfaction
-        this.satisfaction = (float) ((salaryWeight * salaryComponent) + (factorsWeight * otherSatisfactionFactors) + baseHappiness);
+        this.satisfaction = (float) ((salaryWeight * salaryComponent) + (factorsWeight * otherSatisfactionFactors) + baseSatisfaction);
 
         // Apply all status effects of type SATISFACTION
         for (StatusEffect effect : statusEffects) {
@@ -232,8 +244,8 @@ public class Employee {
         this.satisfaction = (int) Math.min(Math.max(this.satisfaction, 1), 100); // Clamp to [1, 100]
     }
 
-    // Intrinsic happiness of an employee
-    private double calculateBaseHappiness() {
+    // Intrinsic satisfaction of an employee
+    private double calculateBaseSatisfaction() {
         // Value between 5 and 20, depending on age
         return Math.min(20, Math.max(5, 20 - (age - MINIMUM_AGE)));
     }
@@ -256,6 +268,10 @@ public class Employee {
 
     public void setStatusEffect(StatusEffectType effectType, float multiplier, String description) {
         setStatusEffect(new StatusEffect(effectType, multiplier, description));
+    }
+
+    public void setStatusEffect(StatusEffectType effectType, float multiplier, String description, int cooldown) {
+        setStatusEffect(new StatusEffect(effectType, multiplier, description, cooldown));
     }
 
     public Integer getExperience() {
@@ -297,5 +313,33 @@ public class Employee {
     public void clearStatusEffects() {
         statusEffects.clear();
         calculateSatisfaction();
+    }
+
+    public void applyEffect(String effect) {
+        // Effect "crunch-mode" will do:
+        // +50% productivity
+        // -20% satisfaction
+        // -10% health (absolute, recovers only slowly)
+        // +25% chance of sick days (indirect via health and satisfaction)
+        if (effect.equals("crunch-mode")) {
+            String crunchMode = "Crunch mode";
+            int cooldown = 20;
+            setStatusEffect(StatusEffectType.PRODUCTIVITY, 1.5f, crunchMode, cooldown);
+            setStatusEffect(StatusEffectType.SATISFACTION, 0.8f, crunchMode, cooldown);
+            setStatusEffect(StatusEffectType.HEALTH, 0.90f, crunchMode, cooldown);
+
+            // Increment max and annual sick days with every "crunch mode", because it's stressful
+            annualSickDays += 1;
+            maximumSickDays += 1;
+            sickDayProbability += 0.01f;
+        }
+    }
+
+    public boolean removeExpiredStatusEffects() {
+        boolean removed = statusEffects.removeIf(StatusEffect::isExpired);
+        if (removed) {
+            calculateSatisfaction();
+        }
+        return removed;
     }
 }
