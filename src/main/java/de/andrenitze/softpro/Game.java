@@ -28,7 +28,7 @@ import static java.lang.Math.round;
 import static java.time.LocalDate.now;
 
 public class Game {
-    public static final int GAME_SPEED_IN_MILLISECONDS = 400;
+    public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
