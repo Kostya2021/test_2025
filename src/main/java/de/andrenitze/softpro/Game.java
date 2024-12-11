@@ -27,7 +27,7 @@ import static java.lang.Math.round;
 import static java.time.LocalDate.now;
 
 public class Game {
-    public static final int GAME_SPEED_IN_MILLISECONDS = 400;
+    public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -49,7 +49,7 @@ public class Game {
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
-    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
     private final SkillsManager skillsManager = new SkillsManager();
@@ -392,16 +392,19 @@ public class Game {
     private void simulateEmployeeLivesPerTick() {
         players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
             employee.beAtWork(currentTick);
-
-            if (employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick)) {
-                sendEmployeeUpdate(player, employee);
-            }
+            boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
 
             if (currentTick % 365 == 0) {
                 employee.initializeSickDays();
             }
 
+            // This could be refactored so that the "needsUpdate" logic can be used here as well
             applyStatusEffectsForStressfulOnboarding(player, employee);
+
+            // Send an employee update, if anything has changed
+            if (needsUpdate) {
+                sendEmployeeUpdate(player, employee);
+            }
         }));
     }
 

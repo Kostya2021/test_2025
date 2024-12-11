@@ -11,18 +11,25 @@ import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Type;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
 import static de.andrenitze.softpro.Main.logger;
 
 class GameEventHandler {
     private static final Gson GSON = new Gson();
     private final Game game;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     GameEventHandler(Game game) {
         this.game = game;
@@ -238,6 +245,41 @@ class GameEventHandler {
                 GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
                 employeeUpdateEvent.setPayload(employee);
                 game.sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
+            }
+            case EFFECT_ENABLED -> {
+                // Extract "projectId" (Integer) and "effect" (String) from payload fields
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
+                GameEvent<HashMap<String, String>> effectEnabledEvent = GSON.fromJson(message, payloadType);
+
+                int projectId = Integer.parseInt(effectEnabledEvent.getPayload().get("projectId"));
+                String effect = effectEnabledEvent.getPayload().get("effect");
+
+                // Apply the effect to the project
+                Project project = game.getProjectById(projectId);
+
+                // Apply the effect to the employees in the project
+                if (project == null) {
+                    logger.warn("Could not apply effect. Project {} not found.", projectId);
+                    break;
+                }
+
+                for (Employee employee : game.projectEmployeesMap.get(project)) {
+                    employee.applyEffect(effect);
+                    GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+                    employeeUpdateEvent.setPayload(employee);
+                    game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(employeeUpdateEvent));
+                }
+
+                // Schedule a task to disable "crunch-mode" effect after cooldown (= in-game days)
+                // The scheduler here seems like a brittle implementation...
+                int crunchModeCooldown = 20;
+                scheduler.schedule(() -> {
+                    GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
+                    effectDisabledEvent.setPayload(Map.of("effect", "crunch-mode"));
+                    game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(effectDisabledEvent));
+                }, GAME_SPEED_IN_MILLISECONDS * crunchModeCooldown, TimeUnit.MILLISECONDS);
+            }
+            case EFFECT_DISABLED -> {
             }
             case PLAYER_NAME_UPDATED -> {
             }
