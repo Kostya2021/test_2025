@@ -17,7 +17,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -393,11 +392,7 @@ public class Game {
     private void simulateEmployeeLivesPerTick() {
         players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
             employee.beAtWork(currentTick);
-            boolean needsUpdate = false;
-
-            if (employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects()) {
-                needsUpdate = true;
-            }
+            boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
 
             if (currentTick % 365 == 0) {
                 employee.initializeSickDays();
