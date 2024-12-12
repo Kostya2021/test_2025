@@ -12,6 +12,7 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.Main.logger;
 
 public class SkillsManager {
@@ -39,6 +40,7 @@ public class SkillsManager {
         playersSkills.put(player, skills);
         logger.debug("Player {} unlocked skill {}", player.getName(), skillId);
         saveSkills(player);
+        addPermanentStatusEffectsToAllEmployees();
     }
 
     boolean playerHasSkill(Player player, String skillId) {
@@ -140,5 +142,20 @@ public class SkillsManager {
                 }
             }
         }
+    }
+
+    public void addPermanentStatusEffectsToAllEmployees() {
+        playersSkills.keySet().forEach(player -> {
+            logger.debug("Checking for permanent status effects for player {}", player.getId());
+
+            // The only permanent status effect is TEAM_SPIRIT
+            if (playerHasSkill(player, TEAM_SPIRIT)) {
+                logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
+                player.getEmployees().forEach(employee -> {
+                    logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
+                    employee.addComplexStatusEffect(TEAM_SPIRIT);
+                });
+            }
+        });
     }
 }
