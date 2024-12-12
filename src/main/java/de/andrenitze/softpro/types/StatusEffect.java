@@ -2,25 +2,23 @@ package de.andrenitze.softpro.types;
 
 import lombok.Data;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Data
 public class StatusEffect {
     private StatusEffectType type;
     private float multiplier; // 1.0 = 100%, 0.5 = 50%, 2.25 = 225%, -1.0 = -100%
-    private String description;
+    private String reason;
     private int cooldown = -1; // How many days the effect lasts (-1 = infinite)
 
-    public StatusEffect(StatusEffectType type, float multiplier, String description) {
+    public StatusEffect(StatusEffectType type, float multiplier, String reason) {
         this.type = type;
         this.multiplier = multiplier;
-        this.description = description;
+        this.reason = reason;
     }
 
-    public StatusEffect(StatusEffectType type, float multiplier, String description, int cooldown) {
+    public StatusEffect(StatusEffectType type, float multiplier, String reason, int cooldown) {
         this.type = type;
         this.multiplier = multiplier;
-        this.description = description;
+        this.reason = reason;
         this.cooldown = cooldown;
     }
 
@@ -31,6 +29,6 @@ public class StatusEffect {
     }
 
     public boolean isExpired() {
-        return cooldown == 0 || cooldown < 0;
+        return cooldown == 0;
     }
 }

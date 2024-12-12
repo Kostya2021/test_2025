@@ -220,9 +220,6 @@ public class GameServer extends WebSocketServer {
 
         logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
 
-        // Reset all status effects of all employees (Not sure about side effects though...)
-        player.getEmployees().forEach(Employee::clearStatusEffects);
-
         // For level 1, generate the player as his/her own first and only employee
         if (player.getLevel() == 1) {
             player.setEmployees(new ArrayList<>());
@@ -231,7 +228,7 @@ public class GameServer extends WebSocketServer {
             employee.setLastName(player.getLastName());
             employee.setSalary(458);
             employee.setAge(22);
-            employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
+            employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
             // Increase XP in one random project domain and project type
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];

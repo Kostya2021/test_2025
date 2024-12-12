@@ -9,12 +9,15 @@ import lombok.Setter;
 
 import java.util.*;
 
+import static de.andrenitze.softpro.GameEventHandler.CRUNCH_MODE;
+import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.Main.logger;
 
 public class Employee {
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;
-    private float sickDayProbability = 0.02f;
+    private transient float sickDayProbability = 0.02f;
     private final Integer id;
     private int salary; // monthly salary
     @Setter
@@ -169,10 +172,6 @@ public class Employee {
         statusEffects.forEach(StatusEffect::cooldown);
     }
 
-    public boolean anyStatusEffectHasExpired() {
-        return statusEffects.stream().anyMatch(StatusEffect::isExpired);
-    }
-
     public void initializeSickDays() {
         this.annualSickDays = minimumSickDays + RANDOM.nextInt(maximumSickDays - minimumSickDays);
     }
@@ -261,17 +260,20 @@ public class Employee {
         return firstName + " " + lastName;
     }
 
-    public void setStatusEffect(StatusEffect effect) {
+    public void addStatusEffect(StatusEffect effect) {
         statusEffects.add(effect);
+        logger.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getReason(), effect.getType(), getName(), statusEffects.size());
         calculateSatisfaction();
     }
 
-    public void setStatusEffect(StatusEffectType effectType, float multiplier, String description) {
-        setStatusEffect(new StatusEffect(effectType, multiplier, description));
+    // Variant without cooldown (effect is permanent until removed)
+    public void addStatusEffect(StatusEffectType effectType, float multiplier, String description) {
+        addStatusEffect(new StatusEffect(effectType, multiplier, description));
     }
 
-    public void setStatusEffect(StatusEffectType effectType, float multiplier, String description, int cooldown) {
-        setStatusEffect(new StatusEffect(effectType, multiplier, description, cooldown));
+    // Variant with cooldown (effect is active for a certain number of ticks)
+    public void addStatusEffect(StatusEffectType effectType, float multiplier, String description, int cooldown) {
+        addStatusEffect(new StatusEffect(effectType, multiplier, description, cooldown));
     }
 
     public Integer getExperience() {
@@ -305,34 +307,59 @@ public class Employee {
         return maxEntry.getKey();
     }
 
-    public void clearStatusEffectsByType(StatusEffectType type) {
-        statusEffects.removeIf(effect -> effect.getType() == type);
-        calculateSatisfaction();
-    }
-
-    public void clearStatusEffects() {
+    public void removeAllStatusEffects() {
         statusEffects.clear();
+        logger.debug("Removed all status effects from {}", getName());
         calculateSatisfaction();
     }
 
-    public void applyEffect(String effect) {
+    public void removeStatusEffectsByDescription(String description) {
+        statusEffects.removeIf(effect -> {
+            boolean toRemove = effect.getReason().equals(description);
+            if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
+                calculateSatisfaction();
+            }
+            return toRemove;
+        });
+
+        logger.debug("Removed status effects with description {} from {}", description, getName());
+    }
+
+    public void addComplexStatusEffect(String effect) {
+        logger.debug("Applying {} to {}", effect, getName());
+
         // Effect "crunch-mode" will do:
         // +50% productivity
         // -20% satisfaction
         // -10% health (absolute, recovers only slowly)
-        // +25% chance of sick days (indirect via health and satisfaction)
-        if (effect.equals("crunch-mode")) {
-            String crunchMode = "Crunch mode";
+        // Slightly increased chance of sick days
+        if (effect.equals(CRUNCH_MODE)) {
+            String reason = "Crunch mode";
             int cooldown = 20;
-            setStatusEffect(StatusEffectType.PRODUCTIVITY, 1.5f, crunchMode, cooldown);
-            setStatusEffect(StatusEffectType.SATISFACTION, 0.8f, crunchMode, cooldown);
-            setStatusEffect(StatusEffectType.HEALTH, 0.90f, crunchMode, cooldown);
+            addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.5f, reason, cooldown);
+            addStatusEffect(StatusEffectType.SATISFACTION, 0.8f, reason, cooldown);
+            addStatusEffect(StatusEffectType.HEALTH, 0.90f, reason, cooldown);
 
             // Increment max and annual sick days with every "crunch mode", because it's stressful
             annualSickDays += 1;
             maximumSickDays += 1;
             sickDayProbability += 0.01f;
-        }
+        } else
+
+            // Effect "team-spirit" will do:
+            // -5% productivity (no cooldown = forever)
+            // +15% satisfaction (forever)
+            // +15% health (forever)
+            if (effect.equals(TEAM_SPIRIT)) {
+                String reason = "Team spirit";
+                addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, reason);
+                addStatusEffect(StatusEffectType.SATISFACTION, 1.15f, reason);
+                addStatusEffect(StatusEffectType.HEALTH, 1.15f, reason);
+
+                // Decrease maximum sick days by 2 because of the positive effect on health
+                annualSickDays -= 2;
+                maximumSickDays -= 2;
+            }
     }
 
     public boolean removeExpiredStatusEffects() {
@@ -341,5 +368,17 @@ public class Employee {
             calculateSatisfaction();
         }
         return removed;
+    }
+
+    public void removeStatusEffectByReason(String reason) {
+        statusEffects.removeIf(effect -> {
+            boolean toRemove = effect.getReason().equals(reason);
+            if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
+                calculateSatisfaction();
+            }
+            return toRemove;
+        });
+
+        logger.debug("Removed status effects with reason '{}' from {}", reason, getName());
     }
 }
