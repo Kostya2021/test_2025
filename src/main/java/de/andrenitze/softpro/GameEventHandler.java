@@ -129,7 +129,6 @@ class GameEventHandler {
                 int unlockSkillPoints = Integer.parseInt(skillUnlockedEvent.getPayload().get("unlockSkillPoints"));
 
                 game.getSkillsManager().unlockSkill(player, skillId, unlockSkillPoints);
-                game.getSkillsManager().playerHasSkill(player, skillId);
             }
             case HIRE_TALENT -> {
                 // Parse the employee id out of the message
