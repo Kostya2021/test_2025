@@ -69,13 +69,8 @@ public class SkillsManager {
     private void saveSkills(Player player) {
         try {
             File directory = new File(SKILLS_DIRECTORY);
-            if (!directory.exists()) {
-                boolean created = directory.mkdirs();
-                if (created) {
-                    logger.debug("Created directory {}", SKILLS_DIRECTORY);
-                } else {
-                    logger.error("Failed to create directory {}", SKILLS_DIRECTORY);
-                }
+            if (!directory.exists() && !directory.mkdirs()) {
+                throw new IllegalStateException("Failed to create directory: " + directory.getAbsolutePath());
             }
             FileWriter writer = new FileWriter(SKILLS_DIRECTORY + player.getId() + ".json");
             gson.toJson(playersSkills.get(player), writer);
