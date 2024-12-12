@@ -1,0 +1,8 @@
+missions:
+  - title: Prove yourself worthy
+    order: 1
+    earliestOccurrence: 3
+    objectives:
+      - title: Complete 10 projects
+        id: 31
+        totalSteps: 10

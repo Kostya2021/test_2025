@@ -11,7 +11,6 @@ import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import org.java_websocket.WebSocket;
-import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Type;
 import java.sql.SQLException;
@@ -28,6 +27,8 @@ import static de.andrenitze.softpro.Main.logger;
 
 class GameEventHandler {
     private static final Gson GSON = new Gson();
+    public static final String TEAM_SPIRIT = "team-spirit";
+    public static final String CRUNCH_MODE = "crunch-mode";
     private final Game game;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -144,8 +145,14 @@ class GameEventHandler {
                     break;
                 }
 
-                logger.info("Player {} hired employee {} - {}", player.getName(), employee.getId(), employee.getName());
-                logger.info("Talent market has the following employees left: {}", game.getTalentMarket().getTalents().size());
+                logger.debug("Player {} hired employee {} - {}", player.getName(), employee.getId(), employee.getName());
+                logger.debug("Talent market has the following employees left: {}", game.getTalentMarket().getTalents().size());
+
+                // Apply "team-spirit" effect if unlocked
+                SkillsManager skillsManager = game.getSkillsManager();
+                if (skillsManager.playerHasSkill(player, TEAM_SPIRIT)) {
+                    employee.addComplexStatusEffect(TEAM_SPIRIT);
+                }
 
                 // Notify player about new employee
                 GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.STATE_UPDATED);
@@ -179,10 +186,14 @@ class GameEventHandler {
 
                 Player player = game.getPlayerByWebSocket(websocket);
                 Employee employee = player.getEmployeeById(employeeId);
+
                 if (employee == null) {
                     logger.warn("Could not dismiss employee. Employee {} not found.", employeeId);
                     break;
                 }
+
+                // Remove all status effects from employee
+                employee.removeAllStatusEffects();
 
                 game.dismissEmployee(player, employee);
             }
@@ -251,33 +262,43 @@ class GameEventHandler {
                 Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
                 GameEvent<HashMap<String, String>> effectEnabledEvent = GSON.fromJson(message, payloadType);
 
-                int projectId = Integer.parseInt(effectEnabledEvent.getPayload().get("projectId"));
                 String effect = effectEnabledEvent.getPayload().get("effect");
 
-                // Apply the effect to the project
-                Project project = game.getProjectById(projectId);
+                // Only if effect is crunch mode, get the projectId
+                if (effect.equals(CRUNCH_MODE)) {
+                    int projectId = Integer.parseInt(effectEnabledEvent.getPayload().get("projectId"));
 
-                // Apply the effect to the employees in the project
-                if (project == null) {
-                    logger.warn("Could not apply effect. Project {} not found.", projectId);
-                    break;
+                    // Apply the effect to the project
+                    Project project = game.getProjectById(projectId);
+
+                    // Apply the effect to the employees in the project
+                    if (project == null) {
+                        logger.warn("Could not apply effect. Project {} not found.", projectId);
+                        break;
+                    }
+
+                    for (Employee employee : game.projectEmployeesMap.get(project)) {
+                        employee.addComplexStatusEffect(effect);
+                        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+                        employeeUpdateEvent.setPayload(employee);
+                        game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(employeeUpdateEvent));
+                    }
+
+                    // Schedule a task to disable "crunch-mode" effect after cooldown (= in-game days)
+                    int crunchModeCooldown = 20;
+                    scheduler.schedule(() -> {
+                        GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
+                        effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE));
+                        game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(effectDisabledEvent));
+                    }, GAME_SPEED_IN_MILLISECONDS * crunchModeCooldown, TimeUnit.MILLISECONDS);
+                } else if (effect.equals(TEAM_SPIRIT)) {
+                    for (Employee employee : game.getPlayerByWebSocket(websocket).getEmployees()) {
+                        employee.addComplexStatusEffect(effect);
+                        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+                        employeeUpdateEvent.setPayload(employee);
+                        game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(employeeUpdateEvent));
+                    }
                 }
-
-                for (Employee employee : game.projectEmployeesMap.get(project)) {
-                    employee.applyEffect(effect);
-                    GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
-                    employeeUpdateEvent.setPayload(employee);
-                    game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(employeeUpdateEvent));
-                }
-
-                // Schedule a task to disable "crunch-mode" effect after cooldown (= in-game days)
-                // The scheduler here seems like a brittle implementation...
-                int crunchModeCooldown = 20;
-                scheduler.schedule(() -> {
-                    GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
-                    effectDisabledEvent.setPayload(Map.of("effect", "crunch-mode"));
-                    game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(effectDisabledEvent));
-                }, GAME_SPEED_IN_MILLISECONDS * crunchModeCooldown, TimeUnit.MILLISECONDS);
             }
             case EFFECT_DISABLED -> {
             }

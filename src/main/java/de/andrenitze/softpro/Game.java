@@ -20,6 +20,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static java.lang.Math.exp;
@@ -39,10 +40,13 @@ public class Game {
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final String RESTORE_LOST_DATA = "Restore lost data";
     public static final int LEVEL_BACKUP_BLUES = 2;
+    public static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
+    private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean isRunning;
     private final GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
+    @Getter
     private ArrayList<Project> projects = new ArrayList<>();
     @Getter
     private int currentTick;
@@ -52,7 +56,7 @@ public class Game {
     protected final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
-    private final SkillsManager skillsManager = new SkillsManager();
+    private final SkillsManager skillsManager;
     @Getter
     private final TalentMarket talentMarket;
     private int level = 1;
@@ -66,6 +70,8 @@ public class Game {
      * @param gameServer The GameServer that this game is running in
      */
     public Game(GameServer gameServer) {
+        logger.debug("Creating a new game instance.");
+
         // Every game consists of players and a world in a specific state
         this.players = new ConcurrentHashMap<>();
         this.gameServer = gameServer;
@@ -78,6 +84,9 @@ public class Game {
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         talentMarket = new TalentMarket(employeeIdGenerator);
         talentMarket.clearTalentMarket();
+
+        // Initialize the SkillsManager to manage players' skills across levels
+        skillsManager = new SkillsManager();
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -139,7 +148,7 @@ public class Game {
             }
         }
         setLevel(nextLevel);
-        logger.debug("Game.prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
+        logger.debug("prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
 
         if (getLevel() != 1) {
             projects = new ArrayList<>();
@@ -176,6 +185,18 @@ public class Game {
             triggerLevel4Consequences();
         }
 
+        // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
+        players.forEach((webSocket, player) -> {
+            logger.debug("Checking for permanent status effects for player {}", player.getId());
+            if (skillsManager.playerHasSkill(player, TEAM_SPIRIT)) {
+                logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
+                player.getEmployees().forEach(employee -> {
+                    logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
+                    employee.addComplexStatusEffect(TEAM_SPIRIT);
+                });
+            }
+        });
+
         players.forEach((webSocket, player) -> {
             if (player.getDecisionsByLevel(getLevel()).isEmpty()) {
                 logger.warn("Player {} has no decisions for level {}", player.getId(), getLevel());
@@ -200,7 +221,7 @@ public class Game {
                 // Make sure that the effect stays even if employee is fired. Always use the first employee.
                 player.setFunds(player.getFunds() - 5000);
                 Employee firstEmployee = player.getEmployees().get(0);
-                firstEmployee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
+                firstEmployee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
                 // All status effects will be reset when the next level is prepared
 
                 // Option 2 "Do nothing": No effect in this level. Later on, the player will have to deal with the consequences
@@ -217,10 +238,10 @@ public class Game {
             int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA));
             } else if (backupOption == 1) {
                 // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
             }
         });
     }
@@ -231,10 +252,10 @@ public class Game {
             int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA));
             } else if (backupOption == 1) {
                 // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.setStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
             }
         });
     }
@@ -260,8 +281,6 @@ public class Game {
             gameLoop.shutdownNow();
             return;
         }
-
-        //logger.debug("Tag: {} | Spieler: {}", currentTick, players.values().stream().map(Player::getName).collect(Collectors.toList()));
 
         // Progress calendar date
         currentDate = now();
@@ -417,34 +436,32 @@ public class Game {
                     return;
                 }
 
+                // New project type decreases satisfaction by 30%
                 StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION,
                         0.7f,
-                        "Familiarization with new project type");
+                        FAMILIARIZATION_WITH_NEW_TYPE);
 
+                // New project domain decreases satisfaction by 15%
                 StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION,
                         0.85f,
-                        "Familiarization with new project domain");
+                        FAMILIARIZATION_WITH_NEW_DOMAIN);
 
                 // Make sure it's only applied once
                 if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
                     if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS) {
-                        employee.setStatusEffect(newProjectTypeEffect);
+                        employee.addStatusEffect(newProjectTypeEffect);
                     }
                 }
 
                 if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
                     if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
-                        employee.setStatusEffect(newProjectDomainEffect);
+                        employee.addStatusEffect(newProjectDomainEffect);
                     }
                 }
 
                 // Notify frontend about status effect
                 sendEmployeeUpdate(player, employee);
             });
-        } else {
-            // Remove SATISFACTION status effects if the employee is not assigned to any project
-            employee.clearStatusEffectsByType(StatusEffectType.SATISFACTION);
-            sendEmployeeUpdate(player, employee);
         }
     }
 
@@ -842,8 +859,11 @@ public class Game {
             if (project.isCompleted()) {
                 // Remove all status effects on employees related to this project
                 projectEmployeesMap.get(project).forEach(employee -> {
-                    // May cause problems with other satisfaction-related status effects later
-                    employee.clearStatusEffectsByType(StatusEffectType.SATISFACTION);
+                    // This causes a problem with other projects still running.
+                    // The status effects should be removed only for this project.
+                    // So this should be evaluated somewhere else.
+                    employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_DOMAIN);
+                    employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_TYPE);
                 });
 
                 // Send reward
@@ -1177,10 +1197,6 @@ public class Game {
         return eventHandler;
     }
 
-    public ArrayList<Project> getProjects() {
-        return projects;
-    }
-
     Player getPlayerByWebSocket(WebSocket websocket) {
         return players.get(websocket);
     }
@@ -1297,6 +1313,7 @@ public class Game {
     // Move Employee from Player back to TalentMarket
     public void dismissEmployee(Player player, Employee employee) {
         player.removeEmployee(employee);
+        employee.removeAllStatusEffects();
         talentMarket.addTalent(employee);
 
         // If there are projects...

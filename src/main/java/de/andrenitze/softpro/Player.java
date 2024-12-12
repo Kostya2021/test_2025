@@ -60,8 +60,7 @@ public class Player {
 
     // Skill points are acquired after gaining a certain amount of XP and are invested to unlock skills
     @Getter @Setter
-    private int skillPoints = 0;
-
+    private int skillPoints = 1; // TODO Dont commit
     // The level the player has reached in the game
     @Setter @Getter
     private int level = 1;
