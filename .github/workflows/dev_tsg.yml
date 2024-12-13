@@ -43,7 +43,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: java-app
-      
+          
+      - name: Update database properties for Production
+        run: |
+          sed -i "s|db.url=.*|db.url=${{ secrets.DB_URL }}|g" project.properties
+          sed -i "s|db.user=.*|db.user=${{ secrets.DB_USER }}|g" project.properties
+          sed -i "s|db.password=.*|db.password=${{ secrets.DB_PASSWORD }}|g" project.properties
+          echo "Database properties updated successfully."
+          
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
