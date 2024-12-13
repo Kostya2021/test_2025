@@ -43,7 +43,8 @@ public class Game {
     public static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private boolean isRunning;
+    private boolean isRunning; // Game instance is active
+    private boolean isPaused = false; // Game instance is active, but paused (e.g., for briefing and tutorials)
     private final GameServer gameServer;
     private final ConcurrentHashMap<WebSocket, Player> players;
     @Getter
@@ -273,6 +274,10 @@ public class Game {
     }
 
     private void progressGameTime() {
+        if (isPaused) {
+            return;
+        }
+
         ++currentTick;
 
         // Stop if the game is over
@@ -1367,5 +1372,13 @@ public class Game {
 
     public boolean isRunning() {
         return isRunning;
+    }
+
+    public void pause() {
+        isPaused = true;
+    }
+
+    public void resume() {
+        isPaused = false;
     }
 }
