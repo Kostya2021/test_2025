@@ -44,9 +44,10 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "DB_URL=${{ secrets.DB_URL }}" >> $GITHUB_ENV
-          echo "DB_USER=${{ secrets.DB_USER }}" >> $GITHUB_ENV
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
+          echo 'DB_URL=${{ secrets.DB_URL }}' >> $GITHUB_ENV
+          echo 'DB_USER=${{ secrets.DB_USER }}' >> $GITHUB_ENV
+          echo 'DB_PASSWORD=${{ secrets.DB_PASSWORD }}' >> $GITHUB_ENV
+
 
       - name: Verify Environment Variables
         run: |
