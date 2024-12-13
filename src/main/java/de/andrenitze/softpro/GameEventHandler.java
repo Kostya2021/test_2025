@@ -318,6 +318,12 @@ class GameEventHandler {
             }
             case RISK_ASSESSMENT_CONFIRMED -> {
             }
+            case PAUSE -> {
+                game.pause();
+            }
+            case RESUME -> {
+                game.resume();
+            }
             default -> logger.warn("Received unknown event type: {}", event.getType());
         }
     }

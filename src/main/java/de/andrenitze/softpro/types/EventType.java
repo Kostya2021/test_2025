@@ -36,4 +36,6 @@ public enum EventType {
     EFFECT_ENABLED,
     EFFECT_DISABLED,
     COOLDOWN,
+    PAUSE,
+    RESUME,
 }
