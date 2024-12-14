@@ -32,10 +32,8 @@ public final class DatabaseConfig {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             logger.debug("MySQL JDBC Driver successfully registered.");
-            logger.debug("JAR Location: {}", com.mysql.cj.jdbc.Driver.class.getProtectionDomain().getCodeSource().getLocation());
-            logger.debug("MySQL Connector/J Version: {}", com.mysql.cj.jdbc.Driver.class.getPackage().getImplementationVersion());
             java.sql.Driver driver = new com.mysql.cj.jdbc.Driver();
-            logger.debug("Driver Version: {}", driver.getMajorVersion() + "." + driver.getMinorVersion());
+            logger.debug("MySQL Connector/J Driver Version: {}", driver.getMajorVersion() + "." + driver.getMinorVersion());
         } catch (ClassNotFoundException e) {
             logger.error("MySQL JDBC Driver not found! Please check if the driver JAR is included in the classpath.", e);
             throw new RuntimeException("MySQL JDBC Driver not found.", e);
