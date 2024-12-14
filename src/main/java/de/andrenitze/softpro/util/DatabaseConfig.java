@@ -6,6 +6,8 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 
 import javax.sql.DataSource;
 
+import java.sql.SQLException;
+
 import static de.andrenitze.softpro.Main.logger;
 
 public final class DatabaseConfig {
@@ -29,13 +31,17 @@ public final class DatabaseConfig {
     private static DataSource createDataSource() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            logger.info("MySQL JDBC Driver successfully registered.");
+            logger.debug("MySQL JDBC Driver successfully registered.");
+            logger.debug("JAR Location: {}", com.mysql.cj.jdbc.Driver.class.getProtectionDomain().getCodeSource().getLocation());
+            logger.debug("MySQL Connector/J Version: {}", com.mysql.cj.jdbc.Driver.class.getPackage().getImplementationVersion());
+            java.sql.Driver driver = new com.mysql.cj.jdbc.Driver();
+            logger.debug("Driver Version: {}", driver.getMajorVersion() + "." + driver.getMinorVersion());
         } catch (ClassNotFoundException e) {
             logger.error("MySQL JDBC Driver not found! Please check if the driver JAR is included in the classpath.", e);
             throw new RuntimeException("MySQL JDBC Driver not found.", e);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
-
-        logger.info("MySQL Connector/J Version: {}", com.mysql.cj.jdbc.Driver.class.getPackage().getImplementationVersion());
 
         ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(
                 Config.getProperty("db.url"),
