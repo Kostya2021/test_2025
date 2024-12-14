@@ -27,6 +27,14 @@ public final class DatabaseConfig {
     }
 
     private static DataSource createDataSource() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            logger.info("MySQL JDBC Driver successfully registered.");
+        } catch (ClassNotFoundException e) {
+            logger.error("MySQL JDBC Driver not found! Please check if the driver JAR is included in the classpath.", e);
+            throw new RuntimeException("MySQL JDBC Driver not found.", e);
+        }
+
         ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(
                 Config.getProperty("db.url"),
                 Config.getProperty("db.user"),
@@ -48,6 +56,6 @@ public final class DatabaseConfig {
     }
 
     private static void logConnectionPoolStatus(GenericObjectPool<PoolableConnection> connectionPool) {
-        logger.debug(String.format("Connection Pool Status -- Active: %s; Idle: %s", connectionPool.getNumActive(), connectionPool.getNumIdle()));
+        logger.debug("Connection Pool Status -- Active: {}; Idle: {}", connectionPool.getNumActive(), connectionPool.getNumIdle());
     }
 }
