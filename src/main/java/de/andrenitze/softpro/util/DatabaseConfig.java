@@ -35,6 +35,8 @@ public final class DatabaseConfig {
             throw new RuntimeException("MySQL JDBC Driver not found.", e);
         }
 
+        logger.info("MySQL Connector/J Version: {}", com.mysql.cj.jdbc.Driver.class.getPackage().getImplementationVersion());
+
         ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(
                 Config.getProperty("db.url"),
                 Config.getProperty("db.user"),
