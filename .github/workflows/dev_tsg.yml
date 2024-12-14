@@ -51,7 +51,7 @@ jobs:
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
 
       - name: Verify DB_URL Environment Variable
-        run: echo "DB_URL is set to: $DB_URL"
+        run: echo "DB_URL is set to $DB_URL"
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
