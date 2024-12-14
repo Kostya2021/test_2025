@@ -41,18 +41,7 @@ jobs:
         with:
           name: java-app
           path: '${{ github.workspace }}/target'
-
-      - name: Set DB_URL as Environment Variable
-        run: echo "DB_URL=jdbc:mariadb://production-db:3306/thatsoftwaregame" >> $GITHUB_ENV
-
-      - name: Set Secrets as Environment Variables
-        run: |
-          echo "DB_USER=${{ secrets.DB_USER }}" >> $GITHUB_ENV
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
-
-      - name: Verify DB_URL Environment Variable
-        run: echo "DB_URL is set to $DB_URL"
-
+          
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
