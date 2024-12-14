@@ -25,16 +25,21 @@ public class Config {
     }
 
     public static String getProperty(String key) {
-        // Convert key to uppercase and replace '.' with '_'
         String envKey = key.toUpperCase().replace('.', '_');
+        String envValue = System.getenv(envKey);
 
-        // Check environment variables first (OS first, then .env file)
-        String envValue = System.getenv(envKey) != null ? System.getenv(envKey) : dotenv.get(envKey);
         if (envValue != null) {
+            logger.debug("Using System.getenv for key: {}", envKey);
             return envValue;
         }
 
-        // Fallback to properties file
+        envValue = dotenv.get(envKey);
+        if (envValue != null) {
+            logger.debug("Using dotenv for key: {}", envKey);
+            return envValue;
+        }
+
+        logger.debug("Using properties file for key: {}", key);
         return properties.getProperty(key);
     }
 }
