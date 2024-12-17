@@ -1,5 +1,6 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.entities.Problem;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;
 import lombok.Getter;
@@ -68,6 +69,9 @@ public class Project {
     // Description text is generated in the frontend
     private final String description = "";
     private boolean hasBeenRiskAssessed = false;
+
+    @Getter
+    private List<Problem> problems = new ArrayList<>();
 
     /**
      * Generates a project with a random name and volume
@@ -294,5 +298,9 @@ public class Project {
     Project setRiskLevel(RiskLevel riskLevel) {
         this.risk = riskLevel;
         return this;
+    }
+
+    public void addProblem(Problem problem) {
+        problems.add(problem);
     }
 }

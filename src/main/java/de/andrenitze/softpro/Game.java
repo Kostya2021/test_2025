@@ -23,8 +23,7 @@ import java.util.stream.Collectors;
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static java.lang.Math.exp;
-import static java.lang.Math.round;
+import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
 public class Game {
@@ -304,6 +303,7 @@ public class Game {
         simulateEmployeeLivesPerTick();
         sendStoryElementsPerTick();
         startStaleProjectsPerTick();
+        createProblemsInProjectsPerTick();
         checkGameOverConditionsPerTick();
 
         long endTime = System.nanoTime();
@@ -311,6 +311,29 @@ public class Game {
 
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+        }
+    }
+
+    private void createProblemsInProjectsPerTick() {
+        // In all running projects...
+        for (Project project : projects) {
+            // For now, with a fixed 10% chance for a problem to occur, but not more than 3 problems per project
+            // (can be adjusted later depending on project volume, risk level, etc.)
+            double problemSpawnProbability = 0.1;
+
+            // ...create a problem with a certain probability
+            if (RANDOM.nextFloat() <= problemSpawnProbability && project.getProblems().size() < 3) {
+                // Create a problem
+                Problem problem = new Problem();
+                project.addProblem(problem);
+
+                // Inform all involved players about the new problem
+                project.getInvolvedPlayers().forEach(player -> {
+                    GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                    projectUpdatedEvent.setPayload(project);
+                    sendMessageToPlayer(player, GSON.toJson(projectUpdatedEvent));
+                });
+            }
         }
     }
 
@@ -1079,6 +1102,12 @@ public class Game {
                         earnedValue *= effect.getMultiplier();
                     }
                 }
+            }
+
+            // Rule #7: Productivity is affected by unsolved problems in projects
+            if (!project.getProblems().isEmpty()) {
+                // For each unsolved problem, add a penalty of 25% to productivity
+                earnedValue *= pow(0.75, project.getProblems().size());
             }
 
             // Increase the project's earnedValue for this employee
