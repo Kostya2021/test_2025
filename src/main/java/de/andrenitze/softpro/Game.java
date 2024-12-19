@@ -60,6 +60,8 @@ public class Game {
     @Getter
     private final TalentMarket talentMarket;
     private int level = 1;
+    @Getter
+    private ProblemGenerator problemGenerator = new ProblemGenerator();;
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -148,6 +150,8 @@ public class Game {
             }
         }
         setLevel(nextLevel);
+        problemGenerator.loadProblemsByLevel(getLevel());
+
         logger.debug("prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
 
         if (getLevel() != 1) {
@@ -324,7 +328,8 @@ public class Game {
             // ...create a problem with a certain probability
             if (RANDOM.nextFloat() <= problemSpawnProbability && project.getProblems().size() < 3) {
                 // Create a problem
-                Problem problem = new Problem();
+                Problem problem = problemGenerator.generateRandomProblem();
+                problem.setOccurred(currentTick);
                 project.addProblem(problem);
 
                 // Inform all involved players about the new problem

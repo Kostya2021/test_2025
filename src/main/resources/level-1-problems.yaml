@@ -1,0 +1,80 @@
+- translationKey: "problem.team_progress.description"
+  solutions:
+    - translationKey: "solution.team_progress.option1"
+      feedbackKey: "feedback.team_progress.success"
+      type: "CORRECT"
+    - translationKey: "solution.team_progress.option2"
+      feedbackKey: "feedback.team_progress.failure"
+      type: "INCORRECT"
+    - translationKey: "solution.team_progress.option3"
+      feedbackKey: "feedback.team_progress.partial"
+      type: "PARTIALLY_CORRECT"
+
+- translationKey: "problem.license_request.description"
+  solutions:
+    - translationKey: "solution.license_request.option1"
+      feedbackKey: "feedback.license_request.success"
+      type: "CORRECT"
+    - translationKey: "solution.license_request.option2"
+      feedbackKey: "feedback.license_request.failure"
+      type: "INCORRECT"
+
+- translationKey: "problem.quick_fix.description"
+  solutions:
+    - translationKey: "solution.quick_fix.option1"
+      feedbackKey: "feedback.quick_fix.success"
+      type: "CORRECT"
+    - translationKey: "solution.quick_fix.option2"
+      feedbackKey: "feedback.quick_fix.partial"
+      type: "PARTIALLY_CORRECT"
+    - translationKey: "solution.quick_fix.option3"
+      feedbackKey: "feedback.quick_fix.failure"
+      type: "INCORRECT"
+    - translationKey: "solution.quick_fix.option4"
+      feedbackKey: "feedback.quick_fix.failure"
+      type: "INCORRECT"
+
+- translationKey: "problem.scope_change.description"
+  solutions:
+    - translationKey: "solution.scope_change.option1"
+      feedbackKey: "feedback.scope_change.success"
+      type: "CORRECT"
+    - translationKey: "solution.scope_change.option2"
+      feedbackKey: "feedback.scope_change.failure"
+      type: "INCORRECT"
+
+- translationKey: "problem.burnout.description"
+  solutions:
+    - translationKey: "solution.burnout.option1"
+      feedbackKey: "feedback.burnout.success"
+      type: "CORRECT"
+    - translationKey: "solution.burnout.option2"
+      feedbackKey: "feedback.burnout.partial"
+      type: "PARTIALLY_CORRECT"
+    - translationKey: "solution.burnout.option3"
+      feedbackKey: "feedback.burnout.failure"
+      type: "INCORRECT"
+
+- translationKey: "problem.approval_missing.description"
+  solutions:
+    - translationKey: "solution.approval_missing.option1"
+      feedbackKey: "feedback.approval_missing.success"
+      type: "CORRECT"
+
+- translationKey: "problem.client_meeting.description"
+  solutions:
+    - translationKey: "solution.client_meeting.option1"
+      feedbackKey: "feedback.client_meeting.success"
+      type: "CORRECT"
+
+- translationKey: "problem.server_downtime.description"
+  solutions:
+    - translationKey: "solution.server_downtime.option1"
+      feedbackKey: "feedback.server_downtime.success"
+      type: "CORRECT"
+    - translationKey: "solution.server_downtime.option2"
+      feedbackKey: "feedback.server_downtime.partial"
+      type: "PARTIALLY_CORRECT"
+    - translationKey: "solution.server_downtime.option3"
+      feedbackKey: "feedback.server_downtime.failure"
+      type: "INCORRECT"

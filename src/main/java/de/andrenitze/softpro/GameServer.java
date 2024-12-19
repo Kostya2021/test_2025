@@ -218,6 +218,9 @@ public class GameServer extends WebSocketServer {
         // Make sure the skills are initialized
         game.getSkillsManager().addPlayer(player);
 
+        // Load problems for the next level
+        game.getProblemGenerator().loadProblemsByLevel(player.getLevel());
+
         logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
 
         // For level 1, generate the player as his/her own first and only employee

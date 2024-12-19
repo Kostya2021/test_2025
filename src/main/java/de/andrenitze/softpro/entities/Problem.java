@@ -1,8 +1,7 @@
 package de.andrenitze.softpro.entities;
 
 import lombok.Data;
-
-import static de.andrenitze.softpro.Main.logger;
+import java.util.List;
 
 /**
  * Problems can occur in projects. They are created by the game engine and can be solved by the player.
@@ -14,17 +13,8 @@ import static de.andrenitze.softpro.Main.logger;
  */
 @Data
 public class Problem {
-    private String description;
-    private boolean occurred = true;
-    private boolean fixed = false;
-
-    public Problem() {
-        // Generate a random problem
-        this.description = generateDescription();
-        logger.debug("Problem created: {}", this.description);
-    }
-
-    private String generateDescription() {
-        return "Random problem";
-    }
+    private String translationKey;
+    private int occurred; // Tick when the problem occurred
+    private int fixed; // Tick when the problem was fixed
+    private List<Solution> solutions;
 }
