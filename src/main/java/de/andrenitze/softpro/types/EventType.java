@@ -38,5 +38,5 @@ public enum EventType {
     COOLDOWN,
     PAUSE,
     RESUME,
-    PROBLEM,
+    PROBLEM_SOLVED,
 }

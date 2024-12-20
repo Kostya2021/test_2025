@@ -303,4 +303,19 @@ public class Project {
     public void addProblem(Problem problem) {
         problems.add(problem);
     }
+
+    public List<Problem> getUnsolvedProblems() {
+        logger.debug("Found {} unsolved and {} solved problems for project {}",
+                problems.stream().filter(problem -> !problem.isSolved()).count(),
+                problems.stream().filter(Problem::isSolved).count(),
+                getName());
+        // Log the translationKeys of the unsolved problems
+        problems.stream().filter(problem -> !problem.isSolved()).forEach(problem -> logger.debug("Unsolved problem: {}", problem.getTranslationKey()));
+        return problems.stream().filter(problem -> !problem.isSolved()).toList();
+    }
+
+    public List<Problem> getSolvedProblems() {
+        return problems.stream().filter(Problem::isSolved).toList();
+    }
+
 }

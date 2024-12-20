@@ -1,6 +1,7 @@
 package de.andrenitze.softpro.entities;
 
 import lombok.Data;
+
 import java.util.List;
 
 /**
@@ -15,6 +16,10 @@ import java.util.List;
 public class Problem {
     private String translationKey;
     private int occurred; // Tick when the problem occurred
-    private int fixed; // Tick when the problem was fixed
+    private int solved; // Tick when the problem was solved
     private List<Solution> solutions;
+
+    public boolean isSolved() {
+        return solved > 0;
+    }
 }

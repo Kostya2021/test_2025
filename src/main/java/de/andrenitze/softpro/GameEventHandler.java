@@ -324,6 +324,28 @@ class GameEventHandler {
             case RESUME -> {
                 game.resume();
             }
+            case PROBLEM_SOLVED -> {
+                logger.debug("Problem solved: {}", message);
+                // Get the project id and the problem's translationKey from the message
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
+                GameEvent<HashMap<String, String>> problemSolvedEvent = GSON.fromJson(message, payloadType);
+
+                int projectId = Integer.parseInt(problemSolvedEvent.getPayload().get("projectId"));
+                String translationKey = problemSolvedEvent.getPayload().get("translationKey");
+                int tick = Integer.parseInt(problemSolvedEvent.getPayload().get("tick"));
+
+                Project project = game.getProjectById(projectId);
+                if (project == null) {
+                    logger.warn("Could not solve problem. Project {} not found.", projectId);
+                    break;
+                }
+
+                // Find the problem in the project and mark it as solved
+                project.getUnsolvedProblems().stream()
+                        .filter(problem -> problem.getTranslationKey().equals(translationKey))
+                        .findFirst()
+                        .ifPresent(problem -> problem.setSolved(tick));
+            }
             default -> logger.warn("Received unknown event type: {}", event.getType());
         }
     }

@@ -30,10 +30,6 @@ public class ProblemGenerator {
         loadProblemsFromFile(filePath);
     }
 
-    public void loadDefaultProblems() {
-        loadProblemsFromFile(DEFAULT_FILE_PATH);
-    }
-
     private void loadProblemsFromFile(String filePath) {
         try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)) {
             if (inputStream == null) {

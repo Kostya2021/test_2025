@@ -61,7 +61,7 @@ public class Game {
     private final TalentMarket talentMarket;
     private int level = 1;
     @Getter
-    private ProblemGenerator problemGenerator = new ProblemGenerator();;
+    private ProblemGenerator problemGenerator = new ProblemGenerator();
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -321,12 +321,19 @@ public class Game {
     private void createProblemsInProjectsPerTick() {
         // In all running projects...
         for (Project project : projects) {
-            // For now, with a fixed 10% chance for a problem to occur, but not more than 3 problems per project
-            // (can be adjusted later depending on project volume, risk level, etc.)
-            double problemSpawnProbability = 0.1;
+            // If it's not running, don't create problems
+            if (project.getStartedAt() == 0) {
+                continue;
+            }
 
-            // ...create a problem with a certain probability
-            if (RANDOM.nextFloat() <= problemSpawnProbability && project.getProblems().size() < 3) {
+            // For now, with a fixed chance for a problem to occur,
+            // (can be adjusted later depending on project volume, risk level, etc.)
+            double problemSpawnProbability = 0.05;
+            int maxProblemsPerProject = 2;
+
+            // but not more than a certain number problems per project
+            if (RANDOM.nextFloat() <= problemSpawnProbability
+                    && project.getUnsolvedProblems().size() < maxProblemsPerProject) {
                 // Create a problem
                 Problem problem = problemGenerator.generateRandomProblem();
                 problem.setOccurred(currentTick);
