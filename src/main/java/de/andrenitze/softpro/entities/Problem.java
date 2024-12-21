@@ -15,11 +15,11 @@ import java.util.List;
 @Data
 public class Problem {
     private String translationKey;
-    private int occurred; // Tick when the problem occurred
-    private int solved; // Tick when the problem was solved
+    private int occurredAt; // Tick when the problem occurred
+    private int solvedAt = 0; // Tick when the problem was solved (0 = not solved)
     private List<Solution> solutions;
 
     public boolean isSolved() {
-        return solved > 0;
+        return solvedAt > 0;
     }
 }

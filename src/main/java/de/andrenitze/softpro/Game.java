@@ -322,24 +322,34 @@ public class Game {
         // In all running projects...
         for (Project project : projects) {
             // If it's not running, don't create problems
-            if (project.getStartedAt() == 0) {
+            if (project.getStartedAt() == 0 || project.isCompleted()) {
                 continue;
             }
 
             // For now, with a fixed chance for a problem to occur,
             // (can be adjusted later depending on project volume, risk level, etc.)
-            double problemSpawnProbability = 0.05;
-            int maxProblemsPerProject = 2;
+            double problemSpawnProbability = 0.1;
+            int maxUnsolvedProblemsPerProject = 2;
 
             // but not more than a certain number problems per project
             if (RANDOM.nextFloat() <= problemSpawnProbability
-                    && project.getUnsolvedProblems().size() < maxProblemsPerProject) {
-                // Create a problem
-                Problem problem = problemGenerator.generateRandomProblem();
-                problem.setOccurred(currentTick);
+                    && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
+                // Take all problems of the project
+                List<Problem> occurredProblems = project.getProblems();
+
+                // Create a problem that has not occurred in the project before (independent of resolution state)
+                Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
+                if (problem == null) { // All problems have occurred
+                    continue;
+                }
+
+                // Add the problem to the project
+                problem.setOccurredAt(currentTick);
                 project.addProblem(problem);
 
                 // Inform all involved players about the new problem
+                logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
+
                 project.getInvolvedPlayers().forEach(player -> {
                     GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                     projectUpdatedEvent.setPayload(project);
@@ -1116,10 +1126,18 @@ public class Game {
                 }
             }
 
-            // Rule #7: Productivity is affected by unsolved problems in projects
-            if (!project.getProblems().isEmpty()) {
-                // For each unsolved problem, add a penalty of 25% to productivity
-                earnedValue *= pow(0.75, project.getProblems().size());
+            // Rule #7: Productivity is decreased by unsolved problems in projects
+            if (!project.getUnsolvedProblems().isEmpty()) {
+                // For each unsolved problem, that has been lingering for some time, add a penalty of 25% to productivity
+                int gracePeriod = 15;
+
+                // Count lingering projects
+                int unsolvedLingeringProblems = (int) project.getUnsolvedProblems().stream()
+                        .filter(problem -> currentTick - problem.getOccurredAt() > gracePeriod)
+                        .count();
+
+                // Add the productivity penalty
+                earnedValue *= pow(0.75, unsolvedLingeringProblems);
             }
 
             // Increase the project's earnedValue for this employee
@@ -1421,5 +1439,9 @@ public class Game {
 
     public void resume() {
         isPaused = false;
+    }
+
+    public int getGameSpeed() {
+        return GAME_SPEED_IN_MILLISECONDS;
     }
 }

@@ -146,12 +146,13 @@ public class GameServer extends WebSocketServer {
         // When a new WebSocket connection is opened, it's a player joining the lobby
         logger.info("Client {} connected", webSocket.getRemoteSocketAddress());
 
-        // Send version number to frontend
+        // Send version number and game speed to frontend
         final Properties properties = new Properties();
         try {
             properties.load(getClass().getClassLoader().getResourceAsStream("project.properties"));
             String version = properties.getProperty("version");
-            webSocket.send("{\"type\": \""+EventType.VERSION+"\", \"payload\": \""+version+"\"}");
+            webSocket.send(String.format("{\"type\": \"%s\", \"payload\": {\"version\": \"%s\", \"gameSpeed\": %d}}",
+                    EventType.VERSION, version, Game.GAME_SPEED_IN_MILLISECONDS));
         } catch (IOException e) {
             logger.error("Could not load project.properties file");
         }

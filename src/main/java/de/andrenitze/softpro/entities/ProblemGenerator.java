@@ -27,10 +27,13 @@ public class ProblemGenerator {
 
     public void loadProblemsByLevel(int level) {
         String filePath = String.format(FILE_PATH_TEMPLATE, level);
-        loadProblemsFromFile(filePath);
+        if (!loadProblemsFromFile(filePath)) {
+            logger.warn("File {} not found. Falling back to default problems file: {}", filePath, DEFAULT_FILE_PATH);
+            loadProblemsFromFile(DEFAULT_FILE_PATH); // fallback to default file
+        }
     }
 
-    private void loadProblemsFromFile(String filePath) {
+    private boolean loadProblemsFromFile(String filePath) {
         try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)) {
             if (inputStream == null) {
                 throw new IOException("File not found: " + filePath);
@@ -39,13 +42,14 @@ public class ProblemGenerator {
             Gson gson = new Gson();
             Type problemListType = new TypeToken<List<Problem>>() {}.getType();
             this.problems = gson.fromJson(convertYamlToJson(reader), problemListType);
-            logger.debug("Loaded {} problems from file: {}", problems.size() , filePath);
+            logger.debug("Loaded {} problems from file: {}", problems.size(), filePath);
+            return true;
         } catch (IOException e) {
-            System.err.println("Error loading problems from file: " + e.getMessage());
+            logger.error("Error loading problems from file: {}. {}", filePath, e.getMessage());
             this.problems = List.of();
+            return false;
         }
     }
-
 
     private String convertYamlToJson(InputStreamReader reader) throws IOException {
         Yaml yaml = new Yaml();
@@ -58,6 +62,33 @@ public class ProblemGenerator {
         if (problems == null || problems.isEmpty()) {
             throw new IllegalStateException("No problems available. Ensure the file is loaded correctly.");
         }
-        return problems.get(RANDOM.nextInt(problems.size()));
+        Problem problem = problems.get(RANDOM.nextInt(problems.size()));
+        problem.setSolvedAt(0);
+        return problem;
+    }
+
+    public Problem generateRandomNewProblem(List<Problem> occurredProblems) {
+        if (problems == null || problems.isEmpty()) {
+            throw new IllegalStateException("No problems available. Ensure the file is loaded correctly.");
+        }
+
+        // If occurredProblems equals the problems (= all problems have already occurred), dont return a problem
+        if (occurredProblems.size() == problems.size()) {
+            return null;
+        }
+
+        // If the provided list is empty (i.e. no problems occurred yet), return a random problem
+        if (occurredProblems.isEmpty()) {
+            return generateRandomProblem();
+        }
+
+        // Else, return a random problem that has not occurred yet (= a random new problem)
+        Problem problem = problems.get(RANDOM.nextInt(problems.size()));
+        while (occurredProblems.contains(problem)) {
+            problem = problems.get(RANDOM.nextInt(problems.size()));
+        }
+
+        problem.setSolvedAt(0);
+        return problem;
     }
 }

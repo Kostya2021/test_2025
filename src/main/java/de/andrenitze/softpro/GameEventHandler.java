@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.LevelDecisions;
+import de.andrenitze.softpro.entities.Problem;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.serialization.ProjectPartyExclusionStrategy;
 import de.andrenitze.softpro.types.Decision;
@@ -14,10 +15,7 @@ import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -340,11 +338,19 @@ class GameEventHandler {
                     break;
                 }
 
-                // Find the problem in the project and mark it as solved
-                project.getUnsolvedProblems().stream()
+                // Find and solve the problem **only in the selected project**
+                Optional<Problem> problemToSolve = project.getUnsolvedProblems().stream()
                         .filter(problem -> problem.getTranslationKey().equals(translationKey))
-                        .findFirst()
-                        .ifPresent(problem -> problem.setSolved(tick));
+                        .findFirst();
+
+                if (problemToSolve.isPresent()) {
+                    problemToSolve.get().setSolvedAt(tick);
+                    logger.info("Problem with translationKey '{}' in project '{}' marked as solved at tick '{}'.",
+                            translationKey, projectId, tick);
+                } else {
+                    logger.warn("No matching problem with translationKey '{}' found in project '{}'.",
+                            translationKey, projectId);
+                }
             }
             default -> logger.warn("Received unknown event type: {}", event.getType());
         }
