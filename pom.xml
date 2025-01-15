@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>de.andrenitze.sim</groupId>
     <artifactId>softpro</artifactId>
-    <version>0.4.5</version>
-    <name>Software Project Simulator</name>
+    <version>0.5.0</version>
+    <name>ThatSoftwareGame</name>
     <url>https://softpro.andrenitze.de</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -75,7 +75,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.6</version>
+            <version>1.5.13</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

@@ -23,8 +23,7 @@ import java.util.stream.Collectors;
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static java.lang.Math.exp;
-import static java.lang.Math.round;
+import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
 public class Game {
@@ -61,6 +60,8 @@ public class Game {
     @Getter
     private final TalentMarket talentMarket;
     private int level = 1;
+    @Getter
+    private ProblemGenerator problemGenerator = new ProblemGenerator();
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -149,6 +150,8 @@ public class Game {
             }
         }
         setLevel(nextLevel);
+        problemGenerator.loadProblemsByLevel(getLevel());
+
         logger.debug("prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
 
         if (getLevel() != 1) {
@@ -304,6 +307,7 @@ public class Game {
         simulateEmployeeLivesPerTick();
         sendStoryElementsPerTick();
         startStaleProjectsPerTick();
+        createProblemsInProjectsPerTick();
         checkGameOverConditionsPerTick();
 
         long endTime = System.nanoTime();
@@ -311,6 +315,47 @@ public class Game {
 
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+        }
+    }
+
+    private void createProblemsInProjectsPerTick() {
+        // In all running projects...
+        for (Project project : projects) {
+            // If it's not running, don't create problems
+            if (project.getStartedAt() == 0 || project.isCompleted()) {
+                continue;
+            }
+
+            // For now, with a fixed chance for a problem to occur,
+            // (can be adjusted later depending on project volume, risk level, etc.)
+            double problemSpawnProbability = 0.01;
+            int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
+
+            // but not more than a certain number problems per project
+            if (RANDOM.nextFloat() <= problemSpawnProbability
+                    && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
+                // Take all problems of the project
+                List<Problem> occurredProblems = project.getProblems();
+
+                // Create a problem that has not occurred in the project before (independent of resolution state)
+                Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
+                if (problem == null) { // All problems have occurred
+                    continue;
+                }
+
+                // Add the problem to the project
+                problem.setOccurredAt(currentTick);
+                project.addProblem(problem);
+
+                // Inform all involved players about the new problem
+                logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
+
+                project.getInvolvedPlayers().forEach(player -> {
+                    GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                    projectUpdatedEvent.setPayload(project);
+                    sendMessageToPlayer(player, GSON.toJson(projectUpdatedEvent));
+                });
+            }
         }
     }
 
@@ -1081,6 +1126,20 @@ public class Game {
                 }
             }
 
+            // Rule #7: Productivity is decreased by unsolved problems in projects
+            if (!project.getUnsolvedProblems().isEmpty()) {
+                // For each unsolved problem, that has been lingering for some time, add a penalty of 25% to productivity
+                int gracePeriod = 30;
+
+                // Count lingering projects
+                int unsolvedLingeringProblems = (int) project.getUnsolvedProblems().stream()
+                        .filter(problem -> currentTick - problem.getOccurredAt() > gracePeriod)
+                        .count();
+
+                // Add the productivity penalty
+                earnedValue *= pow(0.75, unsolvedLingeringProblems);
+            }
+
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
         }
@@ -1380,5 +1439,9 @@ public class Game {
 
     public void resume() {
         isPaused = false;
+    }
+
+    public int getGameSpeed() {
+        return GAME_SPEED_IN_MILLISECONDS;
     }
 }
