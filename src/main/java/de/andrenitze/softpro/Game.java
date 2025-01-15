@@ -328,8 +328,8 @@ public class Game {
 
             // For now, with a fixed chance for a problem to occur,
             // (can be adjusted later depending on project volume, risk level, etc.)
-            double problemSpawnProbability = 0.1;
-            int maxUnsolvedProblemsPerProject = 2;
+            double problemSpawnProbability = 0.01;
+            int maxUnsolvedProblemsPerProject = 2; // In higher levels, more problems can occur
 
             // but not more than a certain number problems per project
             if (RANDOM.nextFloat() <= problemSpawnProbability
@@ -1129,7 +1129,7 @@ public class Game {
             // Rule #7: Productivity is decreased by unsolved problems in projects
             if (!project.getUnsolvedProblems().isEmpty()) {
                 // For each unsolved problem, that has been lingering for some time, add a penalty of 25% to productivity
-                int gracePeriod = 15;
+                int gracePeriod = 30;
 
                 // Count lingering projects
                 int unsolvedLingeringProblems = (int) project.getUnsolvedProblems().stream()
