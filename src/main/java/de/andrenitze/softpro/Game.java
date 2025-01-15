@@ -329,7 +329,7 @@ public class Game {
             // For now, with a fixed chance for a problem to occur,
             // (can be adjusted later depending on project volume, risk level, etc.)
             double problemSpawnProbability = 0.01;
-            int maxUnsolvedProblemsPerProject = 2; // In higher levels, more problems can occur
+            int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
 
             // but not more than a certain number problems per project
             if (RANDOM.nextFloat() <= problemSpawnProbability
