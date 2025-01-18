@@ -127,6 +127,10 @@ public class Game {
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleWithFixedDelay(() -> {
+            if (isPaused) {
+                return;
+            }
+
             // Notify all clients of current time
             this.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
                     "\", \"payload\": " + getCurrentTick() + "}");
