@@ -39,4 +39,5 @@ public enum EventType {
     PAUSE,
     RESUME,
     PROBLEM_SOLVED,
+    ONE_TO_ONE_MEETING
 }

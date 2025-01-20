@@ -46,6 +46,8 @@ public class Employee {
     @Getter
     private List<StatusEffect> statusEffects = new ArrayList<>();
     private static final NameGenerator nameGenerator = NameGenerator.getInstance();
+    @Getter @Setter
+    private Integer employedDays = 0;
 
     Employee(Integer id) {
         String[] generatedName = nameGenerator.generateName();
@@ -160,6 +162,8 @@ public class Employee {
     }
 
     public void beAtWork(int currentTick) {
+        employedDays++;
+
         if (!this.isSick()) {
             if (this.annualSickDays > 0 && RANDOM.nextDouble() <= sickDayProbability) {
                 this.makeSick(true);
@@ -380,5 +384,15 @@ public class Employee {
         });
 
         logger.debug("Removed status effects with reason '{}' from {}", reason, getName());
+    }
+
+    public void haveOneToOneMeeting() {
+        // Don't add the same effect twice
+        statusEffects.removeIf(effect -> effect.getReason().equals("Feels heard"));
+
+        // Add a time-limited status effect that increases satisfaction by 10% for some time
+        addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
+
+        calculateSatisfaction();
     }
 }
