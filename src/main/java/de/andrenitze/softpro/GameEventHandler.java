@@ -352,6 +352,18 @@ class GameEventHandler {
                             translationKey, projectId);
                 }
             }
+            case ONE_TO_ONE_MEETING -> {
+                // Parse the employee id out of the message
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
+                GameEvent<HashMap<String, Integer>> oneToOneMeetingEvent = GSON.fromJson(message, payloadType);
+
+                int employeeId = oneToOneMeetingEvent.getPayload().get("employeeId");
+                Player player = game.getPlayerByWebSocket(websocket);
+                Employee employee = player.getEmployeeById(employeeId);
+
+                // Conduct the one-to-one meeting with the employee
+                game.conductOneToOneMeeting(player, employee);
+            }
             default -> logger.warn("Received unknown event type: {}", event.getType());
         }
     }

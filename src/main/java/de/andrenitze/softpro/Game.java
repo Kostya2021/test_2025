@@ -1448,4 +1448,10 @@ public class Game {
     public int getGameSpeed() {
         return GAME_SPEED_IN_MILLISECONDS;
     }
+
+    public void conductOneToOneMeeting(Player player, Employee employee) {
+        // Increase satisfaction of employee
+        employee.haveOneToOneMeeting();
+        sendEmployeeUpdate(player, employee);
+    }
 }

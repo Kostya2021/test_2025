@@ -381,4 +381,14 @@ public class Employee {
 
         logger.debug("Removed status effects with reason '{}' from {}", reason, getName());
     }
+
+    public void haveOneToOneMeeting() {
+        // Don't add the same effect twice
+        statusEffects.removeIf(effect -> effect.getReason().equals("Feels heard"));
+
+        // Add a time-limited status effect that increases satisfaction by 10% for some time
+        addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
+
+        calculateSatisfaction();
+    }
 }
