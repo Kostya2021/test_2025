@@ -46,6 +46,8 @@ public class Employee {
     @Getter
     private List<StatusEffect> statusEffects = new ArrayList<>();
     private static final NameGenerator nameGenerator = NameGenerator.getInstance();
+    @Getter @Setter
+    private Integer employedDays = 0;
 
     Employee(Integer id) {
         String[] generatedName = nameGenerator.generateName();
@@ -160,6 +162,8 @@ public class Employee {
     }
 
     public void beAtWork(int currentTick) {
+        employedDays++;
+
         if (!this.isSick()) {
             if (this.annualSickDays > 0 && RANDOM.nextDouble() <= sickDayProbability) {
                 this.makeSick(true);
