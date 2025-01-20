@@ -5,12 +5,13 @@ import java.util.List;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
 public enum ProjectType {
-    INTRODUCTION, CUSTOMIZATION, CONSULTING, DEVELOPMENT, MAINTENANCE;
+    INTRODUCTION, CUSTOMIZATION, CONSULTING, DEVELOPMENT, MAINTENANCE, COMPLIANCE;
     public static final List<String> CONSULTING_DOMAINS = List.of("TechnologyEvaluation,FeasibilityStudy,SWOTAnalysis,PenetrationTesting,SecurityEngineering".split(","));
     public static final List<String> DEVELOPMENT_DOMAINS = List.of("Java,COBOL,C,dotNET,Python,Swift,Kotlin,JavaScript,Go,PHP,Scala,CSharp,MachineLearning,DeepLearning,DataScience,DataEngineering,Embedded,Frontend,Backend,Fullstack,Mobile,Web,CICD".split(","));
     public static final List<String> INTRODUCTION_DOMAINS = List.of("ProcessAssessment,StandardIntroduction,CustomIntroduction,MarketSurvey".split(","));
     public static final List<String> CUSTOMIZATION_DOMAINS = List.of("S4/MONTANA,Dynamix,TYPOW3".split(","));
     public static final List<String> MAINTENANCE_DOMAINS = List.of("PlatformMigration,Refactoring,QualityEvaluation,DataMigration".split(","));
+    public static final List<String> COMPLIANCE_DOMAINS = List.of("Compliance".split(","));
 
     public static ProjectType getTypeByDomain(String domainOfExpertise) {
         if (CONSULTING_DOMAINS.contains(domainOfExpertise)) {
@@ -34,6 +35,7 @@ public enum ProjectType {
             case INTRODUCTION -> INTRODUCTION_DOMAINS.get(RANDOM.nextInt(INTRODUCTION_DOMAINS.size()));
             case CUSTOMIZATION -> CUSTOMIZATION_DOMAINS.get(RANDOM.nextInt(CUSTOMIZATION_DOMAINS.size()));
             case MAINTENANCE -> MAINTENANCE_DOMAINS.get(RANDOM.nextInt(MAINTENANCE_DOMAINS.size()));
+            case COMPLIANCE -> COMPLIANCE_DOMAINS.get(RANDOM.nextInt(COMPLIANCE_DOMAINS.size()));
         };
     }
 }

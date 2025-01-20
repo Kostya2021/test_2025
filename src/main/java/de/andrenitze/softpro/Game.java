@@ -30,6 +30,7 @@ public class Game {
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
+    public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
 
     // Base productivity value = How much value one person (FTE) can produce in one day
@@ -304,6 +305,7 @@ public class Game {
         conductWorkOnAllProjectsPerTick();
         processSalariesAndAdjustFundsPerTick(currentDate);
         randomlySpawnProjectTendersPerTick();
+        randomlySpawnComplianceProjectsPerTick();
         removeStaleTendersPerTick();
         assignProjectsPerTick();
         sendNewObjectivesPerTick();
@@ -319,6 +321,37 @@ public class Game {
 
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+        }
+    }
+
+    private void randomlySpawnComplianceProjectsPerTick() {
+        // Don't spawn compliance projects in level 1 before the first mission is completed or if there's already one
+        Player player = players.values().iterator().next();
+
+        if (getLevel() == 1 && !player.getMissions().get(0).isCompleted()) {
+            return;
+        }
+
+        // Only have one compliance project at a time
+        if (projects.stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
+                RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
+            // Generate a new compliance project
+            Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.low, false);
+
+            project.setPublishedAt(getCurrentTick());
+            project.setAcquiredAt(getCurrentTick()); // Immediately acquired: Frontend will show it as "acquired"
+            project.addParty(player); // Add the player as involved party
+            project.setDeadline(0);
+            projects.add(project);
+
+            // Add to project-employee map
+            projectEmployeesMap.put(project, new ArrayList<>());
+
+            // Immediately assign the project to all players
+            GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+            newProjectEvent.setPayload(project);
+            logger.debug("New compliance project spawned for all players: {}", project.getName());
+            broadcastToAllPlayers(GSON.toJson(newProjectEvent));
         }
     }
 
@@ -761,7 +794,7 @@ public class Game {
     }
 
     // Note: This method sends an OBJECTIVES_UPDATED event (i.e., it includes ALL objectives of this level),
-    // because the frontend needs to show the completed objectives of other missions as well as the new objectives.
+// because the frontend needs to show the completed objectives of other missions as well as the new objectives.
     void sendNewObjectivesPerTick() {
         players.forEach((webSocket, player) -> {
             boolean thereAreNewObjectives = !player.getNewObjectivesByTick(getCurrentTick()).isEmpty();
@@ -851,7 +884,7 @@ public class Game {
 
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
-                    logger.debug("Found project {} with a deadline", project.getName());
+                    logger.debug("Found project {}", project.getName());
 
                     // Remember acquisition date
                     project.setAcquiredAt(currentTick);
@@ -946,10 +979,11 @@ public class Game {
 
                     projectObject.put("profit", profit);
                     project.setProfit(profit);
-                    // Don't win or lose anything in level
-                    if (level == 1) {
+                    // Don't win or lose anything in level 1 or if it's a compliance project
+                    if (level == 1 || project.getType() == ProjectType.COMPLIANCE) {
                         profit = 0;
                     }
+
                     player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
 
