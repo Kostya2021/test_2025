@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.types.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
@@ -30,6 +31,7 @@ public class Game {
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
+    public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
 
     // Base productivity value = How much value one person (FTE) can produce in one day
@@ -304,6 +306,7 @@ public class Game {
         conductWorkOnAllProjectsPerTick();
         processSalariesAndAdjustFundsPerTick(currentDate);
         randomlySpawnProjectTendersPerTick();
+        randomlyAssignComplianceProjectsPerTick();
         removeStaleTendersPerTick();
         assignProjectsPerTick();
         sendNewObjectivesPerTick();
@@ -319,6 +322,39 @@ public class Game {
 
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+        }
+    }
+
+    private void randomlyAssignComplianceProjectsPerTick() {
+        // Don't spawn compliance projects in level 1 before the first mission is completed or if there's already one
+        Player player = players.values().iterator().next();
+
+        if (getLevel() == 1 && !player.getMissions().get(0).isCompleted()) {
+            return;
+        }
+
+        // Only have one compliance project at a time
+        if (projects.stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
+                RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
+            // Generate a new compliance project
+            Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.low, false);
+
+            project.setPublishedAt(getCurrentTick());
+            project.setAcquiredAt(getCurrentTick()); // Immediately acquired: Frontend will show it as "acquired"
+            project.addParty(player); // Add the player as involved party (also important for frontend)
+            project.setDeadline(0);
+            // Select a name from a list of predefined names
+            project.setName(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size())));
+            projects.add(project);
+
+            // Add to project-employee map
+            projectEmployeesMap.put(project, new ArrayList<>());
+
+            // Immediately assign the project to all players
+            GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+            newProjectEvent.setPayload(project);
+            logger.debug("New compliance project spawned for all players: {}", project.getName());
+            broadcastToAllPlayers(GSON.toJson(newProjectEvent));
         }
     }
 
@@ -395,6 +431,11 @@ public class Game {
     }
 
     private void removeStaleTendersPerTick() {
+        // Dont remove tenders in level 1
+        if (getLevel() == 1 && !players.values().iterator().next().getMissions().get(0).isCompleted()) {
+            return;
+        }
+
         // Remove tenders that have been on the market for a long time and store them in a separate array
         List<Project> staleTenders = new ArrayList<>();
         for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
@@ -761,7 +802,7 @@ public class Game {
     }
 
     // Note: This method sends an OBJECTIVES_UPDATED event (i.e., it includes ALL objectives of this level),
-    // because the frontend needs to show the completed objectives of other missions as well as the new objectives.
+// because the frontend needs to show the completed objectives of other missions as well as the new objectives.
     void sendNewObjectivesPerTick() {
         players.forEach((webSocket, player) -> {
             boolean thereAreNewObjectives = !player.getNewObjectivesByTick(getCurrentTick()).isEmpty();
@@ -851,7 +892,7 @@ public class Game {
 
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
-                    logger.debug("Found project {} with a deadline", project.getName());
+                    logger.debug("Found project {}", project.getName());
 
                     // Remember acquisition date
                     project.setAcquiredAt(currentTick);
@@ -946,23 +987,16 @@ public class Game {
 
                     projectObject.put("profit", profit);
                     project.setProfit(profit);
-                    // Don't win or lose anything in level
-                    if (level == 1) {
+                    // Don't win or lose anything in level 1 or if it's a compliance project
+                    if (level == 1 || project.getType() == ProjectType.COMPLIANCE) {
                         profit = 0;
                     }
+
                     player.addFunds(profit);
                     sendFundsUpdateToPlayer(player);
 
                     // Calculate player's XP gained in this project
-                    // Riskier and larger projects yield more XP
-                    float xp = project.getTotalValue() / 1000f;
-                    switch (project.getRiskLevel()) {
-                        case low -> xp *= 0.75F;
-                        case medium -> xp *= 1;
-                        case high -> xp *= 2;
-                        case extreme -> xp *= 4;
-                    }
-
+                    float xp = calculateXP(project);
                     player.addXp((int) xp);
 
                     GameEvent<Player> playerUpdateEvent = new GameEvent<>();
@@ -1040,6 +1074,23 @@ public class Game {
                 sendMessageToPlayer(player, event.toString());
             }
         }
+    }
+
+   private static float calculateXP(Project project) {
+       // Riskier and larger projects yield more XP
+        float xp = project.getTotalValue() / 1000f;
+        switch (project.getRiskLevel()) {
+            case low -> xp *= 0.75F;
+            case medium -> xp *= 1;
+            case high -> xp *= 2;
+            case extreme -> xp *= 4;
+        }
+
+        // Compliance projects yield no XP
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            xp = 0;
+        }
+        return xp;
     }
 
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {

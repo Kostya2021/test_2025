@@ -17,7 +17,8 @@ public class Project {
     public static final int PROJECT_VOLUME_MIN = 10000;
     private static int lastId = 1;
     private final Integer id;
-    private final String name;
+    @Getter @Setter
+    private String name;
     @Getter
     private int totalValue;
     private int earnedValue;
@@ -25,23 +26,22 @@ public class Project {
     @Setter
     private int tenderDeadlineInDays;
 
-    // Deadline: In how many days the project has to be finished, measured from the day the project was acquired.
-    @Getter
-    private final int deadline;
+    // Deadline: In how many days the project has to be finished,
+    // measured from the day the project was acquired. (0 = no deadline)
+    @Getter @Setter
+    private int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
-    @Setter
-    @Getter
+
+    // acquiredAt != 0 means the project has been acquired by a player
+    @Setter @Getter
     private int acquiredAt;
-    @Getter
-    @Setter
+    @Getter @Setter
     private int startedAt;
-    @Setter
-    @Getter
+    @Setter @Getter
     private int completedAt = 0;
     @Setter
     private int quality;
-    @Getter
-    @Setter
+    @Getter @Setter
     private int publishedAt;
     @Setter
     private float penalty;
@@ -90,11 +90,13 @@ public class Project {
         // Assign random risk level
         this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
 
-        // Assign random project type
-        this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
+        // Assign random project type, but not compliance projects
+        do {
+            this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
+        } while (this.type == ProjectType.COMPLIANCE);
 
-        // +40% chance of a tender process
-        this.hasTenderProcess = (Math.round(RANDOM.nextFloat()+0.4) < 1);
+        // 40% chance of a tender process
+        this.hasTenderProcess = RANDOM.nextInt(100) < 40;
 
         // Order is important. Volume depends on risk.
         this.totalValue = generateVolume();
@@ -173,7 +175,6 @@ public class Project {
         while (!isUniqueName) {
             // Pick a random name
             projectName.append(PROJECT_NAME_SNIPPETS.get(RANDOM.nextInt(projectNameSnippetsSize)));
-            //projectName = PROJECT_NAME_SNIPPETS.get(random.nextInt(projectNameSnippetsSize));
 
             // Add 50% chance for suffixes
             if (RANDOM.nextInt(100) < 50) {
@@ -184,7 +185,7 @@ public class Project {
                 projectName.append(secondPart);
             }
 
-            // Make sure, every name is unique
+            // Make sure every name is unique
             isUniqueName = usedProjectNames.add(projectName.toString());
             i++;
 
@@ -195,10 +196,6 @@ public class Project {
             }
         }
         return projectName.toString();
-    }
-
-    String getName() {
-        return name;
     }
 
     void decreaseTimeLeftForTender() {
