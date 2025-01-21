@@ -40,7 +40,7 @@ public class Game {
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final String RESTORE_LOST_DATA = "Restore lost data";
-    public static final int LEVEL_BACKUP_BLUES = 2;
+    public static final int BACKUP_BLUES_LEVEL = 2;
     public static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -217,15 +217,32 @@ public class Game {
 
     private void triggerLevel1Consequences() {
         players.forEach((webSocket, player) -> {
+            // Decision "Fail to plan, plan to fail" (level 1, decision 1)
+            int option = player.getDecisionsByLevel(1).get(0).getOptionId();
 
+            if (option == 1) {
+                // Option 1 "Efficiency" -> Increase productivity by 75% for the whole level
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.75f, "Efficient work organization"));
+            } else if (option == 2) {
+                // Option 2 "Creativity" -> Add an employee with salary = 0 for the whole level
+                Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
+                freeEmployee.setSalary(0);
+                player.addEmployee(freeEmployee);
+            } else if (option == 3) {
+                // Option 3 "Spontaneity" -> Add status effect "Stress" for the whole level (productivity -20%, satisfaction -10%)
+                player.getEmployees().forEach(employee -> {
+                    employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Spontaneous work organization");
+                    employee.addStatusEffect(StatusEffectType.SATISFACTION, 0.9f, "Spontaneous work organization");
+                });
+            }
         });
     }
 
     private void triggerLevel2Consequences() {
         // Adjust gameplay for each player according to decisions made in briefing
         players.forEach((webSocket, player) -> {
-            // "Backup decision"
-            int option = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
+            // "Backup decision" (level 2, decision 1)
+            int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
             if (option == 1) {
                 // Option 1 "Employee does it": Lower productivity of first employee as status effect for the whole level
                 // Make sure that the effect stays even if employee is fired. Always use the first employee.
@@ -244,8 +261,8 @@ public class Game {
 
     private void triggerLevel3Consequences() {
         players.forEach((webSocket, player) -> {
-            // "Backup decision"
-            int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
+            // "Backup decision" (level 2, decision 1)
+            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA));
@@ -259,7 +276,7 @@ public class Game {
     private void triggerLevel4Consequences() {
         players.forEach((webSocket, player) -> {
             // "Backup decision"
-            int backupOption = player.getDecisionsByLevel(LEVEL_BACKUP_BLUES).get(0).getOptionId();
+            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA));
@@ -1076,8 +1093,8 @@ public class Game {
         }
     }
 
-   private static float calculateXP(Project project) {
-       // Riskier and larger projects yield more XP
+    private static float calculateXP(Project project) {
+        // Riskier and larger projects yield more XP
         float xp = project.getTotalValue() / 1000f;
         switch (project.getRiskLevel()) {
             case low -> xp *= 0.75F;
