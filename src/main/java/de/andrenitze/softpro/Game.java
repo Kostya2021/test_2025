@@ -306,7 +306,7 @@ public class Game {
         conductWorkOnAllProjectsPerTick();
         processSalariesAndAdjustFundsPerTick(currentDate);
         randomlySpawnProjectTendersPerTick();
-        randomlySpawnComplianceProjectsPerTick();
+        randomlyAssignComplianceProjectsPerTick();
         removeStaleTendersPerTick();
         assignProjectsPerTick();
         sendNewObjectivesPerTick();
@@ -325,7 +325,7 @@ public class Game {
         }
     }
 
-    private void randomlySpawnComplianceProjectsPerTick() {
+    private void randomlyAssignComplianceProjectsPerTick() {
         // Don't spawn compliance projects in level 1 before the first mission is completed or if there's already one
         Player player = players.values().iterator().next();
 
@@ -431,6 +431,11 @@ public class Game {
     }
 
     private void removeStaleTendersPerTick() {
+        // Dont remove tenders in level 1
+        if (getLevel() == 1 && !players.values().iterator().next().getMissions().get(0).isCompleted()) {
+            return;
+        }
+
         // Remove tenders that have been on the market for a long time and store them in a separate array
         List<Project> staleTenders = new ArrayList<>();
         for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
