@@ -36,7 +36,7 @@ class GameEventHandler {
 
     void handleEvent(WebSocket websocket, String message) {
         GameEvent<?> event = GSON.fromJson(message, GameEvent.class);
-        logger.debug("Received event: {}", event.getType());
+        logger.debug("Identified event: {}", event.getType());
 
         // These are messages coming in from the websocket clients (aka the frontend)
         switch (event.getType()) {

@@ -17,7 +17,8 @@ public class Project {
     public static final int PROJECT_VOLUME_MIN = 10000;
     private static int lastId = 1;
     private final Integer id;
-    private final String name;
+    @Getter @Setter
+    private String name;
     @Getter
     private int totalValue;
     private int earnedValue;
@@ -174,7 +175,6 @@ public class Project {
         while (!isUniqueName) {
             // Pick a random name
             projectName.append(PROJECT_NAME_SNIPPETS.get(RANDOM.nextInt(projectNameSnippetsSize)));
-            //projectName = PROJECT_NAME_SNIPPETS.get(random.nextInt(projectNameSnippetsSize));
 
             // Add 50% chance for suffixes
             if (RANDOM.nextInt(100) < 50) {
@@ -185,7 +185,7 @@ public class Project {
                 projectName.append(secondPart);
             }
 
-            // Make sure, every name is unique
+            // Make sure every name is unique
             isUniqueName = usedProjectNames.add(projectName.toString());
             i++;
 
@@ -196,10 +196,6 @@ public class Project {
             }
         }
         return projectName.toString();
-    }
-
-    String getName() {
-        return name;
     }
 
     void decreaseTimeLeftForTender() {

@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.types.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
@@ -340,8 +341,10 @@ public class Game {
 
             project.setPublishedAt(getCurrentTick());
             project.setAcquiredAt(getCurrentTick()); // Immediately acquired: Frontend will show it as "acquired"
-            project.addParty(player); // Add the player as involved party
+            project.addParty(player); // Add the player as involved party (also important for frontend)
             project.setDeadline(0);
+            // Select a name from a list of predefined names
+            project.setName(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size())));
             projects.add(project);
 
             // Add to project-employee map
@@ -988,15 +991,7 @@ public class Game {
                     sendFundsUpdateToPlayer(player);
 
                     // Calculate player's XP gained in this project
-                    // Riskier and larger projects yield more XP
-                    float xp = project.getTotalValue() / 1000f;
-                    switch (project.getRiskLevel()) {
-                        case low -> xp *= 0.75F;
-                        case medium -> xp *= 1;
-                        case high -> xp *= 2;
-                        case extreme -> xp *= 4;
-                    }
-
+                    float xp = calculateXP(project);
                     player.addXp((int) xp);
 
                     GameEvent<Player> playerUpdateEvent = new GameEvent<>();
@@ -1074,6 +1069,23 @@ public class Game {
                 sendMessageToPlayer(player, event.toString());
             }
         }
+    }
+
+   private static float calculateXP(Project project) {
+       // Riskier and larger projects yield more XP
+        float xp = project.getTotalValue() / 1000f;
+        switch (project.getRiskLevel()) {
+            case low -> xp *= 0.75F;
+            case medium -> xp *= 1;
+            case high -> xp *= 2;
+            case extreme -> xp *= 4;
+        }
+
+        // Compliance projects yield no XP
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            xp = 0;
+        }
+        return xp;
     }
 
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {

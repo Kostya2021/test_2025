@@ -12,6 +12,53 @@ public enum ProjectType {
     public static final List<String> CUSTOMIZATION_DOMAINS = List.of("S4/MONTANA,Dynamix,TYPOW3".split(","));
     public static final List<String> MAINTENANCE_DOMAINS = List.of("PlatformMigration,Refactoring,QualityEvaluation,DataMigration".split(","));
     public static final List<String> COMPLIANCE_DOMAINS = List.of("Compliance".split(","));
+    public static final List<String> COMPLIANCE_PROJECT_NAMES = List.of(
+            "Digital Value Chains Act",
+            "ISO 27001 Certification",
+            "Sustainability Compliance",
+            "HealthyHabits Workplace Certification",
+            "Family-Friendly Workplace Certification",
+            "GDPR Compliance",
+            "Cloud Services - Statements of Compliance (CS-SoC)",
+            "Accessibility Compliance",
+            "Quality XPert Certificate",
+            "'X Process Model' Organization Certificate",
+            "'HELIX' Process Certificate",
+            "'FAST' Process Model Certificate",
+            "Anti-Bribery Compliance Program",
+            "Cybersecurity Readiness Certification",
+            "Carbon Neutrality Initiative",
+            "Ethical Sourcing Certification",
+            "Data Privacy Shield Certification",
+            "IT Disaster Recovery Certification",
+            "Risk Management Framework Implementation",
+            "Vendor Compliance Check Program",
+            "Whistleblower Protection Compliance",
+            "Equal Opportunity Employer Certification",
+            "Code of Conduct Implementation",
+            "Conflict Minerals Reporting Compliance",
+            "Energy Efficiency Certification",
+            "Fair Trade Business Seal",
+            "Cloud Security Alliance Certification",
+            "Workplace Harassment Prevention Program",
+            "AI Ethics Certification",
+            "Supply Chain Risk Management",
+            "Digital Records Retention Compliance",
+            "Project Governance Certification",
+            "Blockchain Transparency Standard",
+            "Employee Wellness Standards Compliance",
+            "Social Responsibility Certification",
+            "Non-Discrimination Certification",
+            "Open Data Transparency Compliance",
+            "Financial Audit Readiness Program",
+            "Intellectual Property Protection Program",
+            "Smart Cities Compliance Certification",
+            "Global Trade Compliance",
+            "Industry 4.0 Security Certification",
+            "Remote Work Policy Compliance",
+            "Zero Waste Initiative Certification",
+            "Stakeholder Engagement Certification"
+    );
 
     public static ProjectType getTypeByDomain(String domainOfExpertise) {
         if (CONSULTING_DOMAINS.contains(domainOfExpertise)) {
