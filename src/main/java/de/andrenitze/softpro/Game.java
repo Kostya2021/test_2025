@@ -427,13 +427,18 @@ public class Game {
             return;
         }
 
-        // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
+        // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
         for (Project project : projects) {
+            if (project.getType() == ProjectType.COMPLIANCE) {
+                continue;
+            }
+
+            // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
             if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
                 int daysPassed = currentTick - project.getAcquiredAt();
                 if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
                     // Start the project and inform involved players
-                    startProject(project, currentTick-1);
+                    startProject(project, currentTick - 1);
                     notifyInvolvedPlayers(project);
                     logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
                 }
@@ -652,7 +657,16 @@ public class Game {
                         logger.debug("Objective 16 completed.");
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 14 || objective.getId() == 17 || objective.getId() == 21 || objective.getId() == 31) {
+                } else if (objective.getId() == 21) {
+                    // Criterion: "Team spirit" or "crunch mode" skill is unlocked
+                    HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+                    if (skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked() ||
+                            skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked()) {
+                        objective.markAsCompleted();
+                        logger.debug("Objective 21 completed.");
+                        updatedNeeded = true;
+                    }
+                } else if (objective.getId() == 14 || objective.getId() == 17 || objective.getId() == 31) {
                     Mission mission = getMissionByObjective(player, objective);
                     if (mission == null) return;
 
