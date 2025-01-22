@@ -231,6 +231,7 @@ public class Game {
                 // Option 2 "Creativity" -> Add an employee with salary = 0 for the whole level
                 Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
                 freeEmployee.setSalary(0);
+                freeEmployee.setSatisfaction(0.7f);
                 player.addEmployee(freeEmployee);
             } else if (option == 3) {
                 // Option 3 "Spontaneity" -> Add status effect "Stress" for the whole level (productivity -20%, satisfaction -10%)
