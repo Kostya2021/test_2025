@@ -167,7 +167,7 @@ public class Game {
         if (getLevel() != 1) {
             projects = new ArrayList<>();
             for (int i = 0; i < 100; i++) {
-                Project project = new Project();
+                Project project = new Project().initialize();
 
                 // Set randomly negative publish dates to have some history of tenders
                 project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
@@ -327,7 +327,7 @@ public class Game {
         conductWorkOnAllProjectsPerTick();
         processSalariesAndAdjustFundsPerTick(currentDate);
         randomlySpawnProjectTendersPerTick();
-        randomlyAssignComplianceProjectsPerTick();
+        randomlySpawnComplianceProjectsPerTick();
         removeStaleTendersPerTick();
         assignProjectsPerTick();
         sendNewObjectivesPerTick();
@@ -346,13 +346,13 @@ public class Game {
         }
     }
 
-    private void randomlyAssignComplianceProjectsPerTick() {
-        // Don't spawn compliance projects in level 2 before the first mission is completed or if there's already one
-        Player player = players.values().iterator().next();
-
-        if (getLevel() == 2 && !player.getMissions().get(0).isCompleted()) {
+    private void randomlySpawnComplianceProjectsPerTick() {
+        // Don't auto-spawn compliance projects in level 1
+        if (getLevel() == 1) {
             return;
         }
+
+        Player player = players.values().iterator().next();
 
         // Only have one compliance project at a time
         if (projects.stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
@@ -644,14 +644,14 @@ public class Game {
                         updatedNeeded = true;
                     }
                 } else if (objective.getId() == 16) {
-                    // Criterion: Any skill is unlocked
+                    // Criterion: "The Office" skill is unlocked (= skill with id == "pmo")
                     HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
-                    if (skills.values().stream().anyMatch(Skill::isUnlocked)) {
+                    if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
                         objective.markAsCompleted();
                         logger.debug("Objective 16 completed.");
                         updatedNeeded = true;
                     }
-                } else if (objective.getId() == 14 || objective.getId() == 21) {
+                } else if (objective.getId() == 14 || objective.getId() == 17 || objective.getId() == 21 || objective.getId() == 31) {
                     Mission mission = getMissionByObjective(player, objective);
                     if (mission == null) return;
 
@@ -857,9 +857,11 @@ public class Game {
     }
 
     private void randomlySpawnProjectTendersPerTick() {
+        // There is only one player in level 1
+        Player p = players.values().iterator().next();
+
         // Don't spawn new projects in level 1 before the first mission is completed
-        Player player = players.values().iterator().next();
-        if (getLevel() == 1 && !player.getMissions().get(0).isCompleted()) {
+        if (getLevel() == 1 && !p.getMissions().get(0).isCompleted()) {
             return;
         }
 
@@ -871,11 +873,12 @@ public class Game {
             if (getLevel() == 1) {
                 // 25% chance for a perfect project
                 if (RANDOM.nextFloat() <= 0.75) {
-                    project = new Project();
-                } else {
-                    // There's only one player in level 1
-                    Player p = players.values().iterator().next();
+                    // Low-risk, small projects
+                    project = new Project(RiskLevel.low).initialize();
 
+                    // No tender process for level 1
+                    project.setTenderProcess(false);
+                } else {
                     // Find the project type and domain where one employee has the most experience
                     Employee bestEmployee = p.getEmployees().stream().max(Comparator.comparing(Employee::getExperience)).orElse(null);
                     if (bestEmployee == null) {
@@ -888,7 +891,7 @@ public class Game {
                     project = new Project(type, domain, RiskLevel.low, false);
                 }
             } else {
-                project = new Project();
+                project = new Project().initialize();
             }
 
             project.setPublishedAt(getCurrentTick());
