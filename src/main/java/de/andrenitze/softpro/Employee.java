@@ -112,6 +112,10 @@ public class Employee {
     }
 
     public void gainExperience(Project project, Integer newExperienceInDays) {
+        // Don't gain experience in compliance projects
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            return;
+        }
 
         if (newExperienceInDays > 0) {
             // Project-specific XP (= lower onboarding productivity)
