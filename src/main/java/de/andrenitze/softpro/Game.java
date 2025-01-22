@@ -343,10 +343,10 @@ public class Game {
     }
 
     private void randomlyAssignComplianceProjectsPerTick() {
-        // Don't spawn compliance projects in level 1 before the first mission is completed or if there's already one
+        // Don't spawn compliance projects in level 2 before the first mission is completed or if there's already one
         Player player = players.values().iterator().next();
 
-        if (getLevel() == 1 && !player.getMissions().get(0).isCompleted()) {
+        if (getLevel() == 2 && !player.getMissions().get(0).isCompleted()) {
             return;
         }
 
