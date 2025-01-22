@@ -246,7 +246,7 @@ public class GameServer extends WebSocketServer {
 
             // Generate two more random projects
             for (int i = 0; i < 2; i++) {
-                game.addProject(new Project());
+                game.addProject(new Project().initialize());
             }
         }
 

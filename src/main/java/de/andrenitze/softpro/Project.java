@@ -86,33 +86,44 @@ public class Project {
         this.earnedValue = 0;
         this.id = lastId;
         ++lastId;
+    }
 
-        // Assign random risk level
-        this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
+    /**
+     * Initializes a project with a random project type, domain, volume, and deadline.
+     * Any attributes that are set before calling this method alter the way the project is initialized.
+     */
+    public Project initialize() {
+        // Assign random risk level, if not already set
+        if (this.risk == null) {
+            this.risk = RISK_LEVELS.get(RANDOM.nextInt(RISK_LEVELS.size()));
+        }
 
-        // Assign random project type, but not compliance projects
-        do {
-            this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
-        } while (this.type == ProjectType.COMPLIANCE);
-
-        // 40% chance of a tender process
-        this.hasTenderProcess = RANDOM.nextInt(100) < 40;
+        // Assign random project type, but not compliance projects, if not already set
+        if (this.type == null) {
+            do {
+                this.type = PROJECT_TYPES.get(RANDOM.nextInt(PROJECT_TYPES.size()));
+            } while (this.type == ProjectType.COMPLIANCE);
+        }
 
         // Order is important. Volume depends on risk.
-        this.totalValue = generateVolume();
+        if (this.totalValue == 0) {
+            this.totalValue = generateVolume();
+        }
 
         this.deadline = generateDeadline();
 
         setMatchingDomainForType();
-
         // Based on the project type, assign a matching domain
         this.domain = generateDomain(this.type);
 
-        if (hasTenderProcess) {
-            this.tenderDeadlineInDays = 20;
-        } else {
-            this.tenderDeadlineInDays = Integer.MAX_VALUE;
-        }
+        setTenderProcess(false);
+
+        return this;
+    }
+
+    public Project(RiskLevel riskLevel) {
+        this();
+        this.risk = riskLevel;
     }
 
     private static void setMatchingDomainForType() {
@@ -133,6 +144,16 @@ public class Project {
         this.risk = risk;
         this.totalValue = generateVolume();
         this.hasTenderProcess = hasTenderProcess;
+    }
+
+    public void setTenderProcess(boolean hasTenderProcess) {
+        this.hasTenderProcess = hasTenderProcess;
+
+        if (hasTenderProcess) {
+            this.tenderDeadlineInDays = 20;
+        } else {
+            this.tenderDeadlineInDays = -1;
+        }
     }
 
     private int generateDeadline() {
