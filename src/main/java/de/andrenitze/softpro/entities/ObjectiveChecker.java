@@ -99,6 +99,52 @@ public class ObjectiveChecker {
                             objective.getTotalSteps());
                     updatedNeeded = true;
                 }
+            } else if (objective.getId() == 220) {
+                // Unlock skill "Recruiting I"
+                HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+                if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
+                    objective.markAsCompleted();
+                    logger.debug("Objective 220 completed.");
+                    updatedNeeded = true;
+                }
+            } else if (objective.getId() == 222) {
+                // Objective: Give your employee a 10% raise
+                if (!player.getEmployees().isEmpty()) {
+                    Employee employee = player.getEmployees().get(0);
+                    List<SalaryHistoryEntry> history = employee.getSalaryHistory();
+
+                    if (history.size() > 1) {
+                        SalaryHistoryEntry initialEntry = history.get(0);
+                        SalaryHistoryEntry latestEntry = history.get(history.size() - 1);
+
+                        if (latestEntry.getSalary() >= initialEntry.getSalary() * 1.1) {
+                            objective.markAsCompleted();
+                            logger.debug("Objective 222 completed: Employee received a 10% raise.");
+                            updatedNeeded = true;
+                        }
+                    }
+                }
+            } else if (objective.getId() == 223) {
+                // Have a one-to-one with your employee
+
+            } else if (objective.getId() == 224) {
+                // Train your employee in project management basics
+
+            } else if (objective.getId() == 230) {
+                // Build a team of 5 employees
+
+            } else if (objective.getId() == 231) {
+                // Unlock skill "Foreman"
+
+            } else if (objective.getId() == 232) {
+                // Let the foreman staff a project
+
+            } else if (objective.getId() == 240) {
+                // Fire an employee
+
+            } else if (objective.getId() == 241) {
+                // Cancel the messy project
+
             }
 
             if (updatedNeeded) {

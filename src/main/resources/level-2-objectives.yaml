@@ -14,7 +14,7 @@ missions:
         id: 221
       - title: Give your employee a 10% raise
         id: 222
-        totalSteps: 10
+        totalSteps: 2
       - title: Have a one-to-one with your employee
         id: 223
       - title: Train your employee in project management basics
