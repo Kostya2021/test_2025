@@ -24,9 +24,9 @@ missions:
       - title: Build a team of 5 employees
         id: 230
         totalSteps: 5
-      - title: Unlock skill "Foreman"
+      - title: Unlock skill "Team Lead"
         id: 231
-      - title: Let the foreman staff a project
+      - title: Let the Team Lead staff a project
         id: 232
         totalSteps: 10
   - title: Don't ride dead horses
