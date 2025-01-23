@@ -30,7 +30,7 @@ public class GameServer extends WebSocketServer {
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    protected static Gson GSON = null;
+    public static Gson GSON = null;
     @Getter
     private GameOverStats dailyHighScore;
     public static final Random RANDOM = new Random();
