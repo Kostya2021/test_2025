@@ -238,7 +238,7 @@ public class Project {
             involvedParties.add(player);
         }
     }
-    List<Player> getInvolvedPlayers() {
+    public List<Player> getInvolvedPlayers() {
         return involvedParties;
     }
 

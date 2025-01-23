@@ -55,6 +55,7 @@ public class Game {
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
+    @Getter
     protected final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
@@ -590,115 +591,14 @@ public class Game {
     }
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
+        ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
         players.forEach((webSocket, player) -> {
-            GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-            List<Objective> allActiveObjectives;
-            boolean updatedNeeded;
-
-            // Calculate progress for all active (= incomplete) objectives
-            for (Objective objective : player.getObjectivesUntilThisTick(currentTick)) {
-                updatedNeeded = false;
-
-                if (objective.isCompleted()) {
-                    continue;
-                }
-
-                /*
-                  Naive matching approach with exact IDs from level-1-objectives.yaml
-                  For new objectives, create a new objective in the YAML file, then create a case with matching id here.
-                 */
-                if (objective.getId() == 11) {
-                    // Criterion: If player has accepted any project from the project market
-                    if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 11 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 12) {
-                    // Criterion: If employees have been assigned to any project
-                    if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 12 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 13) {
-                    // Criterion: If project has been kicked off
-                    if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
-                            && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 13 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 15) {
-                    // Criterion: Gain 125 XP by completing projects
-                    // Objective has 125 total steps (=XP points to gain)
-
-                    // If the player has gained more XP than the last time, update the objective
-                    if (player.getXp() != objective.getCompletedSteps()) {
-                        objective.setCompletedSteps(player.getXp());
-                        updatedNeeded = true;
-                    }
-
-                    // If the player has gained the desired amount of XP, mark the objective as completed
-                    if (player.getXp() >= 125) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 15 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 16) {
-                    // Criterion: "The Office" skill is unlocked (= skill with id == "pmo")
-                    HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
-                    if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 16 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 21) {
-                    // Criterion: "Team spirit" or "crunch mode" skill is unlocked
-                    HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
-                    if (skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked() ||
-                            skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked()) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 21 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 14 || objective.getId() == 17 || objective.getId() == 31) {
-                    Mission mission = getMissionByObjective(player, objective);
-                    if (mission == null) return;
-
-                    // Were conditions met (= projects finished) after the mission occurred?
-                    // Only check relevant (= finished) projects
-                    ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
-                            .stream()
-                            .filter(project -> project.isCompleted()
-                                    && project.getCompletedAt() > mission.getEarliestOccurrence()
-                                    && project.playerWasInvolved(player))
-                            // The following line can NOT be replaced with "toList()"!
-                            .collect(Collectors.toList());
-
-                    // Only send when conditions have changed from last time
-                    if (objective.getCompletedSteps() != relevantProjects.size()) {
-                        // The number of relevant projects equals the completed steps
-                        objective.setCompletedSteps(relevantProjects.size());
-                        logger.debug("Objective {} completed steps: {}/{}",
-                                objective.getId(),
-                                objective.getCompletedSteps(),
-                                objective.getTotalSteps());
-                        updatedNeeded = true;
-                    }
-                }
-
-                if (updatedNeeded) {
-                    logger.debug("Sending updated objectives to player.");
-                    allActiveObjectives = player.getObjectivesUntilThisTick(getCurrentTick());
-                    objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                    sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
-                }
-            }
+            objectiveChecker.checkObjectives(player);
         });
     }
 
-    private @Nullable Mission getMissionByObjective(Player player, Objective objective) {
+    @Nullable
+    public Mission getMissionByObjective(Player player, Objective objective) {
         // Get mission by objective
         Mission mission = player.getMissions().stream()
                 .filter(m -> m.getObjectives().contains(objective))
@@ -1317,7 +1217,7 @@ public class Game {
         players.forEach((webSocket, player) -> webSocket.send(message));
     }
 
-    void sendMessageToPlayer(Player player, String message) {
+    public void sendMessageToPlayer(Player player, String message) {
         // Get the WebSocket connection of the player
         WebSocket webSocket = getWebSocketByPlayer(players, player);
 
