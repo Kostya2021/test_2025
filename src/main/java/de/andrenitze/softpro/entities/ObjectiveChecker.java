@@ -127,7 +127,7 @@ public class ObjectiveChecker {
             } else if (objective.getId() == 223) {
                 // Objective: Have a one-to-one with your employee
 
-                // Check if an employee has a SATISFACTION status effect with description "Feels heard"
+                // Indirect indicator: Check if an employee has a SATISFACTION status effect with description "Feels heard"
                 if (!player.getEmployees().isEmpty()) {
                     Employee employee = player.getEmployees().get(0);
                     List<StatusEffect> statusEffects = employee.getStatusEffects();
@@ -136,29 +136,45 @@ public class ObjectiveChecker {
                             statusEffect.getType() == StatusEffectType.SATISFACTION
                             && statusEffect.getDescription().equals("Feels heard"))) {
                         objective.markAsCompleted();
-                        logger.debug("Objective 223 completed: Employee feels heard.");
+                        logger.debug("Objective 223 completed: One-to-one with employee.");
                         updatedNeeded = true;
                     }
                 }
-
             } else if (objective.getId() == 224) {
-                // Train your employee in project management basics
-
+                // Objective: Train your employee in project management basics
+                // Not implemented yet (no training feature)
             } else if (objective.getId() == 230) {
-                // Build a team of 5 employees
+                // Objective: Build a team of 5 employees
 
+                // Check if player has 5 employees. For every employee, increment the objective's completed steps.
+                if (player.getEmployees().size() != objective.getCompletedSteps()) {
+                    objective.setCompletedSteps(player.getEmployees().size());
+                    updatedNeeded = true;
+                }
+
+                if (player.getEmployees().size() >= 5) {
+                    objective.markAsCompleted();
+                    logger.debug("Objective 230 completed.");
+                    updatedNeeded = true;
+                }
             } else if (objective.getId() == 231) {
-                // Unlock skill "Foreman"
-
+                // Objective: Unlock skill "Team Lead"
+                HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+                if (skills.containsKey("team-lead") && skills.get("team-lead").isUnlocked()) {
+                    objective.markAsCompleted();
+                    logger.debug("Objective 231 completed.");
+                    updatedNeeded = true;
+                }
             } else if (objective.getId() == 232) {
-                // Let the foreman staff a project
-
+                // Objective: Let the team lead staff a project
+                // Not implemented yet (no team lead feature)
             } else if (objective.getId() == 240) {
-                // Fire an employee
-
+                // Objective: Fire an employee
+                // Check if player has fired an employee
+                // Don't know how to check this yet...
             } else if (objective.getId() == 241) {
-                // Cancel the messy project
-
+                // Objective: Cancel the messy project
+                // Not implemented yet (no project cancellation feature)
             }
 
             if (updatedNeeded) {
