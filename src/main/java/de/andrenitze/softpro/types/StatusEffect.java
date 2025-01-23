@@ -6,19 +6,19 @@ import lombok.Data;
 public class StatusEffect {
     private StatusEffectType type;
     private float multiplier; // 1.0 = 100%, 0.5 = 50%, 2.25 = 225%, -1.0 = -100%
-    private String reason;
+    private String description; // How the effect appears in the UI
     private int cooldown = -1; // How many days the effect lasts (-1 = infinite)
 
-    public StatusEffect(StatusEffectType type, float multiplier, String reason) {
+    public StatusEffect(StatusEffectType type, float multiplier, String description) {
         this.type = type;
         this.multiplier = multiplier;
-        this.reason = reason;
+        this.description = description;
     }
 
-    public StatusEffect(StatusEffectType type, float multiplier, String reason, int cooldown) {
+    public StatusEffect(StatusEffectType type, float multiplier, String description, int cooldown) {
         this.type = type;
         this.multiplier = multiplier;
-        this.reason = reason;
+        this.description = description;
         this.cooldown = cooldown;
     }
 

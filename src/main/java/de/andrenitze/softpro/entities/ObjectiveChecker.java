@@ -125,7 +125,21 @@ public class ObjectiveChecker {
                     }
                 }
             } else if (objective.getId() == 223) {
-                // Have a one-to-one with your employee
+                // Objective: Have a one-to-one with your employee
+
+                // Check if an employee has a SATISFACTION status effect with description "Feels heard"
+                if (!player.getEmployees().isEmpty()) {
+                    Employee employee = player.getEmployees().get(0);
+                    List<StatusEffect> statusEffects = employee.getStatusEffects();
+
+                    if (statusEffects.stream().anyMatch(statusEffect ->
+                            statusEffect.getType() == StatusEffectType.SATISFACTION
+                            && statusEffect.getDescription().equals("Feels heard"))) {
+                        objective.markAsCompleted();
+                        logger.debug("Objective 223 completed: Employee feels heard.");
+                        updatedNeeded = true;
+                    }
+                }
 
             } else if (objective.getId() == 224) {
                 // Train your employee in project management basics
