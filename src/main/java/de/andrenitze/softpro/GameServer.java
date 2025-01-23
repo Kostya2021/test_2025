@@ -230,7 +230,7 @@ public class GameServer extends WebSocketServer {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setFirstName(player.getFirstName());
             employee.setLastName(player.getLastName());
-            employee.setSalary(458);
+            employee.setSalary(458, 0);
             employee.setAge(22);
             employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 

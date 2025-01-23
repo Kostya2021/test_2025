@@ -248,7 +248,7 @@ class GameEventHandler {
 
                 // Extract salary field and update employee's salary
                 int salary = employeeUpdatedEvent.getPayload().get("salary");
-                employee.setSalary(salary);
+                employee.setSalary(salary, game.getCurrentTick());
 
                 // Notify the player about employee update
                 GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);

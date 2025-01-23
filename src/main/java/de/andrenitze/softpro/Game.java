@@ -230,7 +230,7 @@ public class Game {
             } else if (option == 2) {
                 // Option 2 "Creativity" -> Add an employee with salary = 0 for the whole level
                 Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
-                freeEmployee.setSalary(0);
+                freeEmployee.setSalary( 0, 0);
                 freeEmployee.setSatisfaction(0.7f);
                 player.addEmployee(freeEmployee);
             } else if (option == 3) {
