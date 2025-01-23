@@ -277,7 +277,7 @@ public class Employee {
 
     public void addStatusEffect(StatusEffect effect) {
         statusEffects.add(effect);
-        logger.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getReason(), effect.getType(), getName(), statusEffects.size());
+        logger.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
         calculateSatisfaction();
     }
 
@@ -330,7 +330,7 @@ public class Employee {
 
     public void removeStatusEffectsByDescription(String description) {
         statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getReason().equals(description);
+            boolean toRemove = effect.getDescription().equals(description);
             if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
                 calculateSatisfaction();
             }
@@ -387,7 +387,7 @@ public class Employee {
 
     public void removeStatusEffectByReason(String reason) {
         statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getReason().equals(reason);
+            boolean toRemove = effect.getDescription().equals(reason);
             if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
                 calculateSatisfaction();
             }
@@ -399,7 +399,7 @@ public class Employee {
 
     public void haveOneToOneMeeting() {
         // Don't add the same effect twice
-        statusEffects.removeIf(effect -> effect.getReason().equals("Feels heard"));
+        statusEffects.removeIf(effect -> effect.getDescription().equals("Feels heard"));
 
         // Add a time-limited status effect that increases satisfaction by 10% for some time
         addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
