@@ -18,7 +18,6 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
@@ -592,9 +591,7 @@ public class Game {
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
         ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
-        players.forEach((webSocket, player) -> {
-            objectiveChecker.checkObjectives(player);
-        });
+        players.forEach((webSocket, player) -> objectiveChecker.checkObjectives(player));
     }
 
     @Nullable

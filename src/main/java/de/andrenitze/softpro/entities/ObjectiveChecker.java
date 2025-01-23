@@ -14,7 +14,7 @@ import static de.andrenitze.softpro.GameServer.GSON;
 public class ObjectiveChecker {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Game game;
-    private int currentTick;
+    private final int currentTick;
 
     public ObjectiveChecker(Game game) {
         this.game = game;
