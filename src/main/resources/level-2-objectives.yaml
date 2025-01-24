@@ -24,15 +24,15 @@ missions:
       - title: Build a team of 5 employees
         id: 230
         totalSteps: 5
-      - title: Unlock skill "Team Lead"
-        id: 231
-      - title: Let the Team Lead staff a project
-        id: 232
-        totalSteps: 10
-  - title: Don't ride dead horses
-    order: 4
-    objectives:
-      - title: Fire an employee
-        id: 240
-      - title: Cancel the messy project
-        id: 241
+    #  - title: Unlock skill "Team Lead"
+    #    id: 231
+    #  - title: Let the Team Lead staff a project
+    #    id: 232
+    #    totalSteps: 10
+  #- title: Don't ride dead horses
+  #  order: 4
+  #  objectives:
+  #    - title: Fire an employee
+  #      id: 240
+  #    - title: Cancel the messy project
+  #      id: 241
