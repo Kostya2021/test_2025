@@ -2,6 +2,7 @@ package de.andrenitze.softpro.entities;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.CollectionType;
+import de.andrenitze.softpro.Player;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,8 +15,8 @@ public class AccountingService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Adds a new entry to the in-memory list
-    public void addEntry(int day, int level, int amount, AccountCategory category, String description) {
-        AccountingEntry entry = new AccountingEntry(day, level, amount, category, description);
+    public synchronized void addEntry(Player player, int day, int amount, AccountCategory category, String description) {
+        AccountingEntry entry = new AccountingEntry(player, day, amount, category, description);
         entries.add(entry);
     }
 

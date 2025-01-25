@@ -44,6 +44,7 @@ public class Game {
     public static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final AccountingService accountingService;
     private boolean isRunning; // Game instance is active
     private boolean isPaused = false; // Game instance is active, but paused (e.g., for briefing and tutorials)
     private final GameServer gameServer;
@@ -91,6 +92,9 @@ public class Game {
 
         // Initialize the SkillsManager to manage players' skills across levels
         skillsManager = new SkillsManager();
+
+        // Initialize the accounting service to keep track of all financial transactions
+        accountingService = new AccountingService();
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -1010,6 +1014,8 @@ public class Game {
                     }
 
                     player.addFunds(profit);
+                    accountingService.addEntry(player, currentTick, profit, AccountCategory.REVENUE,
+                            "Project completed");
                     sendFundsUpdateToPlayer(player);
 
                     // Calculate player's XP gained in this project

@@ -1,22 +1,24 @@
 package de.andrenitze.softpro.entities;
 
+import de.andrenitze.softpro.Player;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.UUID;
+
 @Getter @Setter
 public class AccountingEntry {
-    private int day;        // Game day / tick
+    private UUID playerId;        // Unique identifier for player
     private int level;      // Game level
+    private int day;        // Game day / tick
     private int amount;     // Positive or negative
     private AccountCategory category;
     private String description;
 
-    // Constructors, getters, and setters
-    public AccountingEntry() {}
-
-    public AccountingEntry(int day, int level, int amount, AccountCategory category, String description) {
+    public AccountingEntry(Player player, int day, int amount, AccountCategory category, String description) {
+        this.playerId = player.getId();
+        this.level = player.getLevel();
         this.day = day;
-        this.level = level;
         this.amount = amount;
         this.category = category;
         this.description = description;
