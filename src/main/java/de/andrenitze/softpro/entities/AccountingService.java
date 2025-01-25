@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class AccountingService {
 
@@ -20,30 +22,26 @@ public class AccountingService {
         entries.add(entry);
     }
 
-    // Returns all entries
-    public List<AccountingEntry> getAllEntries() {
-        return entries;
+    public List<AccountingEntry> getAllEntriesByPlayer(UUID playerId) {
+        return entries.stream()
+                .filter(e -> e.getPlayerId().equals(playerId))
+                .collect(Collectors.toList());
     }
 
-    // Sums all amounts (int)
-    public int getTotalBalance() {
+    public List<AccountingEntry> getEntriesByPlayerAndCategory(UUID playerId, AccountCategory category) {
         return entries.stream()
+                .filter(e -> e.getPlayerId().equals(playerId))
+                .filter(e -> e.getCategory() == category)
+                .collect(Collectors.toList());
+    }
+
+    public int getTotalBalanceForPlayer(UUID playerId) {
+        return entries.stream()
+                .filter(e -> e.getPlayerId().equals(playerId))
                 .mapToInt(AccountingEntry::getAmount)
                 .sum();
     }
 
-    // Filters entries by category
-    public List<AccountingEntry> getEntriesByCategory(AccountCategory category) {
-        List<AccountingEntry> result = new ArrayList<>();
-        for (AccountingEntry e : entries) {
-            if (e.getCategory() == category) {
-                result.add(e);
-            }
-        }
-        return result;
-    }
-
-    // Saves current list of entries to a JSON file
     public void saveToFile(String filePath) throws IOException {
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(new File(filePath), entries);
     }
