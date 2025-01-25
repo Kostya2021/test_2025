@@ -1085,6 +1085,7 @@ public class Game {
             // Build a small custom event to just send new project progress and success metrics
             projectObject.put("id", project.getId());
             projectObject.put("earnedValue", project.getEarnedValue());
+            projectObject.put("tick", currentTick);
 
             if (project.isCompleted()) {
                 projectObject.put("completedAt", currentTick);
