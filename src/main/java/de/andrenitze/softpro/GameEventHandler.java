@@ -21,10 +21,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
+import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.Main.logger;
 
 class GameEventHandler {
-    private static final Gson GSON = new Gson();
     public static final String TEAM_SPIRIT = "team-spirit";
     public static final String CRUNCH_MODE = "crunch-mode";
     private final Game game;
@@ -248,7 +248,7 @@ class GameEventHandler {
 
                 // Extract salary field and update employee's salary
                 int salary = employeeUpdatedEvent.getPayload().get("salary");
-                employee.setSalary(salary);
+                employee.setSalary(salary, game.getCurrentTick());
 
                 // Notify the player about employee update
                 GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);

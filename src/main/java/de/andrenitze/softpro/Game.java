@@ -18,7 +18,6 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
@@ -55,6 +54,7 @@ public class Game {
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
+    @Getter
     protected final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
@@ -163,7 +163,7 @@ public class Game {
         if (getLevel() != 1) {
             projects = new ArrayList<>();
             for (int i = 0; i < 100; i++) {
-                Project project = new Project();
+                Project project = new Project().initialize();
 
                 // Set randomly negative publish dates to have some history of tenders
                 project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
@@ -226,7 +226,8 @@ public class Game {
             } else if (option == 2) {
                 // Option 2 "Creativity" -> Add an employee with salary = 0 for the whole level
                 Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
-                freeEmployee.setSalary(0);
+                freeEmployee.setSalary( 0, 0);
+                freeEmployee.setSatisfaction(0.7f);
                 player.addEmployee(freeEmployee);
             } else if (option == 3) {
                 // Option 3 "Spontaneity" -> Add status effect "Stress" for the whole level (productivity -20%, satisfaction -10%)
@@ -323,7 +324,7 @@ public class Game {
         conductWorkOnAllProjectsPerTick();
         processSalariesAndAdjustFundsPerTick(currentDate);
         randomlySpawnProjectTendersPerTick();
-        randomlyAssignComplianceProjectsPerTick();
+        randomlySpawnComplianceProjectsPerTick();
         removeStaleTendersPerTick();
         assignProjectsPerTick();
         sendNewObjectivesPerTick();
@@ -342,13 +343,13 @@ public class Game {
         }
     }
 
-    private void randomlyAssignComplianceProjectsPerTick() {
-        // Don't spawn compliance projects in level 2 before the first mission is completed or if there's already one
-        Player player = players.values().iterator().next();
-
-        if (getLevel() == 2 && !player.getMissions().get(0).isCompleted()) {
+    private void randomlySpawnComplianceProjectsPerTick() {
+        // Don't auto-spawn compliance projects in level 1
+        if (getLevel() == 1) {
             return;
         }
+
+        Player player = players.values().iterator().next();
 
         // Only have one compliance project at a time
         if (projects.stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
@@ -422,13 +423,18 @@ public class Game {
             return;
         }
 
-        // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
+        // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
         for (Project project : projects) {
+            if (project.getType() == ProjectType.COMPLIANCE) {
+                continue;
+            }
+
+            // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
             if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
                 int daysPassed = currentTick - project.getAcquiredAt();
                 if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
                     // Start the project and inform involved players
-                    startProject(project, currentTick-1);
+                    startProject(project, currentTick - 1);
                     notifyInvolvedPlayers(project);
                     logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
                 }
@@ -584,106 +590,12 @@ public class Game {
     }
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
-        players.forEach((webSocket, player) -> {
-            GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-            List<Objective> allActiveObjectives;
-            boolean updatedNeeded;
-
-            // Calculate progress for all active (= incomplete) objectives
-            for (Objective objective : player.getObjectivesUntilThisTick(currentTick)) {
-                updatedNeeded = false;
-
-                if (objective.isCompleted()) {
-                    continue;
-                }
-
-                /*
-                  Naive matching approach with exact IDs from level-1-objectives.yaml
-                  For new objectives, create a new objective in the YAML file, then create a case with matching id here.
-                 */
-                if (objective.getId() == 11) {
-                    // Criterion: If player has accepted any project from the project market
-                    if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 11 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 12) {
-                    // Criterion: If employees have been assigned to any project
-                    if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 12 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 13) {
-                    // Criterion: If project has been kicked off
-                    if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
-                            && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 13 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 15) {
-                    // Criterion: Gain 125 XP by completing projects
-                    // Objective has 125 total steps (=XP points to gain)
-
-                    // If the player has gained more XP than the last time, update the objective
-                    if (player.getXp() != objective.getCompletedSteps()) {
-                        objective.setCompletedSteps(player.getXp());
-                        updatedNeeded = true;
-                    }
-
-                    // If the player has gained the desired amount of XP, mark the objective as completed
-                    if (player.getXp() >= 125) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 15 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 16) {
-                    // Criterion: Any skill is unlocked
-                    HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
-                    if (skills.values().stream().anyMatch(Skill::isUnlocked)) {
-                        objective.markAsCompleted();
-                        logger.debug("Objective 16 completed.");
-                        updatedNeeded = true;
-                    }
-                } else if (objective.getId() == 14 || objective.getId() == 21) {
-                    Mission mission = getMissionByObjective(player, objective);
-                    if (mission == null) return;
-
-                    // Were conditions met (= projects finished) after the mission occurred?
-                    // Only check relevant (= finished) projects
-                    ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
-                            .stream()
-                            .filter(project -> project.isCompleted()
-                                    && project.getCompletedAt() > mission.getEarliestOccurrence()
-                                    && project.playerWasInvolved(player))
-                            // The following line can NOT be replaced with "toList()"!
-                            .collect(Collectors.toList());
-
-                    // Only send when conditions have changed from last time
-                    if (objective.getCompletedSteps() != relevantProjects.size()) {
-                        // The number of relevant projects equals the completed steps
-                        objective.setCompletedSteps(relevantProjects.size());
-                        logger.debug("Objective {} completed steps: {}/{}",
-                                objective.getId(),
-                                objective.getCompletedSteps(),
-                                objective.getTotalSteps());
-                        updatedNeeded = true;
-                    }
-                }
-
-                if (updatedNeeded) {
-                    logger.debug("Sending updated objectives to player.");
-                    allActiveObjectives = player.getObjectivesUntilThisTick(getCurrentTick());
-                    objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                    sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
-                }
-            }
-        });
+        ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
+        players.forEach((webSocket, player) -> objectiveChecker.checkObjectives(player));
     }
 
-    private @Nullable Mission getMissionByObjective(Player player, Objective objective) {
+    @Nullable
+    public Mission getMissionByObjective(Player player, Objective objective) {
         // Get mission by objective
         Mission mission = player.getMissions().stream()
                 .filter(m -> m.getObjectives().contains(objective))
@@ -853,9 +765,11 @@ public class Game {
     }
 
     private void randomlySpawnProjectTendersPerTick() {
+        // There is only one player in level 1
+        Player p = players.values().iterator().next();
+
         // Don't spawn new projects in level 1 before the first mission is completed
-        Player player = players.values().iterator().next();
-        if (getLevel() == 1 && !player.getMissions().get(0).isCompleted()) {
+        if (getLevel() == 1 && !p.getMissions().get(0).isCompleted()) {
             return;
         }
 
@@ -867,11 +781,12 @@ public class Game {
             if (getLevel() == 1) {
                 // 25% chance for a perfect project
                 if (RANDOM.nextFloat() <= 0.75) {
-                    project = new Project();
-                } else {
-                    // There's only one player in level 1
-                    Player p = players.values().iterator().next();
+                    // Low-risk, small projects
+                    project = new Project(RiskLevel.low).initialize();
 
+                    // No tender process for level 1
+                    project.setTenderProcess(false);
+                } else {
                     // Find the project type and domain where one employee has the most experience
                     Employee bestEmployee = p.getEmployees().stream().max(Comparator.comparing(Employee::getExperience)).orElse(null);
                     if (bestEmployee == null) {
@@ -884,7 +799,7 @@ public class Game {
                     project = new Project(type, domain, RiskLevel.low, false);
                 }
             } else {
-                project = new Project();
+                project = new Project().initialize();
             }
 
             project.setPublishedAt(getCurrentTick());
@@ -1300,7 +1215,7 @@ public class Game {
         players.forEach((webSocket, player) -> webSocket.send(message));
     }
 
-    void sendMessageToPlayer(Player player, String message) {
+    public void sendMessageToPlayer(Player player, String message) {
         // Get the WebSocket connection of the player
         WebSocket webSocket = getWebSocketByPlayer(players, player);
 

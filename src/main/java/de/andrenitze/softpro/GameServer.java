@@ -30,7 +30,7 @@ public class GameServer extends WebSocketServer {
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    protected static Gson GSON = null;
+    public static Gson GSON = null;
     @Getter
     private GameOverStats dailyHighScore;
     public static final Random RANDOM = new Random();
@@ -230,7 +230,7 @@ public class GameServer extends WebSocketServer {
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setFirstName(player.getFirstName());
             employee.setLastName(player.getLastName());
-            employee.setSalary(458);
+            employee.setSalary(458, 0);
             employee.setAge(22);
             employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
@@ -246,7 +246,7 @@ public class GameServer extends WebSocketServer {
 
             // Generate two more random projects
             for (int i = 0; i < 2; i++) {
-                game.addProject(new Project());
+                game.addProject(new Project().initialize());
             }
         }
 

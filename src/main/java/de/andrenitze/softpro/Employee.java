@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.NameGenerator;
+import de.andrenitze.softpro.entities.SalaryHistoryEntry;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.StatusEffect;
 import de.andrenitze.softpro.types.StatusEffectType;
@@ -19,7 +20,10 @@ public class Employee {
     public static final int MINIMUM_AGE = 20;
     private transient float sickDayProbability = 0.02f;
     private final Integer id;
+    @Getter
     private int salary; // monthly salary
+    @Getter
+    private List<SalaryHistoryEntry> salaryHistory = new ArrayList<>();
     @Setter
     private int age;
     @Setter
@@ -97,10 +101,6 @@ public class Employee {
 
     int getId() {
         return id;
-    }
-
-    int getSalary() {
-        return salary;
     }
 
     Integer getExperienceInDaysByProject(Project project) {
@@ -218,10 +218,17 @@ public class Employee {
         projectTypeExperience.put(type, existingExperience + days);
     }
 
-    public void setSalary(int i) {
-        this.salary = i;
+    public void setSalary(int newSalary, int tick) {
+        this.salary = newSalary;
 
-        // Change satisfaction based on salary (with diminishing returns)
+        // Update salary history
+        salaryHistory.add(new SalaryHistoryEntry(tick, newSalary));
+
+        // Remove oldest entry if the list is too long
+        if (salaryHistory.size() > 100) { // Keep the last 100 entries
+            salaryHistory.remove(0);
+        }
+
         calculateSatisfaction();
     }
 
@@ -270,7 +277,7 @@ public class Employee {
 
     public void addStatusEffect(StatusEffect effect) {
         statusEffects.add(effect);
-        logger.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getReason(), effect.getType(), getName(), statusEffects.size());
+        logger.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
         calculateSatisfaction();
     }
 
@@ -323,7 +330,7 @@ public class Employee {
 
     public void removeStatusEffectsByDescription(String description) {
         statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getReason().equals(description);
+            boolean toRemove = effect.getDescription().equals(description);
             if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
                 calculateSatisfaction();
             }
@@ -380,7 +387,7 @@ public class Employee {
 
     public void removeStatusEffectByReason(String reason) {
         statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getReason().equals(reason);
+            boolean toRemove = effect.getDescription().equals(reason);
             if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
                 calculateSatisfaction();
             }
@@ -392,7 +399,7 @@ public class Employee {
 
     public void haveOneToOneMeeting() {
         // Don't add the same effect twice
-        statusEffects.removeIf(effect -> effect.getReason().equals("Feels heard"));
+        statusEffects.removeIf(effect -> effect.getDescription().equals("Feels heard"));
 
         // Add a time-limited status effect that increases satisfaction by 10% for some time
         addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);

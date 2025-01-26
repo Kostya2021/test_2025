@@ -20,7 +20,7 @@ public class GameTest {
         gameServer = new GameServer("TestGameServer", 8070);
         game = new Game(gameServer);
         player = new Player("TestPlayer", "TestCompany");
-        project = new Project();
+        project = new Project().initialize();
 
         WebSocket mockWebSocket = mock(WebSocket.class);
         game.addPlayerToGame(mockWebSocket, player);
