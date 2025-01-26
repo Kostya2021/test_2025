@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>de.andrenitze.sim</groupId>
     <artifactId>softpro</artifactId>
-    <version>0.5.3</version>
+    <version>0.5.4</version>
     <name>ThatSoftwareGame</name>
     <url>https://softpro.andrenitze.de</url>
     <properties>

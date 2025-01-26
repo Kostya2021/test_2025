@@ -1,5 +1,6 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.entities.EarnedValueHistoryEntry;
 import de.andrenitze.softpro.entities.Problem;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;
@@ -21,7 +22,9 @@ public class Project {
     private String name;
     @Getter
     private int totalValue;
+    @Getter @Setter
     private int earnedValue;
+    private List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
     private boolean hasTenderProcess;
     @Setter
     private int tenderDeadlineInDays;
@@ -221,14 +224,6 @@ public class Project {
         return involvedParties;
     }
 
-    int getEarnedValue() {
-        return earnedValue;
-    }
-
-    void setEarnedValue(int earnedValue) {
-        this.earnedValue = earnedValue;
-    }
-
     RiskLevel getRiskLevel() {
         return risk;
     }
@@ -243,6 +238,16 @@ public class Project {
         if (isCompleted()) {
             setCompletedAt(tick);
         }
+
+        // Add earned value to the correct tick in the history
+        // This is required because earnedValue can be added for multiple employees in one tick
+        earnedValueHistory.stream()
+                .filter(entry -> entry.getTick() == tick)
+                .findFirst()
+                .ifPresentOrElse(
+                        entry -> entry.addValue(addedValue),
+                        () -> earnedValueHistory.add(new EarnedValueHistoryEntry(tick, getEarnedValue()))
+                );
     }
 
     boolean hasNoTenderProcess() {
