@@ -7,5 +7,5 @@ public enum AccountCategory {
     OVERHEAD,           // General overhead costs
     TRAINING,           // Training costs
     PROBLEM_SOLVING,    // Problem resolution costs
-    OTHER               // Anything else
+    SALARIES, OTHER               // Anything else
 }

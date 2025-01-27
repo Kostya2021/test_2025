@@ -616,7 +616,8 @@ public class Game {
     private void processSalariesAndAdjustFundsPerTick(LocalDate d) {
         if (d.getDayOfMonth() == 1) {
             players.forEach((webSocket, player) -> {
-                player.calculateAndSubtractSalaries();
+                int salaries = player.calculateAndSubtractSalaries();
+                accountingService.addEntry(player, currentTick, salaries, AccountCategory.SALARIES, "Monthly salary costs");
                 sendFundsUpdateToPlayer(player);
             });
         }
