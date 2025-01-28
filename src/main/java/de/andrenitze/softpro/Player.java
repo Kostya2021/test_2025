@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
@@ -126,8 +127,13 @@ public class Player {
         this.funds -= fundsToSubtract;
     }
 
-    void calculateAndSubtractSalaries() {
-        employees.forEach(employee -> this.subtractFunds(employee.getSalary()));
+    int calculateAndSubtractSalaries() {
+        AtomicInteger salaries = new AtomicInteger();
+        employees.forEach(employee -> {
+            this.subtractFunds(employee.getSalary());
+            salaries.addAndGet(employee.getSalary());
+        });
+        return salaries.get();
     }
 
     Employee getEmployeeById(int id) {
