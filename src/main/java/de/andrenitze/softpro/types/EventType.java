@@ -39,5 +39,6 @@ public enum EventType {
     PAUSE,
     RESUME,
     PROBLEM_SOLVED,
-    ONE_TO_ONE_MEETING
+    ONE_TO_ONE_MEETING,
+    ACCOUNTING_ENTRIES_ADDED
 }

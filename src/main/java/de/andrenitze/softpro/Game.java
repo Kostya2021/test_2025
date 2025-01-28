@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
@@ -226,7 +227,8 @@ public class Game {
 
             if (option == 1) {
                 // Option 1 "Efficiency" -> Increase productivity by 75% for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.75f, "Efficient work organization"));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 1.75f, "Efficient work organization"));
             } else if (option == 2) {
                 // Option 2 "Creativity" -> Add an employee with salary = 0 for the whole level
                 Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
@@ -236,8 +238,10 @@ public class Game {
             } else if (option == 3) {
                 // Option 3 "Spontaneity" -> Add status effect "Stress" for the whole level (productivity -20%, satisfaction -10%)
                 player.getEmployees().forEach(employee -> {
-                    employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Spontaneous work organization");
-                    employee.addStatusEffect(StatusEffectType.SATISFACTION, 0.9f, "Spontaneous work organization");
+                    employee.addStatusEffect(
+                            StatusEffectType.PRODUCTIVITY, 0.8f, "Spontaneous work organization");
+                    employee.addStatusEffect(
+                            StatusEffectType.SATISFACTION, 0.9f, "Spontaneous work organization");
                 });
             }
         });
@@ -253,7 +257,8 @@ public class Game {
                 // Make sure that the effect stays even if employee is fired. Always use the first employee.
                 player.setFunds(player.getFunds() - 5000);
                 Employee firstEmployee = player.getEmployees().get(0);
-                firstEmployee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
+                firstEmployee.addStatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
                 // All status effects will be reset when the next level is prepared
 
                 // Option 2 "Do nothing": No effect in this level. Later on, the player will have to deal with the consequences
@@ -270,10 +275,14 @@ public class Game {
             int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA)
+                );
             } else if (backupOption == 1) {
                 // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA)
+                );
             }
         });
     }
@@ -284,10 +293,14 @@ public class Game {
             int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA)
+                );
             } else if (backupOption == 1) {
                 // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA));
+                player.getEmployees().forEach(employee -> employee.addStatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA)
+                );
             }
         });
     }
@@ -326,7 +339,7 @@ public class Game {
         // Execute these things each "tick" (naming convention: methodNamePerTick)
         // This is important because player interactions alter the state between ticks
         conductWorkOnAllProjectsPerTick();
-        processSalariesAndAdjustFundsPerTick(currentDate);
+        processMonthlyPaymentsPerTick(currentDate);
         randomlySpawnProjectTendersPerTick();
         randomlySpawnComplianceProjectsPerTick();
         removeStaleTendersPerTick();
@@ -337,6 +350,7 @@ public class Game {
         sendStoryElementsPerTick();
         startStaleProjectsPerTick();
         createProblemsInProjectsPerTick();
+        sendNewAccountingEntriesPerTick();
         checkGameOverConditionsPerTick();
 
         long endTime = System.nanoTime();
@@ -345,6 +359,21 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
+    }
+
+    private void sendNewAccountingEntriesPerTick() {
+        // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
+        players.forEach((webSocket, player) -> {
+            List<AccountingEntry> newEntries = accountingService.getAllEntriesByPlayer(player.getId()).stream()
+                    .filter(entry -> entry.getDay() == currentTick)
+                    .collect(Collectors.toList());
+
+            if (!newEntries.isEmpty()) {
+                GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
+                newAccountingEntriesEvent.setPayload(newEntries);
+                sendMessageToPlayer(player, GSON.toJson(newAccountingEntriesEvent));
+            }
+        });
     }
 
     private void randomlySpawnComplianceProjectsPerTick() {
@@ -613,11 +642,27 @@ public class Game {
         return mission;
     }
 
-    private void processSalariesAndAdjustFundsPerTick(LocalDate d) {
+    private void processMonthlyPaymentsPerTick(LocalDate d) {
         if (d.getDayOfMonth() == 1) {
             players.forEach((webSocket, player) -> {
+                // Calculate and subtract salaries
                 int salaries = player.calculateAndSubtractSalaries();
-                accountingService.addEntry(player, currentTick, salaries, AccountCategory.SALARIES, "Monthly salary costs");
+                accountingService.addEntry(new AccountingEntry(player, currentTick, salaries, AccountCategory.SALARIES,
+                        TransactionType.DEBIT, "Monthly salaries"));
+
+                // Office rent (fixed costs, rises with level)
+                int rent = 500 * getLevel()-1;
+                accountingService.addEntry(new AccountingEntry(player, currentTick, rent, AccountCategory.OVERHEAD,
+                        TransactionType.DEBIT, "Office rent"));
+
+                // Insurance (fixed costs, rises with level)
+                int insurance = 150 * getLevel();
+                accountingService.addEntry(new AccountingEntry(player, currentTick, insurance, AccountCategory.OVERHEAD,
+                        TransactionType.DEBIT, "Insurance"));
+
+                // Subtract rent and insurance from funds (not handled by accounting service)
+                player.subtractFunds(rent + insurance);
+
                 sendFundsUpdateToPlayer(player);
             });
         }
@@ -766,7 +811,8 @@ public class Game {
         highScores = gameServer.getCurrentHighScores();
         if (highScores == null) return false;
 
-        return highScores.stream().anyMatch(highScore -> highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
+        return highScores.stream().anyMatch(highScore ->
+                highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
     private void randomlySpawnProjectTendersPerTick() {
@@ -793,7 +839,8 @@ public class Game {
                     project.setTenderProcess(false);
                 } else {
                     // Find the project type and domain where one employee has the most experience
-                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.comparing(Employee::getExperience)).orElse(null);
+                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.
+                            comparing(Employee::getExperience)).orElse(null);
                     if (bestEmployee == null) {
                         logger.error("No employee found for player {}.", p.getId());
                         return;
@@ -930,8 +977,9 @@ public class Game {
                     }
 
                     player.addFunds(profit);
-                    accountingService.addEntry(player, currentTick, profit, AccountCategory.REVENUE,
-                            "Project completed");
+                    AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
+                            AccountCategory.REVENUE, TransactionType.DEBIT ,"Project completed");
+                    accountingService.addEntry(projectProfitEntry);
                     sendFundsUpdateToPlayer(player);
 
                     // Calculate player's XP gained in this project
@@ -985,7 +1033,8 @@ public class Game {
                 // Quality is the average of each employees' individual skill for this project weighted by the amount of work (= contribution)
                 AtomicReference<Float> totalProjectQuality = new AtomicReference<>((float) 0);
                 skillMultipliers.forEach((employee, skill) ->
-                        totalProjectQuality.updateAndGet(quality -> quality + skill * weightedProjectContributions.get(employee)));
+                        totalProjectQuality.updateAndGet(quality ->
+                                quality + skill * weightedProjectContributions.get(employee)));
 
                 projectQuality = (int) (totalProjectQuality.get() * 100);
                 logger.debug("Project overall quality: {}/100", projectQuality);

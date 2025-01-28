@@ -17,8 +17,7 @@ public class AccountingService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Adds a new entry to the in-memory list
-    public synchronized void addEntry(Player player, int day, int amount, AccountCategory category, String description) {
-        AccountingEntry entry = new AccountingEntry(player, day, amount, category, description);
+    public synchronized void addEntry(AccountingEntry entry) {
         entries.add(entry);
     }
 
