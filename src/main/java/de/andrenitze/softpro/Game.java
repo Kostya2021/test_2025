@@ -978,7 +978,7 @@ public class Game {
 
                     player.addFunds(profit);
                     AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
-                            AccountCategory.REVENUE, TransactionType.DEBIT ,"Project completed");
+                            AccountCategory.PROJECTS, TransactionType.DEBIT ,"Project completed");
                     accountingService.addEntry(projectProfitEntry);
                     sendFundsUpdateToPlayer(player);
 
