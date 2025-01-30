@@ -237,7 +237,8 @@ public class Player {
         }
     }
 
-    public void addEmployee(Employee employee) {
+    public void addEmployee(Employee employee, int currentTick) {
+        employee.setHiredAt(currentTick);
         this.employees.add(employee);
     }
 

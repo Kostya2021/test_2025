@@ -52,7 +52,7 @@ public class Game {
     @Getter
     private ArrayList<Project> projects = new ArrayList<>();
     @Getter
-    private int currentTick;
+    private int currentTick = 0;
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
@@ -102,7 +102,6 @@ public class Game {
             initializeTalentMarket();
         }
 
-        currentTick = 0;
         currentDate = now();
     }
 
@@ -234,7 +233,7 @@ public class Game {
                 Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
                 freeEmployee.setSalary( 0, 0);
                 freeEmployee.setSatisfaction(0.7f);
-                player.addEmployee(freeEmployee);
+                player.addEmployee(freeEmployee, 0);
             } else if (option == 3) {
                 // Option 3 "Spontaneity" -> Add status effect "Stress" for the whole level (productivity -20%, satisfaction -10%)
                 player.getEmployees().forEach(employee -> {
@@ -1415,7 +1414,9 @@ public class Game {
         players.forEach((webSocket, player) -> player.getEmployees().clear());
 
         // Generate first employees for all players (necessary for Level 2)
-        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(player::addEmployee));
+        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(
+                employee -> player.addEmployee(employee, 0)
+        ));
     }
 
     // Move Employee from Player back to TalentMarket

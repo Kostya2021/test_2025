@@ -136,7 +136,7 @@ class GameEventHandler {
                 Player player = game.getPlayerByWebSocket(websocket);
                 int employeeId = hireTalentEvent.getPayload();
 
-                Employee employee = game.getTalentMarket().hireTalent(player, employeeId);
+                Employee employee = game.getTalentMarket().hireTalent(player, employeeId, game.getCurrentTick());
 
                 if (employee == null) {
                     logger.warn("Could not hire talent. Employee {} not found.", employeeId);
@@ -299,8 +299,6 @@ class GameEventHandler {
             case TENDERS_REMOVED -> {
             }
             case TALENTS_ADDED -> {
-            }
-            case EMPLOYEE_HIRED -> {
             }
             case TALENTS_REMOVED -> {
             }
