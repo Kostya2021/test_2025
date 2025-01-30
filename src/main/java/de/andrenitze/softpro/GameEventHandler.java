@@ -251,9 +251,7 @@ class GameEventHandler {
                 employee.setSalary(salary, game.getCurrentTick());
 
                 // Notify the player about employee update
-                GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
-                employeeUpdateEvent.setPayload(employee);
-                game.sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
+                game.sendEmployeeUpdate(player, employee);
             }
             case EFFECT_ENABLED -> {
                 // Extract "projectId" (Integer) and "effect" (String) from payload fields
@@ -277,9 +275,7 @@ class GameEventHandler {
 
                     for (Employee employee : game.projectEmployeesMap.get(project)) {
                         employee.addComplexStatusEffect(effect);
-                        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
-                        employeeUpdateEvent.setPayload(employee);
-                        game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(employeeUpdateEvent));
+                        game.sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
                     }
 
                     // Schedule a task to disable "crunch-mode" effect after cooldown (= in-game days)
@@ -292,9 +288,7 @@ class GameEventHandler {
                 } else if (effect.equals(TEAM_SPIRIT)) {
                     for (Employee employee : game.getPlayerByWebSocket(websocket).getEmployees()) {
                         employee.addComplexStatusEffect(effect);
-                        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
-                        employeeUpdateEvent.setPayload(employee);
-                        game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(employeeUpdateEvent));
+                        game.sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
                     }
                 }
             }

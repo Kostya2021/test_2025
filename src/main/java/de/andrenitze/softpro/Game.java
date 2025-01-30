@@ -616,7 +616,7 @@ public class Game {
         }
     }
 
-    private void sendEmployeeUpdate(Player player, Employee employee) {
+    public void sendEmployeeUpdate(Player player, Employee employee) {
         GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
         employeeUpdateEvent.setPayload(employee);
         sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
