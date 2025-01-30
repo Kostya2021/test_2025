@@ -19,6 +19,7 @@ public class Employee {
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;
     private transient float sickDayProbability = 0.02f;
+    @Getter
     private final Integer id;
     @Getter
     private int salary; // monthly salary
@@ -38,11 +39,19 @@ public class Employee {
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
     @Setter @Getter
     private float satisfaction;
-    private int annualSickDays;
-    private int minimumSickDays;
-    private int maximumSickDays;
+    private int remainingAnnualSickDays;
+    private int minimumSickDays = 4;
+    private int maximumSickDays = 20;
+    @Getter
     private boolean isSick = false;
+    @Getter
     private int lastSickDay = -1;
+    @Getter
+    private NavigableMap<Integer, Boolean> sickDays = new TreeMap<>(); // tick -> True (if sick)
+    @Getter @Setter
+    private int hiredAt = -1;
+    @Getter @Setter
+    private int thisYearsSickDays = 0;
     @Getter @Setter
     private float health = 0.0f;
     @Getter
@@ -51,16 +60,18 @@ public class Employee {
     private List<StatusEffect> statusEffects = new ArrayList<>();
     private static final NameGenerator nameGenerator = NameGenerator.getInstance();
     @Getter @Setter
-    private Integer employedDays = 0;
+    private int employedDays = 0;
+    @Getter @Setter
+    private int utilization = 0;
+    @Getter @Setter
+    private transient int xpInDaysBeforeHiring = 0;
 
     Employee(Integer id) {
+        this.id = id;
         String[] generatedName = nameGenerator.generateName();
         this.firstName = generatedName[0];
         this.lastName = generatedName[1];
         this.gender = generatedName[2];
-
-        this.minimumSickDays = 4;
-        this.maximumSickDays = 20;
 
         // Randomize salary between 3000 and 4500
         this.salary = RANDOM.nextInt(0, 1500) + 3000;
@@ -69,7 +80,6 @@ public class Employee {
         this.age = RANDOM.nextInt(40) + MINIMUM_AGE;
 
         calculateSatisfaction();
-        this.id = id;
         initializeSickDays();
 
         this.projectExperience = new HashMap<>();
@@ -97,10 +107,6 @@ public class Employee {
         } else {
             projectDomainExperience.put(domain, days);
         }
-    }
-
-    int getId() {
-        return id;
     }
 
     Integer getExperienceInDaysByProject(Project project) {
@@ -139,7 +145,7 @@ public class Employee {
 
     public void haveSickLeaveDay(int currentTick) {
         // Get better every day until fully recovered
-        --annualSickDays;
+        --remainingAnnualSickDays;
         setHealth(getHealth() + RANDOM.nextFloat());
 
         if (getHealth() >= 1) {
@@ -147,15 +153,18 @@ public class Employee {
             makeSick(false);
             setLastSickDay(currentTick);
         }
+
+        // Mark current tick as a sick day
+        sickDays.put(currentTick, true);
+
+        // Increment the number of sick days this year
+        thisYearsSickDays++;
     }
 
     private void setLastSickDay(int currentTick) {
         lastSickDay = currentTick;
     }
 
-    public boolean isSick() {
-        return isSick;
-    }
 
     public void makeSick(boolean sick) {
         isSick = sick;
@@ -165,11 +174,11 @@ public class Employee {
         }
     }
 
-    public void beAtWork(int currentTick) {
+    public void liveLife(int currentTick) {
         employedDays++;
 
         if (!this.isSick()) {
-            if (this.annualSickDays > 0 && RANDOM.nextDouble() <= sickDayProbability) {
+            if (this.remainingAnnualSickDays > 0 && RANDOM.nextDouble() <= sickDayProbability) {
                 this.makeSick(true);
             }
         } else {
@@ -178,18 +187,32 @@ public class Employee {
 
         // Cooldown all status effects (if they have a cooldown)
         statusEffects.forEach(StatusEffect::cooldown);
+
+        // Calculate utilization (0-100%)
+        // 1) Calculate the number of days worked in projects
+        int daysWorkedInProjects = 0;
+        for (Project project : projectExperience.keySet()) {
+            daysWorkedInProjects += projectExperience.get(project);
+        }
+
+        // 2) Subtract experience days before hiring
+        daysWorkedInProjects -= xpInDaysBeforeHiring;
+
+        // 3) Divide daysWorkedInProjects (in this organization) by employedDays (in this organization)
+        utilization = (int) ((daysWorkedInProjects / (float) employedDays) * 100);
     }
 
+    // This happens every year
     public void initializeSickDays() {
-        this.annualSickDays = minimumSickDays + RANDOM.nextInt(maximumSickDays - minimumSickDays);
+        // Randomize the number of sick days an employee can have in a year
+        this.remainingAnnualSickDays = minimumSickDays + RANDOM.nextInt(maximumSickDays - minimumSickDays);
+
+        // Reset the number of sick days this year
+        this.thisYearsSickDays = 0;
     }
 
     public boolean hasFirstDayAfterSickLeave(int currentTick) {
         return getLastSickDay() == currentTick - 1;
-    }
-
-    private int getLastSickDay() {
-        return lastSickDay;
     }
 
     public void addXp(ProjectType type, String domain, int days) {
@@ -356,7 +379,7 @@ public class Employee {
             addStatusEffect(StatusEffectType.HEALTH, 0.90f, reason, cooldown);
 
             // Increment max and annual sick days with every "crunch mode", because it's stressful
-            annualSickDays += 1;
+            remainingAnnualSickDays += 1;
             maximumSickDays += 1;
             sickDayProbability += 0.01f;
         } else
@@ -372,7 +395,7 @@ public class Employee {
                 addStatusEffect(StatusEffectType.HEALTH, 1.15f, reason);
 
                 // Decrease maximum sick days by 2 because of the positive effect on health
-                annualSickDays -= 2;
+                remainingAnnualSickDays -= 2;
                 maximumSickDays -= 2;
             }
     }

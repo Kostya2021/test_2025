@@ -238,7 +238,7 @@ public class GameServer extends WebSocketServer {
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
             String domain = type.getRandomDomain();
             employee.addXp(type, domain, 400);
-            player.addEmployee(employee);
+            player.addEmployee(employee, 0);
 
             // Generate a friendly low-risk project matching the player's skill
             Project perfectProject = new Project(type, domain, RiskLevel.low, false);

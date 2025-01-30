@@ -237,7 +237,15 @@ public class Player {
         }
     }
 
-    public void addEmployee(Employee employee) {
+    public void addEmployee(Employee employee, int currentTick) {
+        // Set the hiring "date"
+        employee.setHiredAt(currentTick);
+
+        // Set the XP before hiring to calculate utilization
+        int projectExperienceInDays = employee.getProjectExperience().values().stream().mapToInt(Integer::intValue).sum();
+        employee.setXpInDaysBeforeHiring(projectExperienceInDays);
+
+        // Move the employee to the player
         this.employees.add(employee);
     }
 

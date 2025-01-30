@@ -52,7 +52,7 @@ public class Game {
     @Getter
     private ArrayList<Project> projects = new ArrayList<>();
     @Getter
-    private int currentTick;
+    private int currentTick = 0;
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
@@ -102,7 +102,6 @@ public class Game {
             initializeTalentMarket();
         }
 
-        currentTick = 0;
         currentDate = now();
     }
 
@@ -234,7 +233,7 @@ public class Game {
                 Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
                 freeEmployee.setSalary( 0, 0);
                 freeEmployee.setSatisfaction(0.7f);
-                player.addEmployee(freeEmployee);
+                player.addEmployee(freeEmployee, 0);
             } else if (option == 3) {
                 // Option 3 "Spontaneity" -> Add status effect "Stress" for the whole level (productivity -20%, satisfaction -10%)
                 player.getEmployees().forEach(employee -> {
@@ -561,11 +560,18 @@ public class Game {
 
     private void simulateEmployeeLivesPerTick() {
         players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
-            employee.beAtWork(currentTick);
+            employee.liveLife(currentTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
 
+            // Annual events that affect employees
             if (currentTick % 365 == 0) {
                 employee.initializeSickDays();
+            }
+
+            // Monthly events that affect employees
+            if (currentTick % 30 == 0) {
+                // Send at least one update per month for metrics (i.e., utilization, sick days, satisfaction)
+                needsUpdate = true;
             }
 
             // This could be refactored so that the "needsUpdate" logic can be used here as well
@@ -616,7 +622,7 @@ public class Game {
         }
     }
 
-    private void sendEmployeeUpdate(Player player, Employee employee) {
+    public void sendEmployeeUpdate(Player player, Employee employee) {
         GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
         employeeUpdateEvent.setPayload(employee);
         sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
@@ -1415,7 +1421,9 @@ public class Game {
         players.forEach((webSocket, player) -> player.getEmployees().clear());
 
         // Generate first employees for all players (necessary for Level 2)
-        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(player::addEmployee));
+        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(
+                employee -> player.addEmployee(employee, 0)
+        ));
     }
 
     // Move Employee from Player back to TalentMarket

@@ -35,6 +35,7 @@ public class TalentMarket {
     }
 
     public synchronized  void addTalent(Employee employee) {
+        employee.setHiredAt(-1);
         talents.put(employee.getId(), employee);
     }
 
@@ -46,10 +47,10 @@ public class TalentMarket {
         talents.clear();
     }
 
-    public Employee hireTalent(Player player, int talentId) {
+    public Employee hireTalent(Player player, int talentId, int currentTick) {
         for (Employee employee : talents.values()) {
             if (employee.getId() == talentId) {
-                player.addEmployee(employee);
+                player.addEmployee(employee, currentTick);
                 removeTalent(employee);
                 return employee;
             }
