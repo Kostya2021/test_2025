@@ -560,11 +560,18 @@ public class Game {
 
     private void simulateEmployeeLivesPerTick() {
         players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
-            employee.beAtWork(currentTick);
+            employee.liveLife(currentTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
 
+            // Annual events that affect employees
             if (currentTick % 365 == 0) {
                 employee.initializeSickDays();
+            }
+
+            // Monthly events that affect employees
+            if (currentTick % 30 == 0) {
+                // Send at least one update per month for metrics (i.e., utilization, sick days, satisfaction)
+                needsUpdate = true;
             }
 
             // This could be refactored so that the "needsUpdate" logic can be used here as well

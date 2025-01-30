@@ -60,7 +60,11 @@ public class Employee {
     private List<StatusEffect> statusEffects = new ArrayList<>();
     private static final NameGenerator nameGenerator = NameGenerator.getInstance();
     @Getter @Setter
-    private Integer employedDays = 0;
+    private int employedDays = 0;
+    @Getter @Setter
+    private int utilization = 0;
+    @Getter @Setter
+    private transient int xpInDaysBeforeHiring = 0;
 
     Employee(Integer id) {
         this.id = id;
@@ -170,7 +174,7 @@ public class Employee {
         }
     }
 
-    public void beAtWork(int currentTick) {
+    public void liveLife(int currentTick) {
         employedDays++;
 
         if (!this.isSick()) {
@@ -183,6 +187,19 @@ public class Employee {
 
         // Cooldown all status effects (if they have a cooldown)
         statusEffects.forEach(StatusEffect::cooldown);
+
+        // Calculate utilization (0-100%)
+        // 1) Calculate the number of days worked in projects
+        int daysWorkedInProjects = 0;
+        for (Project project : projectExperience.keySet()) {
+            daysWorkedInProjects += projectExperience.get(project);
+        }
+
+        // 2) Subtract experience days before hiring
+        daysWorkedInProjects -= xpInDaysBeforeHiring;
+
+        // 3) Divide daysWorkedInProjects (in this organization) by employedDays (in this organization)
+        utilization = (int) ((daysWorkedInProjects / (float) employedDays) * 100);
     }
 
     // This happens every year
