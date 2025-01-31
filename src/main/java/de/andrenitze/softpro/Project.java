@@ -2,7 +2,7 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.EarnedValueHistoryEntry;
 import de.andrenitze.softpro.entities.Problem;
-import de.andrenitze.softpro.types.ProgressEstimates;
+import de.andrenitze.softpro.types.ProgressEstimate;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;
 import lombok.Getter;
@@ -78,7 +78,7 @@ public class Project {
     private List<Problem> problems = new ArrayList<>();
 
     @Getter @Setter
-    private ProgressEstimates progressEstimates = new ProgressEstimates();
+    private List<ProgressEstimate> progressEstimates = new ArrayList<>();
 
     /**
      * Generates a project with a random name and volume
@@ -333,5 +333,36 @@ public class Project {
 
     public List<Problem> getUnsolvedProblems() {
         return problems.stream().filter(problem -> !problem.isSolved()).toList();
+    }
+
+    public void addProgressEstimate(int tick, int estimate) {
+        progressEstimates.add(new ProgressEstimate(tick, estimate));
+    }
+
+    public void estimateProgress(int currentTick) {
+        // Estimate progress (0-100) based on the earned value
+        int estimate = (int) (100.0 * getEarnedValue() / getTotalValue());
+
+        // Project has not been started yet
+        if (!hasBeenStarted()) {
+            return;
+        }
+
+        // The progress estimate is a percentage of the earned value compared to the total value
+        logger.debug("Estimating progress for project {} at tick {}: {}%", getName(), currentTick, estimate);
+
+        // Add variance of up to 70% based on risk level (e.g., the more risk the more variance)
+        float riskMultiplier = switch (getRiskLevel()) {
+            case low -> 0.3f;
+            case medium -> 0.5f;
+            case high -> 0.7f;
+            case extreme -> 1.0f;
+        };
+
+        logger.debug("Estimate will be adjusted by up to {}%", (int) (riskMultiplier * estimate));
+
+        int adjustedEstimate = (int) (riskMultiplier * estimate);
+        estimate += adjustedEstimate > 0 ? RANDOM.nextInt(adjustedEstimate) : 0;
+        addProgressEstimate(currentTick, Math.min(90, estimate)); // 90% is the maximum progress estimate
     }
 }

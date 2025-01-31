@@ -1502,4 +1502,34 @@ public class Game {
         employee.haveOneToOneMeeting();
         sendEmployeeUpdate(player, employee);
     }
+
+    public void conductTeamEstimation(int projectId, Player player) {
+        Project project = getProjectById(projectId);
+        if (project == null) {
+            logger.error("Project with ID {} not found.", projectId);
+            return;
+        }
+
+        // Add status effect with decreased productivity for all employees in the project
+        int estimationDurationInDays = 3;
+        for (Employee employee : player.getEmployees()) {
+            if (projectEmployeesMap.containsKey(project) && projectEmployeesMap.get(project).contains(employee)) {
+                employee.addStatusEffect(new StatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 0.1f,
+                        "Estimating project", estimationDurationInDays));
+            }
+        }
+
+        // Calculate the estimation and add it to the project
+        project.estimateProgress(currentTick);
+
+        // Send project update to player
+        sendProjectUpdateToPlayer(player, project);
+    }
+
+    private void sendProjectUpdateToPlayer(Player player, Project project) {
+        GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+        projectUpdateEvent.setPayload(project);
+        sendMessageToPlayer(player, GSON.toJson(projectUpdateEvent));
+    }
 }

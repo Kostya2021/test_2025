@@ -361,15 +361,15 @@ class GameEventHandler {
 
                 Player player = game.getPlayerByWebSocket(websocket);
 
-                // Request an individual estimate for this player
-                //game.requestIndividualEstimate(projectId, player); TODO
+                // Estimate the project progress
+                //game.conductIndividualEstimation(projectId, player); TODO
             }
             case TEAM_ESTIMATE_REQUESTED -> {
                 int projectId = parseIdByKey(message,"projectId");
                 Player player = game.getPlayerByWebSocket(websocket);
 
-                // Request a team estimate for this player
-                // game.requestTeamEstimate(projectId, player); TODO
+                // Estimate the project progress
+                game.conductTeamEstimation(projectId, player);
             }
             default -> logger.warn("Received unknown event type: {}", event.getType());
         }
