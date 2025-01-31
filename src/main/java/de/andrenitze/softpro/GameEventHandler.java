@@ -355,15 +355,6 @@ class GameEventHandler {
                 // Conduct the one-to-one meeting with the employee
                 game.conductOneToOneMeeting(player, employee);
             }
-            case INDIVIDUAL_ESTIMATE_REQUESTED -> {
-                int projectId = parseIdByKey(message, "projectId");
-                if (projectId == 0) break;
-
-                Player player = game.getPlayerByWebSocket(websocket);
-
-                // Estimate the project progress
-                //game.conductIndividualEstimation(projectId, player); TODO
-            }
             case TEAM_ESTIMATE_REQUESTED -> {
                 int projectId = parseIdByKey(message,"projectId");
                 Player player = game.getPlayerByWebSocket(websocket);

@@ -487,7 +487,7 @@ public class Game {
 
     private void removeStaleTendersPerTick() {
         // Dont remove tenders in level 1
-        if (getLevel() == 1 && !players.values().iterator().next().getMissions().get(0).isCompleted()) {
+        if (getLevel() == 1) {
             return;
         }
 
