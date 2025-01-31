@@ -39,6 +39,11 @@ class GameEventHandler {
         logger.debug("Identified event: {}", event.getType());
 
         // These are messages coming in from the websocket clients (aka the frontend)
+        if (event.getType() == null) {
+            logger.warn("Received event with unknown type: {}", message);
+            return;
+        }
+
         switch (event.getType()) {
             case JOIN_TENDER -> {
                 // Fancy way to parse the "tenderId" int out of the message
@@ -109,11 +114,9 @@ class GameEventHandler {
             case ROUND_STARTED -> {
             }
             case UNASSIGN_EMPLOYEE -> {
-                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
-                GameEvent<HashMap<String, Integer>> unassignmentEvent = GSON.fromJson(message, payloadType);
-
-                int employeeId = unassignmentEvent.getPayload().get("employeeId");
-                int projectId = unassignmentEvent.getPayload().get("projectId");
+                int employeeId = parseIdByKey(message, "employeeId");
+                int projectId = parseIdByKey(message, "projectId");
+                if (employeeId == 0 || projectId == 0) break;
 
                 changeEmployeeAssignment(websocket, employeeId, projectId, false);
             }
@@ -337,26 +340,50 @@ class GameEventHandler {
 
                 if (problemToSolve.isPresent()) {
                     problemToSolve.get().setSolvedAt(tick);
-                    logger.info("Problem with translationKey '{}' in project '{}' marked as solved at tick '{}'.",
-                            translationKey, projectId, tick);
                 } else {
                     logger.warn("No matching problem with translationKey '{}' found in project '{}'.",
                             translationKey, projectId);
                 }
             }
             case ONE_TO_ONE_MEETING -> {
-                // Parse the employee id out of the message
-                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
-                GameEvent<HashMap<String, Integer>> oneToOneMeetingEvent = GSON.fromJson(message, payloadType);
+                int employeeId = parseIdByKey(message, "employeeId");
+                if (employeeId == 0) break;
 
-                int employeeId = oneToOneMeetingEvent.getPayload().get("employeeId");
                 Player player = game.getPlayerByWebSocket(websocket);
                 Employee employee = player.getEmployeeById(employeeId);
 
                 // Conduct the one-to-one meeting with the employee
                 game.conductOneToOneMeeting(player, employee);
             }
+            case INDIVIDUAL_ESTIMATE_REQUESTED -> {
+                int projectId = parseIdByKey(message, "projectId");
+                if (projectId == 0) break;
+
+                Player player = game.getPlayerByWebSocket(websocket);
+
+                // Request an individual estimate for this player
+                //game.requestIndividualEstimate(projectId, player); TODO
+            }
+            case TEAM_ESTIMATE_REQUESTED -> {
+                int projectId = parseIdByKey(message,"projectId");
+                Player player = game.getPlayerByWebSocket(websocket);
+
+                // Request a team estimate for this player
+                // game.requestTeamEstimate(projectId, player); TODO
+            }
             default -> logger.warn("Received unknown event type: {}", event.getType());
+        }
+    }
+
+    // Parse any single id out of a JSON message with a payload field and a named key
+    // Return 0 if the message is invalid, the field is not found, or the field is not an integer
+    private static int parseIdByKey(String message, String key) {
+        try {
+            Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
+            GameEvent<HashMap<String, Integer>> event = GSON.fromJson(message, payloadType);
+            return event.getPayload().get(key);
+        } catch (Exception e) {
+            return 0;
         }
     }
 

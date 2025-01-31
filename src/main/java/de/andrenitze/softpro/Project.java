@@ -2,6 +2,7 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.EarnedValueHistoryEntry;
 import de.andrenitze.softpro.entities.Problem;
+import de.andrenitze.softpro.types.ProgressEstimates;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;
 import lombok.Getter;
@@ -75,6 +76,9 @@ public class Project {
 
     @Getter
     private List<Problem> problems = new ArrayList<>();
+
+    @Getter @Setter
+    private ProgressEstimates progressEstimates = new ProgressEstimates();
 
     /**
      * Generates a project with a random name and volume
