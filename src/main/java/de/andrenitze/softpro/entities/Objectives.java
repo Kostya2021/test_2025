@@ -2,7 +2,6 @@ package de.andrenitze.softpro.entities;
 
 import lombok.Getter;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,13 +35,4 @@ public class Objectives {
         }
         return instance;
     }
-
-    public static List<Objective> getObjectivesForLevel(int level) {
-        List<Objective> objectives = new ArrayList<>();
-        for (Mission mission : getInstance(level).getMissions()) {
-            objectives.addAll(mission.getObjectives());
-        }
-        return objectives;
-    }
-
 }

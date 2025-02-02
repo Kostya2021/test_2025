@@ -409,18 +409,6 @@ public class Employee {
         return removed;
     }
 
-    public void removeStatusEffectByReason(String reason) {
-        statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getDescription().equals(reason);
-            if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
-                calculateSatisfaction();
-            }
-            return toRemove;
-        });
-
-        logger.debug("Removed status effects with reason '{}' from {}", reason, getName());
-    }
-
     public void haveOneToOneMeeting() {
         // Don't add the same effect twice
         statusEffects.removeIf(effect -> effect.getDescription().equals("Feels heard"));
