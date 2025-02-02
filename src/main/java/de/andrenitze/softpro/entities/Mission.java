@@ -5,13 +5,12 @@ import lombok.Setter;
 
 import java.util.List;
 
-@Getter
+@Getter @Setter
 public class Mission {
     private String title;
     private int order;
     private int earliestOccurrence;
     private List<Objective> objectives;
-    @Getter @Setter
     private boolean processed = false;
 
     public boolean isNotCompleted() {
