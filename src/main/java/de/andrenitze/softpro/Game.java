@@ -1412,7 +1412,7 @@ public class Game {
     public void assessProjectRiskForPlayer(int projectId, Player player) {
         Project project = getProjectById(projectId);
         if (project == null) {
-            logger.error("Project with ID {} not found.", projectId);
+            logger.error("Project with ID {} could not be found.", projectId);
             return;
         }
 
@@ -1501,10 +1501,6 @@ public class Game {
 
     public void resume() {
         isPaused = false;
-    }
-
-    public int getGameSpeed() {
-        return GAME_SPEED_IN_MILLISECONDS;
     }
 
     public void conductOneToOneMeeting(Player player, Employee employee) {

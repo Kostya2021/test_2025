@@ -25,7 +25,7 @@ public class Project {
     private int totalValue;
     @Getter @Setter
     private int earnedValue;
-    private List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
+    private final List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
     private boolean hasTenderProcess;
     @Setter
     private int tenderDeadlineInDays;
@@ -43,14 +43,15 @@ public class Project {
     private int startedAt;
     @Setter @Getter
     private int completedAt = 0;
-    @Setter
+    @Getter @Setter
     private int quality;
     @Getter @Setter
     private int publishedAt;
-    @Setter
+    @Getter @Setter
     private float penalty;
-    @Setter
+    @Getter @Setter
     private float profit;
+    @Getter @Setter
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     @Getter
@@ -69,9 +70,9 @@ public class Project {
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
     @Getter
     private String domain;
-
-    // Description text is generated in the frontend
-    private final String description = "";
+    @Getter
+    private final String description = ""; // Description text is generated in the frontend
+    @Getter
     private boolean hasBeenRiskAssessed = false;
 
     @Getter
@@ -175,7 +176,7 @@ public class Project {
         };
 
         // Generate random deadline, loosely based on project volume
-        return (int) (getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
+        return (int) (((float) getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE) * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
     }
 
     private static String generateDomain(ProjectType type) {
@@ -318,17 +319,8 @@ public class Project {
         return getDeadline() - getAcquiredAt();
     }
 
-    public boolean hasBeenRiskAssessed() {
-        return hasBeenRiskAssessed;
-    }
-
     public boolean hasBeenStarted() {
         return getStartedAt() > 0;
-    }
-
-    Project setRiskLevel(RiskLevel riskLevel) {
-        this.risk = riskLevel;
-        return this;
     }
 
     public void addProblem(Problem problem) {
