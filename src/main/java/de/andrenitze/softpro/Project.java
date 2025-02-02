@@ -76,7 +76,7 @@ public class Project {
     private boolean hasBeenRiskAssessed = false;
 
     @Getter
-    private List<Problem> problems = new ArrayList<>();
+    private final List<Problem> problems = new ArrayList<>();
 
     @Getter @Setter
     private List<ProgressEstimate> progressEstimates = new ArrayList<>();

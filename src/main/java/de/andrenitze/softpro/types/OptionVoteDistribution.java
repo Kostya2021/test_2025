@@ -1,5 +1,10 @@
 package de.andrenitze.softpro.types;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
 public class OptionVoteDistribution {
     private int decisionId;
     private int selectedOption;
@@ -11,38 +16,6 @@ public class OptionVoteDistribution {
         this.selectedOption = selectedOption;
         this.voteCount = voteCount;
         this.percentage = percentage;
-    }
-
-    public int getSelectedOption() {
-        return selectedOption;
-    }
-
-    public void setSelectedOption(int selectedOption) {
-        this.selectedOption = selectedOption;
-    }
-
-    public int getVoteCount() {
-        return voteCount;
-    }
-
-    public void setVoteCount(int voteCount) {
-        this.voteCount = voteCount;
-    }
-
-    public double getPercentage() {
-        return percentage;
-    }
-
-    public void setPercentage(double percentage) {
-        this.percentage = percentage;
-    }
-
-    public int getDecisionId() {
-        return decisionId;
-    }
-
-    public void setDecisionId(int decisionId) {
-        this.decisionId = decisionId;
     }
 
     @Override

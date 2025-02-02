@@ -65,7 +65,7 @@ public class Game {
     private final TalentMarket talentMarket;
     private int level = 1;
     @Getter
-    private ProblemGenerator problemGenerator = new ProblemGenerator();
+    private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -1091,8 +1091,6 @@ public class Game {
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {
         int earnedValue;
 
-        logger.debug("Calculating earned value for project {} with {} employees.", project.getName(), employees.size());
-
         // Rule #3: Adding people to a late software project makes it later (Brooks' law)
         // New employees will decrease the whole team's productivity for on-boarding and training
         float onboardingFactor;
@@ -1197,8 +1195,6 @@ public class Game {
                 // Add the productivity penalty
                 earnedValue = (int) (earnedValue * pow(0.75, unsolvedLingeringProblems));
             }
-
-            logger.debug("{}'s earned value for project {}: {}", employee.getName(), project.getName(), earnedValue);
 
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());

@@ -3,7 +3,7 @@ package de.andrenitze.softpro.entities;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter
+@Getter @Setter
 public class Objective {
     private Integer id;
     private String title;
@@ -14,7 +14,7 @@ public class Objective {
      */
     private int order;
     private int rewardFunds;
-    private int totalSteps = 1;
+    private final int totalSteps = 1;
     @Setter
     private int completedSteps = 0;
     @Setter

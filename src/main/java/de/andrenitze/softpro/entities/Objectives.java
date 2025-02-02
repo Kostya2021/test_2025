@@ -1,5 +1,7 @@
 package de.andrenitze.softpro.entities;
 
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static de.andrenitze.softpro.Main.logger;
 
+@Getter
 public class Objectives {
     private final List<Mission> missions;
 
@@ -42,7 +45,4 @@ public class Objectives {
         return objectives;
     }
 
-    public List<Mission> getMissions() {
-        return missions;
-    }
 }

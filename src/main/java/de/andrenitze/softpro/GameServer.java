@@ -112,7 +112,7 @@ public class GameServer extends WebSocketServer {
                         quarterlyHighScores.add(highScore);
                         break;
                     default:
-                        logger.warn("Unknown period: " + highScore.getPeriod());
+                        logger.warn("Unknown period: {}", highScore.getPeriod());
                 }
             }
 

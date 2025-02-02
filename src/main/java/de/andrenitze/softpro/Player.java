@@ -67,7 +67,7 @@ public class Player {
     private int level = 1;
 
     @EqualsAndHashCode.Exclude
-    private Map<Integer, List<Decision>> decisions = new HashMap<>();
+    private final Map<Integer, List<Decision>> decisions = new HashMap<>();
 
     Player() {
         this(generatePlayerName(), generateCompanyName());

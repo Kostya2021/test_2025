@@ -2,7 +2,6 @@ package de.andrenitze.softpro.entities;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.CollectionType;
-import de.andrenitze.softpro.Player;
 
 import java.io.File;
 import java.io.IOException;

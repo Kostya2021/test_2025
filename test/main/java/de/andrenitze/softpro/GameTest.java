@@ -10,14 +10,13 @@ import org.junit.jupiter.api.Test;
 
 public class GameTest {
 
-    private GameServer gameServer;
     private Game game;
     private Player player;
     private Project project;
 
     @BeforeEach
     public void setUp() {
-        gameServer = new GameServer("TestGameServer", 8070);
+        GameServer gameServer = new GameServer("TestGameServer", 8070);
         game = new Game(gameServer);
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();
