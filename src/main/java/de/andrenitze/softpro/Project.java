@@ -288,6 +288,10 @@ public class Project {
     }
 
     public boolean hasOnboardingEmployees(ArrayList<Employee> employees) {
+        if (this.getType() == ProjectType.COMPLIANCE) {
+            return false;
+        }
+
         // After "safe period": Does any of the employees need on-boarding?
         int safePeriodInDays = (int) (Params.SAFE_PERIOD_PERCENT * getScheduledDuration())
                 + Params.ASSIGNMENT_TIME_IN_DAYS;

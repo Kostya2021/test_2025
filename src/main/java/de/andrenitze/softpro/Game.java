@@ -1091,11 +1091,12 @@ public class Game {
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {
         int earnedValue;
 
+        logger.debug("Calculating earned value for project {} with {} employees.", project.getName(), employees.size());
+
         // Rule #3: Adding people to a late software project makes it later (Brooks' law)
         // New employees will decrease the whole team's productivity for on-boarding and training
         float onboardingFactor;
-        if (!project.isRampingUp(currentTick)
-                && project.hasOnboardingEmployees(employees)) {
+        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
             onboardingFactor = calculateOnboardingFactor(project, employees);
             logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", onboardingFactor);
         } else {
@@ -1110,6 +1111,13 @@ public class Game {
 
             // Fixed imaginary number
             earnedValue = BASE_PRODUCTIVITY_VALUE;
+
+            // Rule x?: No one ever gains experience in compliance projects, so productivity is the same for everyone
+            if (project.getType() == ProjectType.COMPLIANCE) {
+                earnedValue = (int)(earnedValue * 0.8);
+                project.addEarnedValue(earnedValue, this.getCurrentTick());
+                return;
+            }
 
             // Rule #4: Productivity depends on experience.
             // Experience factors are "project domain" and "project type".
@@ -1127,7 +1135,7 @@ public class Game {
 
             float productivityFactor = getProductivityFactor(typeXP, domainXP);
 
-            earnedValue *= productivityFactor * 2;
+            earnedValue = (int) (earnedValue * productivityFactor * 2);
 
             // Rule #1: Context changes decrease employee productivity.
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
@@ -1136,10 +1144,10 @@ public class Game {
                 case 1 ->
                     //noinspection ConstantConditions
                         earnedValue *= 1;
-                case 2 -> earnedValue *= 0.4;
-                case 3 -> earnedValue *= 0.2;
-                case 4 -> earnedValue *= 0.1;
-                case 5 -> earnedValue *= 0.05;
+                case 2 -> earnedValue = (int) (earnedValue * 0.4);
+                case 3 -> earnedValue = (int) (earnedValue * 0.2);
+                case 4 -> earnedValue = (int) (earnedValue * 0.1);
+                case 5 -> earnedValue = (int) (earnedValue * 0.05);
                 default -> earnedValue = 1;
             }
 
@@ -1152,26 +1160,26 @@ public class Game {
             float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 float rampUpProductivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue *= rampUpProductivityFactor;
+                earnedValue = (int) (earnedValue * rampUpProductivityFactor);
             }
 
             // Increase the employee's experience
             employee.gainExperience(project, 1);
 
-            earnedValue *= onboardingFactor;
+            earnedValue = (int) (earnedValue * onboardingFactor);
 
             if (project.getEarnedValue() == 0 && earnedValue > 0) {
                 project.setStartedAt(currentTick);
             }
 
             // Rule #5: Organizational skills affect productivity.
-            earnedValue *= calculateSkillsFactor(project);
+            earnedValue = (int) (earnedValue * calculateSkillsFactor(project));
 
             // Rule #6: Employees are affected by external status effects
             if (!employee.getStatusEffects().isEmpty()) {
                 for (StatusEffect effect : employee.getStatusEffects()) {
                     if (effect.getType().equals(StatusEffectType.PRODUCTIVITY)) {
-                        earnedValue *= effect.getMultiplier();
+                        earnedValue = (int) (earnedValue * effect.getMultiplier());
                     }
                 }
             }
@@ -1187,8 +1195,10 @@ public class Game {
                         .count();
 
                 // Add the productivity penalty
-                earnedValue *= pow(0.75, unsolvedLingeringProblems);
+                earnedValue = (int) (earnedValue * pow(0.75, unsolvedLingeringProblems));
             }
+
+            logger.debug("{}'s earned value for project {}: {}", employee.getName(), project.getName(), earnedValue);
 
             // Increase the project's earnedValue for this employee
             project.addEarnedValue(earnedValue, this.getCurrentTick());
