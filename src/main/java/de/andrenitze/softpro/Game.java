@@ -826,7 +826,7 @@ public class Game {
         Player p = players.values().iterator().next();
 
         // Don't spawn new projects in level 1 before the first mission is completed
-        if (getLevel() == 1 && !p.getMissions().get(0).isCompleted()) {
+        if (getLevel() == 1 && p.getMissions().get(0).isNotCompleted()) {
             return;
         }
 

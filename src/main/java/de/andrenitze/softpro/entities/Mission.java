@@ -14,13 +14,13 @@ public class Mission {
     @Getter @Setter
     private boolean processed = false;
 
-    public boolean isCompleted() {
+    public boolean isNotCompleted() {
         for (Objective objective : objectives) {
             if (!objective.isCompleted()) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
 }
