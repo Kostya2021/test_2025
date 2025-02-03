@@ -2,6 +2,8 @@ package de.andrenitze.softpro.entities;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,15 +29,8 @@ public class MissionsLoader {
         }
     }
 
+    @Getter @Setter
     private static class MissionsWrapper {
         private List<Mission> missions;
-
-        public List<Mission> getMissions() {
-            return missions;
-        }
-
-        public void setMissions(List<Mission> missions) {
-            this.missions = missions;
-        }
     }
 }

@@ -65,7 +65,7 @@ public class Game {
     private final TalentMarket talentMarket;
     private int level = 1;
     @Getter
-    private ProblemGenerator problemGenerator = new ProblemGenerator();
+    private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -487,7 +487,7 @@ public class Game {
 
     private void removeStaleTendersPerTick() {
         // Dont remove tenders in level 1
-        if (getLevel() == 1 && !players.values().iterator().next().getMissions().get(0).isCompleted()) {
+        if (getLevel() == 1) {
             return;
         }
 
@@ -826,7 +826,7 @@ public class Game {
         Player p = players.values().iterator().next();
 
         // Don't spawn new projects in level 1 before the first mission is completed
-        if (getLevel() == 1 && !p.getMissions().get(0).isCompleted()) {
+        if (getLevel() == 1 && p.getMissions().get(0).isNotCompleted()) {
             return;
         }
 
@@ -1094,8 +1094,7 @@ public class Game {
         // Rule #3: Adding people to a late software project makes it later (Brooks' law)
         // New employees will decrease the whole team's productivity for on-boarding and training
         float onboardingFactor;
-        if (!project.isRampingUp(currentTick)
-                && project.hasOnboardingEmployees(employees)) {
+        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
             onboardingFactor = calculateOnboardingFactor(project, employees);
             logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", onboardingFactor);
         } else {
@@ -1110,6 +1109,13 @@ public class Game {
 
             // Fixed imaginary number
             earnedValue = BASE_PRODUCTIVITY_VALUE;
+
+            // Rule x?: No one ever gains experience in compliance projects, so productivity is the same for everyone
+            if (project.getType() == ProjectType.COMPLIANCE) {
+                earnedValue = (int)(earnedValue * 0.8);
+                project.addEarnedValue(earnedValue, this.getCurrentTick());
+                return;
+            }
 
             // Rule #4: Productivity depends on experience.
             // Experience factors are "project domain" and "project type".
@@ -1127,7 +1133,7 @@ public class Game {
 
             float productivityFactor = getProductivityFactor(typeXP, domainXP);
 
-            earnedValue *= productivityFactor * 2;
+            earnedValue = (int) (earnedValue * productivityFactor * 2);
 
             // Rule #1: Context changes decrease employee productivity.
             int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
@@ -1136,10 +1142,10 @@ public class Game {
                 case 1 ->
                     //noinspection ConstantConditions
                         earnedValue *= 1;
-                case 2 -> earnedValue *= 0.4;
-                case 3 -> earnedValue *= 0.2;
-                case 4 -> earnedValue *= 0.1;
-                case 5 -> earnedValue *= 0.05;
+                case 2 -> earnedValue = (int) (earnedValue * 0.4);
+                case 3 -> earnedValue = (int) (earnedValue * 0.2);
+                case 4 -> earnedValue = (int) (earnedValue * 0.1);
+                case 5 -> earnedValue = (int) (earnedValue * 0.05);
                 default -> earnedValue = 1;
             }
 
@@ -1152,26 +1158,26 @@ public class Game {
             float x = employee.getExperienceInDaysByProject(project);
             if (x < 30) {
                 float rampUpProductivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue *= rampUpProductivityFactor;
+                earnedValue = (int) (earnedValue * rampUpProductivityFactor);
             }
 
             // Increase the employee's experience
             employee.gainExperience(project, 1);
 
-            earnedValue *= onboardingFactor;
+            earnedValue = (int) (earnedValue * onboardingFactor);
 
             if (project.getEarnedValue() == 0 && earnedValue > 0) {
                 project.setStartedAt(currentTick);
             }
 
             // Rule #5: Organizational skills affect productivity.
-            earnedValue *= calculateSkillsFactor(project);
+            earnedValue = (int) (earnedValue * calculateSkillsFactor(project));
 
             // Rule #6: Employees are affected by external status effects
             if (!employee.getStatusEffects().isEmpty()) {
                 for (StatusEffect effect : employee.getStatusEffects()) {
                     if (effect.getType().equals(StatusEffectType.PRODUCTIVITY)) {
-                        earnedValue *= effect.getMultiplier();
+                        earnedValue = (int) (earnedValue * effect.getMultiplier());
                     }
                 }
             }
@@ -1187,7 +1193,7 @@ public class Game {
                         .count();
 
                 // Add the productivity penalty
-                earnedValue *= pow(0.75, unsolvedLingeringProblems);
+                earnedValue = (int) (earnedValue * pow(0.75, unsolvedLingeringProblems));
             }
 
             // Increase the project's earnedValue for this employee
@@ -1402,7 +1408,7 @@ public class Game {
     public void assessProjectRiskForPlayer(int projectId, Player player) {
         Project project = getProjectById(projectId);
         if (project == null) {
-            logger.error("Project with ID {} not found.", projectId);
+            logger.error("Project with ID {} could not be found.", projectId);
             return;
         }
 
@@ -1493,13 +1499,44 @@ public class Game {
         isPaused = false;
     }
 
-    public int getGameSpeed() {
-        return GAME_SPEED_IN_MILLISECONDS;
-    }
-
     public void conductOneToOneMeeting(Player player, Employee employee) {
         // Increase satisfaction of employee
         employee.haveOneToOneMeeting();
         sendEmployeeUpdate(player, employee);
+    }
+
+    public void conductTeamEstimation(int projectId, Player player) {
+        Project project = getProjectById(projectId);
+        if (project == null) {
+            logger.error("Project with ID {} not found.", projectId);
+            return;
+        }
+
+        // Calculate remaining value of the project
+        int remainingValue = project.getTotalValue() - project.getEarnedValue();
+        // Remaining value and project volume affect estimation duration, but it's at least 2 days
+        int estimationDurationInDays = (int) Math.max(2, 3 * Math.log(remainingValue) - 30);
+        logger.debug("Estimation duration for remaining value {} € project {}: {} days", remainingValue, project.getName(), estimationDurationInDays);
+
+        // Add status effect with decreased productivity for all employees in the project
+        for (Employee employee : player.getEmployees()) {
+            if (projectEmployeesMap.containsKey(project) && projectEmployeesMap.get(project).contains(employee)) {
+                employee.addStatusEffect(new StatusEffect(
+                        StatusEffectType.PRODUCTIVITY, 0.1f,
+                        "Estimating project", estimationDurationInDays));
+            }
+        }
+
+        // Calculate the estimation and add it to the project
+        project.estimateProgress(currentTick);
+
+        // Send project update to player
+        sendProjectUpdateToPlayer(player, project);
+    }
+
+    private void sendProjectUpdateToPlayer(Player player, Project project) {
+        GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+        projectUpdateEvent.setPayload(project);
+        sendMessageToPlayer(player, GSON.toJson(projectUpdateEvent));
     }
 }

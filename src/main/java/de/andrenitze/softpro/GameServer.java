@@ -112,7 +112,7 @@ public class GameServer extends WebSocketServer {
                         quarterlyHighScores.add(highScore);
                         break;
                     default:
-                        logger.warn("Unknown period: " + highScore.getPeriod());
+                        logger.warn("Unknown period: {}", highScore.getPeriod());
                 }
             }
 
@@ -234,8 +234,11 @@ public class GameServer extends WebSocketServer {
             employee.setAge(22);
             employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
-            // Increase XP in one random project domain and project type
-            ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
+            // Increase XP in one random project domain and project type (exclude "COMPLIANCE"!)
+            ProjectType type;
+            do {
+                type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
+            } while (type == ProjectType.COMPLIANCE);
             String domain = type.getRandomDomain();
             employee.addXp(type, domain, 400);
             player.addEmployee(employee, 0);
@@ -244,9 +247,13 @@ public class GameServer extends WebSocketServer {
             Project perfectProject = new Project(type, domain, RiskLevel.low, false);
             game.addProject(perfectProject);
 
-            // Generate two more random projects
+            // Generate two more random non-compliance projects
             for (int i = 0; i < 2; i++) {
-                game.addProject(new Project().initialize());
+                Project project = new Project(ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)],
+                        type.getRandomDomain(),
+                        RiskLevel.low,
+                        false);
+                game.addProject(project);
             }
         }
 

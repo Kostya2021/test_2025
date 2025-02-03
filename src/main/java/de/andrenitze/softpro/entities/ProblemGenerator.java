@@ -52,10 +52,14 @@ public class ProblemGenerator {
     }
 
     private String convertYamlToJson(InputStreamReader reader) throws IOException {
-        Yaml yaml = new Yaml();
-        Object data = yaml.load(reader);
-        Gson gson = new Gson();
-        return gson.toJson(data);
+        try {
+            Yaml yaml = new Yaml();
+            Object data = yaml.load(reader);
+            Gson gson = new Gson();
+            return gson.toJson(data);
+        } catch (Exception e) {
+            throw new IOException("Failed to open YAML file", e);
+        }
     }
 
     public Problem generateRandomProblem() {

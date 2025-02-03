@@ -1,12 +1,14 @@
 package de.andrenitze.softpro.entities;
 
-import java.util.ArrayList;
+import lombok.Getter;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static de.andrenitze.softpro.Main.logger;
 
+@Getter
 public class Objectives {
     private final List<Mission> missions;
 
@@ -32,17 +34,5 @@ public class Objectives {
             }
         }
         return instance;
-    }
-
-    public static List<Objective> getObjectivesForLevel(int level) {
-        List<Objective> objectives = new ArrayList<>();
-        for (Mission mission : getInstance(level).getMissions()) {
-            objectives.addAll(mission.getObjectives());
-        }
-        return objectives;
-    }
-
-    public List<Mission> getMissions() {
-        return missions;
     }
 }

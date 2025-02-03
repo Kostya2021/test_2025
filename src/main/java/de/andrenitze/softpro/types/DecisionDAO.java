@@ -11,8 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static de.andrenitze.softpro.Main.logger;
-
 public class DecisionDAO {
     private final DataSource dataSource;
 
@@ -64,7 +62,7 @@ public class DecisionDAO {
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error while fetching vote distribution", e);
+            throw new ConnectException("Error while fetching vote distribution");
         }
 
         return groupedDistributions;

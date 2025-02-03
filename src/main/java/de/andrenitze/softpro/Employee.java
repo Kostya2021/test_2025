@@ -24,7 +24,7 @@ public class Employee {
     @Getter
     private int salary; // monthly salary
     @Getter
-    private List<SalaryHistoryEntry> salaryHistory = new ArrayList<>();
+    private final List<SalaryHistoryEntry> salaryHistory = new ArrayList<>();
     @Setter
     private int age;
     @Setter
@@ -40,14 +40,15 @@ public class Employee {
     @Setter @Getter
     private float satisfaction;
     private int remainingAnnualSickDays;
-    private int minimumSickDays = 4;
+    @Getter
+    private final int minimumSickDays = 4;
     private int maximumSickDays = 20;
     @Getter
     private boolean isSick = false;
     @Getter
     private int lastSickDay = -1;
     @Getter
-    private NavigableMap<Integer, Boolean> sickDays = new TreeMap<>(); // tick -> True (if sick)
+    private final NavigableMap<Integer, Boolean> sickDays = new TreeMap<>(); // tick -> True (if sick)
     @Getter @Setter
     private int hiredAt = -1;
     @Getter @Setter
@@ -57,7 +58,7 @@ public class Employee {
     @Getter
     private String gender;
     @Getter
-    private List<StatusEffect> statusEffects = new ArrayList<>();
+    private final List<StatusEffect> statusEffects = new ArrayList<>();
     private static final NameGenerator nameGenerator = NameGenerator.getInstance();
     @Getter @Setter
     private int employedDays = 0;
@@ -247,7 +248,7 @@ public class Employee {
         // Update salary history
         salaryHistory.add(new SalaryHistoryEntry(tick, newSalary));
 
-        // Remove oldest entry if the list is too long
+        // Remove the oldest entry if the list is too long
         if (salaryHistory.size() > 100) { // Keep the last 100 entries
             salaryHistory.remove(0);
         }
@@ -406,18 +407,6 @@ public class Employee {
             calculateSatisfaction();
         }
         return removed;
-    }
-
-    public void removeStatusEffectByReason(String reason) {
-        statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getDescription().equals(reason);
-            if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
-                calculateSatisfaction();
-            }
-            return toRemove;
-        });
-
-        logger.debug("Removed status effects with reason '{}' from {}", reason, getName());
     }
 
     public void haveOneToOneMeeting() {

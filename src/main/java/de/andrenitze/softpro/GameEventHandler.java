@@ -111,8 +111,6 @@ class GameEventHandler {
                 // make sure the next level is set in the game instance correctly.
                 game.prepareNextLevel();
             }
-            case ROUND_STARTED -> {
-            }
             case UNASSIGN_EMPLOYEE -> {
                 int employeeId = parseIdByKey(message, "employeeId");
                 int projectId = parseIdByKey(message, "projectId");
@@ -198,22 +196,6 @@ class GameEventHandler {
 
                 game.dismissEmployee(player, employee);
             }
-            case GAME_OVER -> {
-            }
-            case STATE_UPDATED -> {
-            }
-            case NEW_TENDER -> {
-            }
-            case NEW_FUNDS -> {
-            }
-            case PROJECT_RECEIVED -> {
-            }
-            case TENDER_CLOSED -> {
-            }
-            case OBJECTIVES_UPDATED -> {
-            }
-            case PROJECT_UPDATED -> {
-            }
             case PROJECT_STARTED -> {
                 // Parse project id and startedAt time out of the message, e. g., {projectId: 502, startedAt: 1234567}
                 Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
@@ -225,14 +207,6 @@ class GameEventHandler {
                 Project project = game.getProjectById(projectId);
 
                 game.startProject(project, startedAt);
-            }
-            case PLAYER_UPDATED -> {
-            }
-            case NEW_STORY_ELEMENT -> {
-            }
-            case UPDATE_LOBBY -> {
-            }
-            case T -> {
             }
             case EMPLOYEE_SALARY_UPDATED -> {
                 Player player = game.getPlayerByWebSocket(websocket);
@@ -295,28 +269,8 @@ class GameEventHandler {
                     }
                 }
             }
-            case EFFECT_DISABLED -> {
-            }
-            case PLAYER_NAME_UPDATED -> {
-            }
-            case TENDERS_REMOVED -> {
-            }
-            case TALENTS_ADDED -> {
-            }
-            case TALENTS_REMOVED -> {
-            }
-            case TENDERS_ADDED -> {
-            }
-            case VERSION -> {
-            }
-            case RISK_ASSESSMENT_CONFIRMED -> {
-            }
-            case PAUSE -> {
-                game.pause();
-            }
-            case RESUME -> {
-                game.resume();
-            }
+            case PAUSE -> game.pause();
+            case RESUME -> game.resume();
             case PROBLEM_SOLVED -> {
                 logger.debug("Problem solved: {}", message);
                 // Get the project id and the problem's translationKey from the message
@@ -355,21 +309,18 @@ class GameEventHandler {
                 // Conduct the one-to-one meeting with the employee
                 game.conductOneToOneMeeting(player, employee);
             }
-            case INDIVIDUAL_ESTIMATE_REQUESTED -> {
-                int projectId = parseIdByKey(message, "projectId");
-                if (projectId == 0) break;
-
-                Player player = game.getPlayerByWebSocket(websocket);
-
-                // Request an individual estimate for this player
-                //game.requestIndividualEstimate(projectId, player); TODO
-            }
             case TEAM_ESTIMATE_REQUESTED -> {
                 int projectId = parseIdByKey(message,"projectId");
                 Player player = game.getPlayerByWebSocket(websocket);
 
-                // Request a team estimate for this player
-                // game.requestTeamEstimate(projectId, player); TODO
+                // Estimate the project progress
+                game.conductTeamEstimation(projectId, player);
+            }
+            case ROUND_STARTED, STATE_UPDATED, GAME_OVER, NEW_TENDER, NEW_FUNDS, PROJECT_RECEIVED, TENDER_CLOSED,
+                 OBJECTIVES_UPDATED, PROJECT_UPDATED, PLAYER_UPDATED, NEW_STORY_ELEMENT, UPDATE_LOBBY, T,
+                 EFFECT_DISABLED, PLAYER_NAME_UPDATED, TENDERS_REMOVED, TALENTS_ADDED, TALENTS_REMOVED, TENDERS_ADDED,
+                 VERSION, RISK_ASSESSMENT_CONFIRMED -> {
+                // Events not requiring any special handling yet
             }
             default -> logger.warn("Received unknown event type: {}", event.getType());
         }

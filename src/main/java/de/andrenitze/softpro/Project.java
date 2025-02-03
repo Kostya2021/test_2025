@@ -2,7 +2,7 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.EarnedValueHistoryEntry;
 import de.andrenitze.softpro.entities.Problem;
-import de.andrenitze.softpro.types.ProgressEstimates;
+import de.andrenitze.softpro.types.ProgressEstimate;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;
 import lombok.Getter;
@@ -25,7 +25,7 @@ public class Project {
     private int totalValue;
     @Getter @Setter
     private int earnedValue;
-    private List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
+    private final List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
     private boolean hasTenderProcess;
     @Setter
     private int tenderDeadlineInDays;
@@ -43,14 +43,15 @@ public class Project {
     private int startedAt;
     @Setter @Getter
     private int completedAt = 0;
-    @Setter
+    @Getter @Setter
     private int quality;
     @Getter @Setter
     private int publishedAt;
-    @Setter
+    @Getter @Setter
     private float penalty;
-    @Setter
+    @Getter @Setter
     private float profit;
+    @Getter @Setter
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     @Getter
@@ -69,16 +70,16 @@ public class Project {
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
     @Getter
     private String domain;
-
-    // Description text is generated in the frontend
-    private final String description = "";
+    @Getter
+    private final String description = ""; // Description text is generated in the frontend
+    @Getter
     private boolean hasBeenRiskAssessed = false;
 
     @Getter
-    private List<Problem> problems = new ArrayList<>();
+    private final List<Problem> problems = new ArrayList<>();
 
     @Getter @Setter
-    private ProgressEstimates progressEstimates = new ProgressEstimates();
+    private List<ProgressEstimate> progressEstimates = new ArrayList<>();
 
     /**
      * Generates a project with a random name and volume
@@ -175,7 +176,7 @@ public class Project {
         };
 
         // Generate random deadline, loosely based on project volume
-        return (int) (getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
+        return (int) (((float) getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE) * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
     }
 
     private static String generateDomain(ProjectType type) {
@@ -288,6 +289,10 @@ public class Project {
     }
 
     public boolean hasOnboardingEmployees(ArrayList<Employee> employees) {
+        if (this.getType() == ProjectType.COMPLIANCE) {
+            return false;
+        }
+
         // After "safe period": Does any of the employees need on-boarding?
         int safePeriodInDays = (int) (Params.SAFE_PERIOD_PERCENT * getScheduledDuration())
                 + Params.ASSIGNMENT_TIME_IN_DAYS;
@@ -314,17 +319,8 @@ public class Project {
         return getDeadline() - getAcquiredAt();
     }
 
-    public boolean hasBeenRiskAssessed() {
-        return hasBeenRiskAssessed;
-    }
-
     public boolean hasBeenStarted() {
         return getStartedAt() > 0;
-    }
-
-    Project setRiskLevel(RiskLevel riskLevel) {
-        this.risk = riskLevel;
-        return this;
     }
 
     public void addProblem(Problem problem) {
@@ -333,5 +329,32 @@ public class Project {
 
     public List<Problem> getUnsolvedProblems() {
         return problems.stream().filter(problem -> !problem.isSolved()).toList();
+    }
+
+    public void addProgressEstimate(int tick, int estimate) {
+        progressEstimates.add(new ProgressEstimate(tick, estimate));
+    }
+
+    public void estimateProgress(int currentTick) {
+        // Estimate progress (0-100) based on the earned value
+        int estimate = (int) (100.0 * getEarnedValue() / getTotalValue());
+
+        // Project has not been started yet
+        if (!hasBeenStarted()) {
+            return;
+        }
+
+        // Add variance of up to 70% based on risk level (e.g., the more risk the more variance)
+        float riskMultiplier = switch (getRiskLevel()) {
+            case low -> 0.3f;
+            case medium -> 0.5f;
+            case high -> 0.7f;
+            case extreme -> 1.0f;
+        };
+
+
+        int adjustedEstimate = (int) (riskMultiplier * estimate);
+        estimate += adjustedEstimate > 0 ? RANDOM.nextInt(adjustedEstimate) : 0;
+        addProgressEstimate(currentTick, Math.min(90, estimate)); // 90% is the maximum progress estimate
     }
 }

@@ -67,7 +67,7 @@ public class Player {
     private int level = 1;
 
     @EqualsAndHashCode.Exclude
-    private Map<Integer, List<Decision>> decisions = new HashMap<>();
+    private final Map<Integer, List<Decision>> decisions = new HashMap<>();
 
     Player() {
         this(generatePlayerName(), generateCompanyName());
@@ -148,10 +148,10 @@ public class Player {
     public List<Objective> getNewObjectivesByTick(int tick) {
         List<Objective> newObjectives = new ArrayList<>();
         for (Mission mission : this.missions) {
-            if (!mission.isCompleted() && (mission.getEarliestOccurrence() == tick || (mission.getEarliestOccurrence() == 0 && !mission.isProcessed()))) {
+            if (mission.isNotCompleted() && (mission.getEarliestOccurrence() == tick || (mission.getEarliestOccurrence() == 0 && !mission.isProcessed()))) {
                 boolean canAddObjectives = true;
                 for (Mission m : this.missions) {
-                    if (m.getOrder() < mission.getOrder() && !m.isCompleted()) {
+                    if (m.getOrder() < mission.getOrder() && m.isNotCompleted()) {
                         canAddObjectives = false;
                         break;
                     }
@@ -179,7 +179,7 @@ public class Player {
             for (Mission m : this.missions) {
                 // Order: Objectives in a mission with "order == 2" will only be shown
                 // if all objectives in a mission with "order == 1" are completed.
-                if (m.getOrder() < mission.getOrder() && !m.isCompleted()) {
+                if (m.getOrder() < mission.getOrder() && m.isNotCompleted()) {
                     canAddObjectives = false;
                     break;
                 }
