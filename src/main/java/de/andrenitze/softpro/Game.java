@@ -1512,8 +1512,13 @@ public class Game {
             return;
         }
 
+        // Calculate remaining value of the project
+        int remainingValue = project.getTotalValue() - project.getEarnedValue();
+        // Remaining value and project volume affect estimation duration, but it's at least 2 days
+        int estimationDurationInDays = (int) Math.max(2, 3 * Math.log(remainingValue) - 30);
+        logger.debug("Estimation duration for remaining value {} € project {}: {} days", remainingValue, project.getName(), estimationDurationInDays);
+
         // Add status effect with decreased productivity for all employees in the project
-        int estimationDurationInDays = 3;
         for (Employee employee : player.getEmployees()) {
             if (projectEmployeesMap.containsKey(project) && projectEmployeesMap.get(project).contains(employee)) {
                 employee.addStatusEffect(new StatusEffect(

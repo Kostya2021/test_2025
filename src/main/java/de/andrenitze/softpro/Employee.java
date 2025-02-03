@@ -248,7 +248,7 @@ public class Employee {
         // Update salary history
         salaryHistory.add(new SalaryHistoryEntry(tick, newSalary));
 
-        // Remove oldest entry if the list is too long
+        // Remove the oldest entry if the list is too long
         if (salaryHistory.size() > 100) { // Keep the last 100 entries
             salaryHistory.remove(0);
         }
