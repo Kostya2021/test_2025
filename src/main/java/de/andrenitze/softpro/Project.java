@@ -344,9 +344,6 @@ public class Project {
             return;
         }
 
-        // The progress estimate is a percentage of the earned value compared to the total value
-        logger.debug("Estimating progress for project {} at tick {}: {}%", getName(), currentTick, estimate);
-
         // Add variance of up to 70% based on risk level (e.g., the more risk the more variance)
         float riskMultiplier = switch (getRiskLevel()) {
             case low -> 0.3f;
@@ -355,7 +352,6 @@ public class Project {
             case extreme -> 1.0f;
         };
 
-        logger.debug("Estimate will be adjusted by up to {}%", (int) (riskMultiplier * estimate));
 
         int adjustedEstimate = (int) (riskMultiplier * estimate);
         estimate += adjustedEstimate > 0 ? RANDOM.nextInt(adjustedEstimate) : 0;
