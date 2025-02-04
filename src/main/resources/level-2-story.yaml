@@ -1,11 +1,11 @@
 storyElements:
   - id: 1
-    avatar: PROFESSOR
+    avatar: ADVISOR
     earliestOccurrence: 3
     lines:
       - Good luck with your projects! 🍀
   - id: 2
-    avatar: PROFESSOR
+    avatar: ADVISOR
     afterObjective: 21
     lines:
       - Excellent! Keep up the good work!
