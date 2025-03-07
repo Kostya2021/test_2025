@@ -1413,7 +1413,9 @@ public class Game {
         }
 
         // Deduct funds from player
-        player.subtractFunds(Params.PROJECT_RISK_ASSESSMENT_COST);
+        int riskAssessmentCost = (int) Params.PROJECT_RISK_ASSESSMENT_COST;
+        accountingService.addEntry(new AccountingEntry(player, getCurrentTick(), riskAssessmentCost, AccountCategory.OVERHEAD, TransactionType.DEBIT, "Project risk assessment"));
+        player.subtractFunds(riskAssessmentCost);
         sendFundsUpdateToPlayer(player);
 
         // Send project update to player
