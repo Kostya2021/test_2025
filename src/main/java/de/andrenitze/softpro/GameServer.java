@@ -143,6 +143,16 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
+        // First, check if a database connection is available. If not, don't allow any connections.
+        try {
+            DatabaseConfig.getDataSource().getConnection().close();
+        } catch (Exception e) {
+            logger.error("Database connection not available. Refusing websocket connection.");
+            webSocket.close();
+            return;
+        }
+
+
         // When a new WebSocket connection is opened, it's a player joining the lobby
         logger.info("Client {} connected", webSocket.getRemoteSocketAddress());
 
