@@ -27,11 +27,13 @@ public class ObjectiveChecker {
 
         boolean objectivesUpdated = false;
 
+        // For all objectives that are active until the current tick and not completed yet...
         for (Objective objective : player.getObjectivesUntilThisTick(this.currentTick)) {
             if (objective.isCompleted()) {
                 continue;
             }
 
+            // ...check if the objective is completed now
             boolean wasUpdated = checkObjective(objective, player, projects, projectEmployeesMap, skillsManager);
             if (wasUpdated) {
                 objectivesUpdated = true;
@@ -77,15 +79,13 @@ public class ObjectiveChecker {
                 break;
 
             case 15:
-                if (player.getXp() != objective.getCompletedSteps()) {
-                    objective.setCompletedSteps(player.getXp());
-                    updated = true;
-                }
-
-                if (player.getXp() >= 125) {
-                    objective.setCompletedSteps(objective.getTotalSteps());
+                // Check if player has enough XP to complete the objective
+                if (objective.getCompletedSteps() >= objective.getTotalSteps()) {
                     objective.setCompleted();
-                    logger.debug("Objective 15 completed.");
+                    updated = true;
+                } else if (player.getXp() != objective.getCompletedSteps()) {
+                    // Only update if the XP value has actually changed
+                    objective.setCompletedSteps(player.getXp());
                     updated = true;
                 }
                 break;
@@ -231,6 +231,8 @@ public class ObjectiveChecker {
         List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
         GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
         objectivesUpdatedEvent.setPayload(allActiveObjectives);
+        if (allActiveObjectives.size() > 4)
+            logger.debug("Objectives updated event: {}", allActiveObjectives.get(4).toString());
         game.sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
     }
 }

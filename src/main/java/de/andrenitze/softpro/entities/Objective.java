@@ -14,7 +14,7 @@ public class Objective {
      */
     private int order;
     private int rewardFunds;
-    private final int totalSteps = 1;
+    private int totalSteps = 1;
     @Setter
     private int completedSteps = 0;
     @Setter
