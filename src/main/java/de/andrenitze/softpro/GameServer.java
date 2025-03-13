@@ -3,7 +3,7 @@ package de.andrenitze.softpro;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
-import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.entities.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import lombok.Getter;
@@ -356,7 +356,7 @@ public class GameServer extends WebSocketServer {
                         player.getEmployees().get(0).setFirstName(player.getFirstName());
                         player.getEmployees().get(0).setLastName(player.getLastName());
                     } catch (IndexOutOfBoundsException e) {
-                        logger.error("No employees found for player {}", player.getName());
+                        logger.error("No employees found for player {}", player.getId());
                     }
 
                     // Confirm successful name change

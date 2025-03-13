@@ -5,8 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.entities.Problem;
-import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.serialization.ProjectPartyExclusionStrategy;
+import de.andrenitze.softpro.entities.GameEvent;
+import de.andrenitze.softpro.util.ProjectPartyExclusionStrategy;
 import de.andrenitze.softpro.types.Decision;
 import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
@@ -48,27 +48,27 @@ class GameEventHandler {
             case JOIN_TENDER -> {
                 // Fancy way to parse the "tenderId" int out of the message
                 Type payloadType = new TypeToken<GameEvent<Integer>>() {}.getType();
-                GameEvent<Integer> tenderIdEvent = GSON.fromJson(message, payloadType);
+                GameEvent<Integer> joinTenderEvent = GSON.fromJson(message, payloadType);
 
                 // A player joins a tender or simply accepts a project
                 try {
                     for (Project project : game.getProjects()) {
-                        if (project.getId() == tenderIdEvent.getPayload()) {
+                        if (project.getId() == joinTenderEvent.getPayload()) {
                             // Assign player to project
                             Player player = game.getPlayerByWebSocket(websocket);
                             project.addParty(player);
 
-                            // Broadcast this player's participation in the tender
-                            Gson gson = new GsonBuilder()
-                                    .setExclusionStrategies(new ProjectPartyExclusionStrategy())
-                                    .create();
-                            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                            projectUpdatedEvent.setPayload(project);
-                            game.broadcastToAllPlayers(gson.toJson(projectUpdatedEvent));
-
-                            // If there is no tender, just assign it
                             if (project.hasNoTenderProcess()) {
-                                game.immediatelyCloseTender(project);
+                                // If there is no tender process, just assign the project to the player
+                                game.assignProjectToPlayer(player, project);
+                            } else {
+                                // Tender process: Broadcast this player's participation in the tender
+                                Gson gson = new GsonBuilder()
+                                        .setExclusionStrategies(new ProjectPartyExclusionStrategy())
+                                        .create();
+                                GameEvent<Project> tenderUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                                tenderUpdatedEvent.setPayload(project);
+                                game.broadcastToAllPlayers(gson.toJson(tenderUpdatedEvent));
                             }
                             break;
                         }
@@ -316,7 +316,7 @@ class GameEventHandler {
                 // Estimate the project progress
                 game.conductTeamEstimation(projectId, player);
             }
-            case ROUND_STARTED, STATE_UPDATED, GAME_OVER, NEW_TENDER, NEW_FUNDS, PROJECT_RECEIVED, TENDER_CLOSED,
+            case ROUND_STARTED, STATE_UPDATED, GAME_OVER, NEW_TENDER, NEW_FUNDS, PROJECT_RECEIVED,
                  OBJECTIVES_UPDATED, PROJECT_UPDATED, PLAYER_UPDATED, NEW_STORY_ELEMENT, UPDATE_LOBBY, T,
                  EFFECT_DISABLED, PLAYER_NAME_UPDATED, TENDERS_REMOVED, TALENTS_ADDED, TALENTS_REMOVED, TENDERS_ADDED,
                  VERSION, RISK_ASSESSMENT_CONFIRMED -> {
@@ -344,9 +344,9 @@ class GameEventHandler {
         Project project = game.getProjectById(projectId);
 
         if (isAssignOperation) {
-            game.assignEmployeeToProject(employee, project);
+            game.getProjectManager().assignEmployeeToProject(employee, project);
         } else {
-            game.removeEmployeeFromProject(employee, project);
+            game.getProjectManager().removeEmployeeFromProject(employee, project);
         }
 
         // Notify frontend about change

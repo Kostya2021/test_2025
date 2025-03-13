@@ -14,11 +14,13 @@ public class Objective {
      */
     private int order;
     private int rewardFunds;
-    private final int totalSteps = 1;
+    private int totalSteps = 1;
     @Setter
     private int completedSteps = 0;
     @Setter
     private String mission; // Only for the frontend
+    @Getter @Setter
+    private int completedAt; // For checking criteria of other objectives depending on time (e.g., "Complete 5 MORE projects.")
     /**
      * Earliest occurrence of the objective in days (=game ticks).
      * Will not spawn before that day, even if requirements are met.
@@ -30,15 +32,12 @@ public class Objective {
         return ((completedSteps == totalSteps));
     }
 
-    public void markAsCompleted() {
+    public void setCompleted(int currentTick) {
         this.completedSteps = totalSteps;
+        this.setCompletedAt(currentTick);
     }
 
-    public void setCompleted(boolean b) {
-        if (b) {
-            this.completedSteps = totalSteps;
-        } else {
-            this.completedSteps = 0;
-        }
+    public void setNotCompleted() {
+        this.completedSteps = 0;
     }
 }

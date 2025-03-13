@@ -1,23 +1,19 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.*;
-import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.jetbrains.annotations.Nullable;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.net.ConnectException;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
@@ -44,6 +40,7 @@ public class Game {
     public static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    @Getter
     private final AccountingService accountingService;
     private boolean isRunning; // Game instance is active
     private boolean isPaused = false; // Game instance is active, but paused (e.g., for briefing and tutorials)
@@ -66,6 +63,8 @@ public class Game {
     private int level = 1;
     @Getter
     private final ProblemGenerator problemGenerator = new ProblemGenerator();
+    @Getter
+    private final ProjectManager projectManager;
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -96,6 +95,9 @@ public class Game {
 
         // Initialize the accounting service to keep track of all financial transactions
         accountingService = new AccountingService();
+
+        // Initialize the project manager to manage all projects
+        projectManager = new ProjectManager(this);
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -335,14 +337,15 @@ public class Game {
         currentDate = currentDate.plusDays(currentTick);
 
         long startTime = System.nanoTime();
-        // Execute these things each "tick" (naming convention: methodNamePerTick)
-        // This is important because player interactions alter the state between ticks
-        conductWorkOnAllProjectsPerTick();
+        // Execute the game logic each "tick".
+        // This is important because player interactions alter the state between ticks.
+        // Order is important, because some methods depend on the state of others (side effects may occur).
+        projectManager.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeesMap);
         processMonthlyPaymentsPerTick(currentDate);
         randomlySpawnProjectTendersPerTick();
         randomlySpawnComplianceProjectsPerTick();
         removeStaleTendersPerTick();
-        assignProjectsPerTick();
+        evaluateTenderProcessesPerTick();
         sendNewObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
         simulateEmployeeLivesPerTick();
@@ -657,7 +660,7 @@ public class Game {
                         TransactionType.DEBIT, "Monthly salaries"));
 
                 // Office rent (fixed costs, rises with level)
-                int rent = 500 * getLevel()-1;
+                int rent = 500 * (getLevel()-1);
                 accountingService.addEntry(new AccountingEntry(player, currentTick, rent, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Office rent"));
 
@@ -804,7 +807,7 @@ public class Game {
         });
     }
 
-    private void sendFundsUpdateToPlayer(Player player) {
+    void sendFundsUpdateToPlayer(Player player) {
         GameEvent<Float> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
         newFundsEvent.setPayload(player.getFunds());
         sendMessageToPlayer(player, GSON.toJson(newFundsEvent));
@@ -874,204 +877,34 @@ public class Game {
         }
     }
 
-    private void assignProjectsPerTick() {
+    private void evaluateTenderProcessesPerTick() {
         for (Project project : projects) {
-            if (project.getTenderDeadlineInDays() == 0) {
+            // Don't evaluate acquired projects
+            if (project.getAcquiredAt() != 0) {
+                continue;
+            }
+
+            // Regular case: No tender process, assign project immediately
+            if (project.getTenderDeadlineInDays() == 0 || project.getTenderDeadlineInDays() == -1) {
                 // Set deadline to -1 to exclude it from further evaluations
                 project.setTenderDeadlineInDays(-1);
 
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
-                    logger.debug("Found project {}", project.getName());
-
-                    // Remember acquisition date
-                    project.setAcquiredAt(currentTick);
+                    logger.debug("Project {} has no tender process. Assigning project to player {}.",
+                            project.getName(), project.getInvolvedPlayers().get(0).getId());
 
                     // Inform winner with a confirmation message
-                    GameEvent<Project> wonTenderEvent = new GameEvent<>();
-                    wonTenderEvent.setType(EventType.PROJECT_RECEIVED);
-                    wonTenderEvent.setPayload(project);
-                    sendMessageToPlayer(project.getInvolvedPlayers().get(0), GSON.toJson(wonTenderEvent));
+                    assignProjectToPlayer(project.getInvolvedPlayers().get(0), project);
                 }
-            } else if (project.getTenderDeadlineInDays() != 0 && project.getTenderDeadlineInDays() != -1) {
-                // Regular case: Just decrease the time left for tender participation
+            } else {
+                // For tender processes, just decrease the time left for tender participation
                 project.decreaseTimeLeftForTender();
             }
         }
     }
 
-    public void immediatelyCloseTender(Project project) {
-        if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
-            GameEvent<Integer> closeTenderEvent = new GameEvent<>(EventType.TENDER_CLOSED);
-            closeTenderEvent.setPayload(project.getId());
-            broadcastToAllPlayers(GSON.toJson(closeTenderEvent));
-
-            // Make it appear in the next evaluation of assignProjectsPerTick()
-            project.setTenderDeadlineInDays(0);
-        }
-    }
-
-    private void conductWorkOnAllProjectsPerTick() {
-        // No work on weekends
-        if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
-            return;
-        }
-
-        // For all projects that are started AND have employees assigned
-        Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
-            Project project = entry.getKey();
-            ArrayList<Employee> employees = entry.getValue();
-
-            // Ignore not started projects
-            if (project.getStartedAt() == 0) {
-                continue;
-            }
-
-            // Ignore empty projects
-            if (employees.isEmpty()) {
-                continue;
-            }
-
-            addEarnedValueForEachEmployee(project, employees);
-
-            JSONObject event = new JSONObject();
-            event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
-            var projectObject = new JSONObject();
-
-            // Finish the project
-            if (project.isCompleted()) {
-                // Remove all status effects on employees related to this project
-                projectEmployeesMap.get(project).forEach(employee -> {
-                    // This causes a problem with other projects still running.
-                    // The status effects should be removed only for this project.
-                    // So this should be evaluated somewhere else.
-                    employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_DOMAIN);
-                    employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_TYPE);
-                });
-
-                // Send reward
-                for (Player player : project.getInvolvedPlayers()) {
-                    int profit = (int) round(project.getTotalValue() * PROFIT_MARGIN);
-
-                    float overduePenaltyMultiplier = 1;
-                    int daysLeft = project.getDeadline() - (currentTick - project.getStartedAt());
-                    if (daysLeft < 0) {
-                        // Per 1% delayed delivery, return 2% less win margin
-                        overduePenaltyMultiplier = 1 - ((float) Math.abs(daysLeft) / project.getDeadline() * 2);
-                        float penalty = profit * (1 - overduePenaltyMultiplier);
-                        if (level == 1) {
-                            penalty = 0;
-                        }
-                        projectObject.put("penalty", penalty);
-
-                        project.setPenalty(penalty);
-                        logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
-                    }
-
-                    // Prevent losses in level 1
-                    if (level != 1) {
-                        profit = (int) (profit * overduePenaltyMultiplier);
-                    }
-
-                    projectObject.put("profit", profit);
-                    project.setProfit(profit);
-                    // Don't win or lose anything in level 1 or if it's a compliance project
-                    if (level == 1 || project.getType() == ProjectType.COMPLIANCE) {
-                        profit = 0;
-                    }
-
-                    player.addFunds(profit);
-                    AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
-                            AccountCategory.PROJECTS, TransactionType.DEBIT ,"Project completed");
-                    accountingService.addEntry(projectProfitEntry);
-                    sendFundsUpdateToPlayer(player);
-
-                    // Calculate player's XP gained in this project
-                    float xp = calculateXP(project);
-                    player.addXp((int) xp);
-
-                    GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-                    playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
-                    playerUpdateEvent.setPayload(player);
-                    sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
-
-                    // After project completion, send gained XP of employees to player
-                    for (Employee employee : employees) {
-                        sendEmployeeUpdate(player, employee);
-                    }
-                }
-
-                // Calculate project result quality (0-100)
-                // Low employee skill = low project quality
-                int projectQuality;
-                HashMap<Employee, Integer> projectExperience = new HashMap<>(10);
-                Integer totalDaysWorkedOnProject = 0;
-                var skillMultipliers = new HashMap<Employee, Float>();
-
-                for (Employee employee : employees) {
-                    float projectSkillMultiplier;
-                    var projectTypeXP = employee.getExperienceInDaysByProjectType(project.getType());
-
-                    // Rule: Employee skill increases with experience
-                    // LaGrange interpolation from:
-                    // 0 days of experience = 0% skill
-                    // 720 days (= 2 years) of experience = 100% skill
-                    // 2700 days (= 6 years) of experience = 200% skill
-                    projectSkillMultiplier = (7 * projectTypeXP / 4380f) - (projectTypeXP * projectTypeXP / 3197400f);
-
-                    // Remember for average calculation
-                    skillMultipliers.put(employee, projectSkillMultiplier);
-                    projectExperience.put(employee, employee.getExperienceInDaysByProject(project));
-                    totalDaysWorkedOnProject += employee.getExperienceInDaysByProject(project);
-                }
-
-                // Average of all employees' skills weighted by days worked in the project
-                var weightedProjectContributions = new HashMap<Employee, Float>();
-                Integer finalTotalDaysWorkedOnProject = totalDaysWorkedOnProject;
-                projectExperience.forEach((employee, XP) -> {
-                    var contribution = (float) XP / (float) finalTotalDaysWorkedOnProject;
-                    weightedProjectContributions.put(employee, contribution);
-                    logger.debug("Project work done by {}: {}%", employee.getName(), weightedProjectContributions.get(employee)*100);
-                });
-
-                // Quality is the average of each employees' individual skill for this project weighted by the amount of work (= contribution)
-                AtomicReference<Float> totalProjectQuality = new AtomicReference<>((float) 0);
-                skillMultipliers.forEach((employee, skill) ->
-                        totalProjectQuality.updateAndGet(quality ->
-                                quality + skill * weightedProjectContributions.get(employee)));
-
-                projectQuality = (int) (totalProjectQuality.get() * 100);
-                logger.debug("Project overall quality: {}/100", projectQuality);
-
-                project.setQuality(projectQuality);
-                projectObject.put("quality", projectQuality);
-
-                // Remove the project from employees map, so that employees are unassigned
-                project.setEarnedValue(project.getTotalValue());
-                iterator.remove();
-            }
-
-            // Build a small custom event to just send new project progress and success metrics
-            projectObject.put("id", project.getId());
-            projectObject.put("earnedValue", project.getEarnedValue());
-            projectObject.put("tick", currentTick);
-
-            if (project.isCompleted()) {
-                projectObject.put("completedAt", currentTick);
-            }
-
-            event.put("payload", projectObject);
-
-            // Send update to all involved players
-            for (Player player : project.getInvolvedPlayers()) {
-                sendMessageToPlayer(player, event.toString());
-            }
-        }
-    }
-
-    private static float calculateXP(Project project) {
+    static float calculateXP(Project project) {
         // Riskier and larger projects yield more XP
         float xp = project.getTotalValue() / 1000f;
         switch (project.getRiskLevel()) {
@@ -1086,196 +919,6 @@ public class Game {
             xp = 0;
         }
         return xp;
-    }
-
-    private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees) {
-        int earnedValue;
-
-        // Rule #3: Adding people to a late software project makes it later (Brooks' law)
-        // New employees will decrease the whole team's productivity for on-boarding and training
-        float onboardingFactor;
-        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
-            onboardingFactor = calculateOnboardingFactor(project, employees);
-            logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", onboardingFactor);
-        } else {
-            // No onboarding required (safe period or no new employees)
-            onboardingFactor = 1;
-        }
-
-        for (Employee employee : employees) {
-            if (employee.isSick()) {
-                continue; // Go to next employee
-            }
-
-            // Fixed imaginary number
-            earnedValue = BASE_PRODUCTIVITY_VALUE;
-
-            // Rule x?: No one ever gains experience in compliance projects, so productivity is the same for everyone
-            if (project.getType() == ProjectType.COMPLIANCE) {
-                earnedValue = (int)(earnedValue * 0.8);
-                project.addEarnedValue(earnedValue, this.getCurrentTick());
-                return;
-            }
-
-            // Rule #4: Productivity depends on experience.
-            // Experience factors are "project domain" and "project type".
-            // The more experience an employee has in a project type, the more productive they are.
-            // If an employee has *type* experience, but not the exact *domain* experience, they have some transferable
-            // skills, which still makes them somewhat productive.
-            // Examples:
-            // 0 days type XP, 0 days domain XP = 0% productivity
-            // 1000 days type XP, 0 days domain XP = 50% productivity
-            // 1000 days type XP, 1000 days domain XP = 100% productivity
-
-            // Experience in days for project type and domain
-            int typeXP = employee.getExperienceInDaysByProjectType(project.getType());
-            int domainXP = employee.getExperienceInDaysByProjectDomain(project.getDomain());
-
-            float productivityFactor = getProductivityFactor(typeXP, domainXP);
-
-            earnedValue = (int) (earnedValue * productivityFactor * 2);
-
-            // Rule #1: Context changes decrease employee productivity.
-            int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
-            earnedValue /= numberOfParallelProjects;
-            switch (numberOfParallelProjects) {
-                case 1 ->
-                    //noinspection ConstantConditions
-                        earnedValue *= 1;
-                case 2 -> earnedValue = (int) (earnedValue * 0.4);
-                case 3 -> earnedValue = (int) (earnedValue * 0.2);
-                case 4 -> earnedValue = (int) (earnedValue * 0.1);
-                case 5 -> earnedValue = (int) (earnedValue * 0.05);
-                default -> earnedValue = 1;
-            }
-
-            // Rule #2: Productivity ramp-up: New staff in project needs some time to get fully productive.
-            // Example:
-            // 0 days XP = 0% productivity
-            // 1 day XP = 10% productivity
-            // 10 days XP = 50% productivity
-            // 20 days XP = 100% productivity
-            float x = employee.getExperienceInDaysByProject(project);
-            if (x < 30) {
-                float rampUpProductivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue = (int) (earnedValue * rampUpProductivityFactor);
-            }
-
-            // Increase the employee's experience
-            employee.gainExperience(project, 1);
-
-            earnedValue = (int) (earnedValue * onboardingFactor);
-
-            if (project.getEarnedValue() == 0 && earnedValue > 0) {
-                project.setStartedAt(currentTick);
-            }
-
-            // Rule #5: Organizational skills affect productivity.
-            earnedValue = (int) (earnedValue * calculateSkillsFactor(project));
-
-            // Rule #6: Employees are affected by external status effects
-            if (!employee.getStatusEffects().isEmpty()) {
-                for (StatusEffect effect : employee.getStatusEffects()) {
-                    if (effect.getType().equals(StatusEffectType.PRODUCTIVITY)) {
-                        earnedValue = (int) (earnedValue * effect.getMultiplier());
-                    }
-                }
-            }
-
-            // Rule #7: Productivity is decreased by unsolved problems in projects
-            if (!project.getUnsolvedProblems().isEmpty()) {
-                // For each unsolved problem, that has been lingering for some time, add a penalty of 25% to productivity
-                int gracePeriod = 30;
-
-                // Count lingering projects
-                int unsolvedLingeringProblems = (int) project.getUnsolvedProblems().stream()
-                        .filter(problem -> currentTick - problem.getOccurredAt() > gracePeriod)
-                        .count();
-
-                // Add the productivity penalty
-                earnedValue = (int) (earnedValue * pow(0.75, unsolvedLingeringProblems));
-            }
-
-            // Increase the project's earnedValue for this employee
-            project.addEarnedValue(earnedValue, this.getCurrentTick());
-        }
-    }
-
-    private static float getProductivityFactor(int typeXP, int domainXP) {
-        // Weights for project type and domain experience
-        float typeXPWeight = 0.25f;
-        float domainXPWeight = 0.75f;
-
-        // Base productivity value (if experience = 0)
-        float baseProductivity = 0.25f;
-        float maxProductivity = 1.0f;
-
-        return (float) (baseProductivity +
-                (maxProductivity - baseProductivity) * (
-                        (typeXP > 0 ? typeXPWeight * (1 - exp(-0.0005 * typeXP)) : 0) +
-                                (domainXP > 0 ? domainXPWeight * (1 - exp(-0.0005 * domainXP)) : 0)
-                )
-        );
-    }
-
-    private float calculateSkillsFactor(Project project) {
-        List<Player> players = project.getInvolvedPlayers();
-
-        // If only one player is working on the project
-        if (players.size() == 1) {
-            Player player = players.get(0);
-            if (skillsManager.playerHasSkill(player, "pmo")) {
-                return 1.05f;
-            }
-        }
-
-        return 1.0f;
-    }
-
-    private float calculateOnboardingFactor(Project project, ArrayList<Employee> employees) {
-        ArrayList<Float> onboardingFactors = new ArrayList<>();
-
-        for (Employee employee : employees) {
-            // FIXED: 30,4 (10% of a 304 day project)
-            float onboardingDays = Params.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
-
-            // VARIABLE (depending on employees' experience): 4 days / 30,4 days = 0,1333%
-            float onboardingProgress = employee.getExperienceInDaysByProject(project) / onboardingDays;
-            if (onboardingProgress >= 1) {
-                continue; // Onboarding completed. Ignore this employee for calculation.
-            }
-
-            // productivity factor = (1 - 0,1333) * 0,15 * 100 = 13% decrease
-            // Example 0: 0% onboardingProgress => 15% productivity decrease
-            // Example 1: 10% onboardingProgress => 13,5% productivity decrease
-            // Example 2: 50% onboardingProgress => 7,5% productivity decrease
-            // Example 3: 100% onboardingProgress => 0% productivity decrease
-            float onboardingFactor = 1 - (1 - onboardingProgress) * Params.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
-            onboardingFactors.add(onboardingFactor);
-
-            logger.debug("{} is being on-boarded in project {}: {} productivity factor, {}/{} days",
-                    employee.getName(), project.getName(), onboardingFactor,
-                    employee.getExperienceInDaysByProject(project), onboardingDays);
-        }
-
-        // Return average of all onboarding factors
-        return (float) onboardingFactors.stream()
-                .mapToDouble(d -> d)
-                .reduce(1, (a, b) -> a * b);
-    }
-
-    private int getNumberOfParallelProjectsForEmployee(Employee employee) {
-        int numberOfProjects = 0;
-
-        for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeesMap.entrySet()) {
-            ArrayList<Employee> employees = entry.getValue();
-            Project project = entry.getKey();
-
-            if (employees.contains(employee) && project.hasBeenStarted()) {
-                numberOfProjects++;
-            }
-        }
-        return numberOfProjects;
     }
 
     protected void broadcastToAllPlayers(String message) {
@@ -1328,34 +971,6 @@ public class Game {
             }
         }
         return null;
-    }
-
-    void assignEmployeeToProject(Employee employee, Project project) {
-        // Get current list of employees working on that project
-        try {
-            projectEmployeesMap.putIfAbsent(project, new ArrayList<>());
-            ArrayList<Employee> employees = projectEmployeesMap.get(project);
-
-            // Add employee to project if not already assigned
-            if (!employees.contains(employee)) {
-                employees.add(employee);
-                projectEmployeesMap.put(project, employees);
-                logger.debug("{} assigned to {}", employee.getName(), project.getName());
-            }
-        } catch (NullPointerException e) {
-            logger.error(e.toString());
-        }
-    }
-
-    void removeEmployeeFromProject(Employee employee, Project project) {
-        // Get current list of employees working on that project
-        ArrayList<Employee> employees = projectEmployeesMap.get(project) ;
-
-        if (employees.contains(employee)) {
-            employees.remove(employee);
-            projectEmployeesMap.put(project, employees);
-            logger.debug("{} unassigned from {}", employee.getName(), project.getName());
-        }
     }
 
     public void closeGameIfEmpty() {
@@ -1415,7 +1030,7 @@ public class Game {
         // Deduct funds from player
         int riskAssessmentCost = (int) Params.PROJECT_RISK_ASSESSMENT_COST;
         // getCurrentTick() + 1 to make sure it's processed in the next tick
-        accountingService.addEntry(new AccountingEntry(player, getCurrentTick() + 1, riskAssessmentCost, AccountCategory.PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
+        accountingService.addEntry(new AccountingEntry(player, getCurrentTick() + 1, riskAssessmentCost, AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
         player.subtractFunds(riskAssessmentCost);
         sendFundsUpdateToPlayer(player);
 
@@ -1541,5 +1156,19 @@ public class Game {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdateEvent.setPayload(project);
         sendMessageToPlayer(player, GSON.toJson(projectUpdateEvent));
+    }
+
+    public void assignProjectToPlayer(Player player, Project project) {
+        // Assign the project to the player
+        project.addParty(player);
+        project.setAcquiredAt(currentTick);
+
+        // Add the project to the project-employee map
+        projectEmployeesMap.put(project, new ArrayList<>());
+
+        // Send PROJECT_RECEIVED event to the player
+        GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+        projectReceivedEvent.setPayload(project);
+        sendMessageToPlayer(player, GSON.toJson(projectReceivedEvent));
     }
 }
