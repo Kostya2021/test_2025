@@ -344,9 +344,9 @@ class GameEventHandler {
         Project project = game.getProjectById(projectId);
 
         if (isAssignOperation) {
-            game.assignEmployeeToProject(employee, project);
+            game.getProjectManager().assignEmployeeToProject(employee, project);
         } else {
-            game.removeEmployeeFromProject(employee, project);
+            game.getProjectManager().removeEmployeeFromProject(employee, project);
         }
 
         // Notify frontend about change
