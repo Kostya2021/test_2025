@@ -269,7 +269,7 @@
                         <jsonLibrary>jackson2</jsonLibrary>
                         <classes>
                             <class>de.andrenitze.softpro.events.AbstractGameEvent</class>
-                            <class>de.andrenitze.softpro.events.GameEvent</class>
+                            <class>de.andrenitze.softpro.entities.GameEvent</class>
                             <class>de.andrenitze.softpro.entities.Objective</class>
                             <class>de.andrenitze.softpro.entities.GameOverStats</class>
                             <class>de.andrenitze.softpro.entities.Objectives</class>

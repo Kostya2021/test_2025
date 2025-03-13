@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.entities;
 import de.andrenitze.softpro.*;
-import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.types.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

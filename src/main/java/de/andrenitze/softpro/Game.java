@@ -1,7 +1,7 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.*;
-import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.entities.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import lombok.Getter;
@@ -657,7 +657,7 @@ public class Game {
                         TransactionType.DEBIT, "Monthly salaries"));
 
                 // Office rent (fixed costs, rises with level)
-                int rent = 500 * getLevel()-1;
+                int rent = 500 * (getLevel()-1);
                 accountingService.addEntry(new AccountingEntry(player, currentTick, rent, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Office rent"));
 
@@ -984,7 +984,7 @@ public class Game {
 
                     player.addFunds(profit);
                     AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
-                            AccountCategory.PROJECTS, TransactionType.DEBIT ,"Project completed");
+                            AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT ,"Project completed");
                     accountingService.addEntry(projectProfitEntry);
                     sendFundsUpdateToPlayer(player);
 
@@ -1415,7 +1415,7 @@ public class Game {
         // Deduct funds from player
         int riskAssessmentCost = (int) Params.PROJECT_RISK_ASSESSMENT_COST;
         // getCurrentTick() + 1 to make sure it's processed in the next tick
-        accountingService.addEntry(new AccountingEntry(player, getCurrentTick() + 1, riskAssessmentCost, AccountCategory.PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
+        accountingService.addEntry(new AccountingEntry(player, getCurrentTick() + 1, riskAssessmentCost, AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
         player.subtractFunds(riskAssessmentCost);
         sendFundsUpdateToPlayer(player);
 

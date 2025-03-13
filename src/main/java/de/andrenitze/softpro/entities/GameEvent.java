@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.events;
+package de.andrenitze.softpro.entities;
 
 import com.google.gson.annotations.SerializedName;
 import de.andrenitze.softpro.types.EventType;

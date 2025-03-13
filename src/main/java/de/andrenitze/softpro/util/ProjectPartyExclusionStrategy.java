@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.serialization;
+package de.andrenitze.softpro.util;
 
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;

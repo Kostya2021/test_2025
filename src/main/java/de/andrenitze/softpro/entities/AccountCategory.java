@@ -5,6 +5,7 @@ public enum AccountCategory {
     OVERHEAD,           // General overhead costs
     TRAINING,
     SALARIES,
-    PROJECTS,
+    CREDIT_PROJECTS,
+    DEBIT_PROJECTS,
     OTHER           // Anything else
 }
