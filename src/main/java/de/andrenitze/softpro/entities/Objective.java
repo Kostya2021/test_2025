@@ -30,15 +30,11 @@ public class Objective {
         return ((completedSteps == totalSteps));
     }
 
-    public void markAsCompleted() {
+    public void setCompleted() {
         this.completedSteps = totalSteps;
     }
 
-    public void setCompleted(boolean b) {
-        if (b) {
-            this.completedSteps = totalSteps;
-        } else {
-            this.completedSteps = 0;
-        }
+    public void setNotCompleted() {
+        this.completedSteps = 0;
     }
 }

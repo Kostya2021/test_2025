@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameServer.GSON;
 
@@ -25,70 +24,101 @@ public class ObjectiveChecker {
         Map<Project, ArrayList<Employee>> projectEmployeesMap = game.getProjectEmployeesMap();
         SkillsManager skillsManager = game.getSkillsManager();
 
-        boolean updatedNeeded;
+        boolean objectivesUpdated = false;
 
         for (Objective objective : player.getObjectivesUntilThisTick(this.currentTick)) {
-            updatedNeeded = false;
-
             if (objective.isCompleted()) {
                 continue;
             }
 
-            if (objective.getId() == 11) {
+            boolean wasUpdated = checkObjective(objective, player, projects, projectEmployeesMap, skillsManager);
+            if (wasUpdated) {
+                objectivesUpdated = true;
+            }
+        }
+
+        if (objectivesUpdated) {
+            notifyPlayerAboutObjectives(player);
+        }
+    }
+
+    private boolean checkObjective(Objective objective, Player player, List<Project> projects,
+                                   Map<Project, ArrayList<Employee>> projectEmployeesMap,
+                                   SkillsManager skillsManager) {
+        boolean updated = false;
+        HashMap<String, Skill> skills;
+
+        switch (objective.getId()) {
+            case 11:
                 if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
-                    objective.markAsCompleted();
+                    objective.setCompleted();
                     logger.debug("Objective 11 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 12) {
-                if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))) {
-                    objective.markAsCompleted();
+                break;
+
+            case 12:
+                if (projectEmployeesMap.values().stream().anyMatch(employees ->
+                        employees.contains(player.getEmployees().get(0)))) {
+                    objective.setCompleted();
                     logger.debug("Objective 12 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 13) {
+                break;
+
+            case 13:
                 if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
                         && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
-                    objective.markAsCompleted();
+                    objective.setCompleted();
                     logger.debug("Objective 13 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 15) {
+                break;
+
+            case 15:
                 if (player.getXp() != objective.getCompletedSteps()) {
                     objective.setCompletedSteps(player.getXp());
-                    updatedNeeded = true;
+                    updated = true;
                 }
 
                 if (player.getXp() >= 125) {
-                    objective.markAsCompleted();
+                    objective.setCompleted();
                     logger.debug("Objective 15 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 16) {
-                HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+                break;
+
+            case 16:
+                skills = skillsManager.getSkillsByPlayer(player);
                 if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
-                    objective.markAsCompleted();
+                    objective.setCompleted();
                     logger.debug("Objective 16 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 210) {
-                HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
-                if (skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked() ||
-                        skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked()) {
-                    objective.markAsCompleted();
+                break;
+
+            case 210:
+                skills = skillsManager.getSkillsByPlayer(player);
+                if ((skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked()) ||
+                        (skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked())) {
+                    objective.setCompleted();
                     logger.debug("Objective 21 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 14 || objective.getId() == 17 || objective.getId() == 31) {
+                break;
+
+            case 14:
+            case 17:
+            case 31:
                 Mission mission = game.getMissionByObjective(player, objective);
-                if (mission == null) return;
+                if (mission == null) return false;
 
                 ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
                         .stream()
                         .filter(project -> project.isCompleted()
                                 && project.getCompletedAt() > mission.getEarliestOccurrence()
                                 && project.playerWasInvolved(player))
-                        .collect(Collectors.toList());
+                        .toList();
 
                 if (objective.getCompletedSteps() != relevantProjects.size()) {
                     objective.setCompletedSteps(relevantProjects.size());
@@ -96,17 +126,21 @@ public class ObjectiveChecker {
                             objective.getId(),
                             objective.getCompletedSteps(),
                             objective.getTotalSteps());
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 220) {
+                break;
+
+            case 220:
                 // Unlock skill "Recruiting I"
-                HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+                skills = skillsManager.getSkillsByPlayer(player);
                 if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
-                    objective.markAsCompleted();
+                    objective.setCompleted();
                     logger.debug("Objective 220 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 222) {
+                break;
+
+            case 222:
                 // Objective: Give your employee a 10% raise
                 if (!player.getEmployees().isEmpty()) {
                     Employee employee = player.getEmployees().get(0);
@@ -117,72 +151,84 @@ public class ObjectiveChecker {
                         SalaryHistoryEntry latestEntry = history.get(history.size() - 1);
 
                         if (latestEntry.getSalary() >= initialEntry.getSalary() * 1.1) {
-                            objective.markAsCompleted();
+                            objective.setCompleted();
                             logger.debug("Objective 222 completed: Employee received a 10% raise.");
-                            updatedNeeded = true;
+                            updated = true;
                         }
                     }
                 }
-            } else if (objective.getId() == 223) {
-                // Objective: Have a one-to-one with your employee
+                break;
 
-                // Indirect indicator: Check if an employee has a SATISFACTION status effect with description "Feels heard"
+            case 223:
+                // Objective: Have a one-to-one with your employee
                 if (!player.getEmployees().isEmpty()) {
                     Employee employee = player.getEmployees().get(0);
                     List<StatusEffect> statusEffects = employee.getStatusEffects();
 
                     if (statusEffects.stream().anyMatch(statusEffect ->
                             statusEffect.getType() == StatusEffectType.SATISFACTION
-                            && statusEffect.getDescription().equals("Feels heard"))) {
-                        objective.markAsCompleted();
+                                    && statusEffect.getDescription().equals("Feels heard"))) {
+                        objective.setCompleted();
                         logger.debug("Objective 223 completed: One-to-one with employee.");
-                        updatedNeeded = true;
+                        updated = true;
                     }
                 }
-            } else if (objective.getId() == 224) {
+                break;
+
+            case 224:
                 // Objective: Train your employee in project management basics
                 // Not implemented yet (no training feature)
-            } else if (objective.getId() == 230) {
-                // Objective: Build a team of 5 employees
+                break;
 
-                // Check if player has 5 employees. For every employee, increment the objective's completed steps.
+            case 230:
+                // Objective: Build a team of 5 employees
                 if (player.getEmployees().size() != objective.getCompletedSteps()) {
                     objective.setCompletedSteps(player.getEmployees().size());
-                    updatedNeeded = true;
+                    updated = true;
                 }
 
                 if (player.getEmployees().size() >= 5) {
-                    objective.markAsCompleted();
+                    objective.setCompleted();
                     logger.debug("Objective 230 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 231) {
+                break;
+
+            case 231:
                 // Objective: Unlock skill "Team Lead"
-                HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+                skills = skillsManager.getSkillsByPlayer(player);
                 if (skills.containsKey("team-lead") && skills.get("team-lead").isUnlocked()) {
-                    objective.markAsCompleted();
+                    objective.setCompleted();
                     logger.debug("Objective 231 completed.");
-                    updatedNeeded = true;
+                    updated = true;
                 }
-            } else if (objective.getId() == 232) {
+                break;
+
+            case 232:
                 // Objective: Let the team lead staff a project
                 // Not implemented yet (no team lead feature)
-            } else if (objective.getId() == 240) {
+                break;
+
+            case 240:
                 // Objective: Fire an employee
                 // Check if player has fired an employee
                 // Don't know how to check this yet...
-            } else if (objective.getId() == 241) {
+                break;
+
+            case 241:
                 // Objective: Cancel the messy project
                 // Not implemented yet (no project cancellation feature)
-            }
-
-            if (updatedNeeded) {
-                logger.debug("Sending updated objectives to player.");
-                List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
-                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-                objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                game.sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
-            }
+                break;
         }
+
+        return updated;
+    }
+
+    private void notifyPlayerAboutObjectives(Player player) {
+        logger.debug("Sending updated objectives to player.");
+        List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
+        GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
+        objectivesUpdatedEvent.setPayload(allActiveObjectives);
+        game.sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
     }
 }
