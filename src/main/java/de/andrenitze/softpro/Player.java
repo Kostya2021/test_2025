@@ -279,4 +279,15 @@ public class Player {
     public List<Decision> getDecisionsByLevel(int level) {
         return decisions.get(level);
     }
+
+    public Objective getObjectiveById(int id) {
+        for (Mission mission : this.missions) {
+            for (Objective objective : mission.getObjectives()) {
+                if (objective.getId() == id) {
+                    return objective;
+                }
+            }
+        }
+        return null;
+    }
 }

@@ -79,7 +79,7 @@ public class SkillsManager {
             writer.close();
             logger.debug("Skills for player {} saved to {}", player.getName(), SKILLS_DIRECTORY + player.getId() + ".json");
         } catch (IOException e) {
-            logger.error("Failed to save skills for player {}: {}", player.getName(), e.getMessage());
+            logger.error("Failed to save skills for player {}: {}", player.getId(), e.getMessage());
         }
     }
 
@@ -98,7 +98,7 @@ public class SkillsManager {
                 logger.debug("No existing skills file for player {}. Created a new one.", player.getName());
             }
         } catch (IOException e) {
-            logger.error("Failed to load skills for player {}: {}", player.getName(), e.getMessage());
+            logger.error("Failed to load skills for player {}: {}", player.getId(), e.getMessage());
         }
     }
 

@@ -50,11 +50,12 @@ public class ObjectiveChecker {
                                    SkillsManager skillsManager) {
         boolean updated = false;
         HashMap<String, Skill> skills;
+        List<Project> relevantProjects;
 
         switch (objective.getId()) {
             case 11:
                 if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 11 completed.");
                     updated = true;
                 }
@@ -63,7 +64,7 @@ public class ObjectiveChecker {
             case 12:
                 if (projectEmployeesMap.values().stream().anyMatch(employees ->
                         employees.contains(player.getEmployees().get(0)))) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 12 completed.");
                     updated = true;
                 }
@@ -72,16 +73,18 @@ public class ObjectiveChecker {
             case 13:
                 if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
                         && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 13 completed.");
                     updated = true;
                 }
                 break;
 
+            case 14:
+
             case 15:
                 // Check if player has enough XP to complete the objective
                 if (objective.getCompletedSteps() >= objective.getTotalSteps()) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     updated = true;
                 } else if (player.getXp() != objective.getCompletedSteps()) {
                     // Only update if the XP value has actually changed
@@ -93,8 +96,36 @@ public class ObjectiveChecker {
             case 16:
                 skills = skillsManager.getSkillsByPlayer(player);
                 if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 16 completed.");
+                    updated = true;
+                }
+                break;
+
+            case 17:
+                // Check if the player has completed a number of projects (= totalSteps)
+                // since the previous objective has been completed.
+
+                // Get the previous objective
+                Objective previousObjective = player.getObjectiveById(objective.getId() - 1);
+                if (previousObjective == null) return false;
+
+                relevantProjects = projects
+                        .stream()
+                        .filter(project -> project.isCompleted()
+                                && project.getCompletedAt() > previousObjective.getCompletedAt()
+                                && project.playerWasInvolved(player))
+                        .collect(Collectors.toList()); // Don't replace with toList()!
+
+                if (objective.getCompletedSteps() != relevantProjects.size()) {
+                    objective.setCompletedSteps(relevantProjects.size());
+                    debugLogStepCompletion(objective);
+                    updated = true;
+                }
+
+                if (objective.getCompletedSteps() >= objective.getTotalSteps()) {
+                    objective.setCompleted(currentTick);
+                    logger.debug("Objective {} completed.", objective.getId());
                     updated = true;
                 }
                 break;
@@ -103,31 +134,8 @@ public class ObjectiveChecker {
                 skills = skillsManager.getSkillsByPlayer(player);
                 if ((skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked()) ||
                         (skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked())) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 210 completed.");
-                    updated = true;
-                }
-                break;
-
-            case 14:
-            case 17:
-            case 31:
-                Mission mission = game.getMissionByObjective(player, objective);
-                if (mission == null) return false;
-
-                ArrayList<Project> relevantProjects = (ArrayList<Project>) projects
-                        .stream()
-                        .filter(project -> project.isCompleted()
-                                && project.getCompletedAt() > mission.getEarliestOccurrence()
-                                && project.playerWasInvolved(player))
-                        .collect(Collectors.toList()); // Don't replace with toList()!
-
-                if (objective.getCompletedSteps() != relevantProjects.size()) {
-                    objective.setCompletedSteps(relevantProjects.size());
-                    logger.debug("Objective {} completed steps: {}/{}",
-                            objective.getId(),
-                            objective.getCompletedSteps(),
-                            objective.getTotalSteps());
                     updated = true;
                 }
                 break;
@@ -136,7 +144,7 @@ public class ObjectiveChecker {
                 // Unlock skill "Recruiting I"
                 skills = skillsManager.getSkillsByPlayer(player);
                 if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 220 completed.");
                     updated = true;
                 }
@@ -153,7 +161,7 @@ public class ObjectiveChecker {
                         SalaryHistoryEntry latestEntry = history.get(history.size() - 1);
 
                         if (latestEntry.salary() >= initialEntry.salary() * 1.1) {
-                            objective.setCompleted();
+                            objective.setCompleted(currentTick);
                             logger.debug("Objective 222 completed: Employee received a 10% raise.");
                             updated = true;
                         }
@@ -170,7 +178,7 @@ public class ObjectiveChecker {
                     if (statusEffects.stream().anyMatch(statusEffect ->
                             statusEffect.getType() == StatusEffectType.SATISFACTION
                                     && statusEffect.getDescription().equals("Feels heard"))) {
-                        objective.setCompleted();
+                        objective.setCompleted(currentTick);
                         logger.debug("Objective 223 completed: One-to-one with employee.");
                         updated = true;
                     }
@@ -190,7 +198,7 @@ public class ObjectiveChecker {
                 }
 
                 if (player.getEmployees().size() >= 5) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 230 completed.");
                     updated = true;
                 }
@@ -200,7 +208,7 @@ public class ObjectiveChecker {
                 // Objective: Unlock skill "Team Lead"
                 skills = skillsManager.getSkillsByPlayer(player);
                 if (skills.containsKey("team-lead") && skills.get("team-lead").isUnlocked()) {
-                    objective.setCompleted();
+                    objective.setCompleted(currentTick);
                     logger.debug("Objective 231 completed.");
                     updated = true;
                 }
@@ -221,9 +229,34 @@ public class ObjectiveChecker {
                 // Objective: Cancel the messy project
                 // Not implemented yet (no project cancellation feature)
                 break;
+
+            case 31:
+                Mission mission = game.getMissionByObjective(player, objective);
+                if (mission == null) return false;
+
+                relevantProjects = projects
+                        .stream()
+                        .filter(project -> project.isCompleted()
+                                && project.getCompletedAt() > mission.getEarliestOccurrence()
+                                && project.playerWasInvolved(player))
+                        .collect(Collectors.toList()); // Don't replace with toList()!
+
+                if (objective.getCompletedSteps() != relevantProjects.size()) {
+                    objective.setCompletedSteps(relevantProjects.size());
+                    debugLogStepCompletion(objective);
+                    updated = true;
+                }
+                break;
         }
 
         return updated;
+    }
+
+    private void debugLogStepCompletion(Objective objective) {
+        logger.debug("Objective {} completed steps: {}/{}",
+                objective.getId(),
+                objective.getCompletedSteps(),
+                objective.getTotalSteps());
     }
 
     private void notifyPlayerAboutObjectives(Player player) {
@@ -231,8 +264,6 @@ public class ObjectiveChecker {
         List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
         GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
         objectivesUpdatedEvent.setPayload(allActiveObjectives);
-        if (allActiveObjectives.size() > 4)
-            logger.debug("Objectives updated event: {}", allActiveObjectives.get(4).toString());
         game.sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
     }
 }

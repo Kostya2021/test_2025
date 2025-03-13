@@ -356,7 +356,7 @@ public class GameServer extends WebSocketServer {
                         player.getEmployees().get(0).setFirstName(player.getFirstName());
                         player.getEmployees().get(0).setLastName(player.getLastName());
                     } catch (IndexOutOfBoundsException e) {
-                        logger.error("No employees found for player {}", player.getName());
+                        logger.error("No employees found for player {}", player.getId());
                     }
 
                     // Confirm successful name change
