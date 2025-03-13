@@ -133,7 +133,7 @@ public class ProjectManager {
 
             player.addFunds(profit);
             AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
-                    AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project completed");
+                    AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
             game.sendFundsUpdateToPlayer(player);
 
