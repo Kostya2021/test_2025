@@ -217,7 +217,7 @@ public class Player {
         // Make sure all objectives are not completed
         for (Mission mission : this.missions) {
             for (Objective objective : mission.getObjectives()) {
-                objective.setCompleted(false);
+                objective.setNotCompleted();
             }
         }
 
