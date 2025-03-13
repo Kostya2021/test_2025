@@ -26,7 +26,7 @@ public class Project {
     @Getter @Setter
     private int earnedValue;
     private final List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
-    private boolean hasTenderProcess;
+    private boolean tenderProcess;
     @Setter
     private int tenderDeadlineInDays;
 
@@ -151,11 +151,11 @@ public class Project {
         this.domain = domain;
         this.risk = risk;
         this.totalValue = generateVolume();
-        this.hasTenderProcess = hasTenderProcess;
+        this.tenderProcess = hasTenderProcess;
     }
 
     public void setTenderProcess(boolean hasTenderProcess) {
-        this.hasTenderProcess = hasTenderProcess;
+        this.tenderProcess = hasTenderProcess;
 
         if (hasTenderProcess) {
             this.tenderDeadlineInDays = 20;
@@ -277,7 +277,7 @@ public class Project {
     }
 
     boolean hasNoTenderProcess() {
-        return !hasTenderProcess;
+        return !tenderProcess;
     }
 
     public boolean isCompleted() {

@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameServer.GSON;
 
@@ -82,6 +83,7 @@ public class ObjectiveChecker {
                 }
 
                 if (player.getXp() >= 125) {
+                    objective.setCompletedSteps(objective.getTotalSteps());
                     objective.setCompleted();
                     logger.debug("Objective 15 completed.");
                     updated = true;
@@ -102,7 +104,7 @@ public class ObjectiveChecker {
                 if ((skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked()) ||
                         (skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked())) {
                     objective.setCompleted();
-                    logger.debug("Objective 21 completed.");
+                    logger.debug("Objective 210 completed.");
                     updated = true;
                 }
                 break;
@@ -118,7 +120,7 @@ public class ObjectiveChecker {
                         .filter(project -> project.isCompleted()
                                 && project.getCompletedAt() > mission.getEarliestOccurrence()
                                 && project.playerWasInvolved(player))
-                        .toList();
+                        .collect(Collectors.toList()); // Don't replace with toList()!
 
                 if (objective.getCompletedSteps() != relevantProjects.size()) {
                     objective.setCompletedSteps(relevantProjects.size());
@@ -150,7 +152,7 @@ public class ObjectiveChecker {
                         SalaryHistoryEntry initialEntry = history.get(0);
                         SalaryHistoryEntry latestEntry = history.get(history.size() - 1);
 
-                        if (latestEntry.getSalary() >= initialEntry.getSalary() * 1.1) {
+                        if (latestEntry.salary() >= initialEntry.salary() * 1.1) {
                             objective.setCompleted();
                             logger.debug("Objective 222 completed: Employee received a 10% raise.");
                             updated = true;
