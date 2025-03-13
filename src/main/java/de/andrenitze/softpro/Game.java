@@ -1,7 +1,6 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.*;
-import de.andrenitze.softpro.entities.GameEvent;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.util.DatabaseConfig;
 import lombok.Getter;
@@ -346,7 +345,7 @@ public class Game {
         randomlySpawnProjectTendersPerTick();
         randomlySpawnComplianceProjectsPerTick();
         removeStaleTendersPerTick();
-        assignProjectsPerTick();
+        evaluateTenderProcessesPerTick();
         sendNewObjectivesPerTick();
         checkObjectivesCriteriaAndSendRewardsPerTick();
         simulateEmployeeLivesPerTick();
@@ -878,40 +877,30 @@ public class Game {
         }
     }
 
-    private void assignProjectsPerTick() {
+    private void evaluateTenderProcessesPerTick() {
         for (Project project : projects) {
-            if (project.getTenderDeadlineInDays() == 0) {
+            // Don't evaluate acquired projects
+            if (project.getAcquiredAt() != 0) {
+                continue;
+            }
+
+            // Regular case: No tender process, assign project immediately
+            if (project.getTenderDeadlineInDays() == 0 || project.getTenderDeadlineInDays() == -1) {
                 // Set deadline to -1 to exclude it from further evaluations
                 project.setTenderDeadlineInDays(-1);
 
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
-                    logger.debug("Found project {}", project.getName());
-
-                    // Remember acquisition date
-                    project.setAcquiredAt(currentTick);
+                    logger.debug("Project {} has no tender process. Assigning project to player {}.",
+                            project.getName(), project.getInvolvedPlayers().get(0).getId());
 
                     // Inform winner with a confirmation message
-                    GameEvent<Project> wonTenderEvent = new GameEvent<>();
-                    wonTenderEvent.setType(EventType.PROJECT_RECEIVED);
-                    wonTenderEvent.setPayload(project);
-                    sendMessageToPlayer(project.getInvolvedPlayers().get(0), GSON.toJson(wonTenderEvent));
+                    assignProjectToPlayer(project.getInvolvedPlayers().get(0), project);
                 }
-            } else if (project.getTenderDeadlineInDays() != 0 && project.getTenderDeadlineInDays() != -1) {
-                // Regular case: Just decrease the time left for tender participation
+            } else {
+                // For tender processes, just decrease the time left for tender participation
                 project.decreaseTimeLeftForTender();
             }
-        }
-    }
-
-    public void immediatelyCloseTender(Project project) {
-        if (project.hasNoTenderProcess() && project.getInvolvedPlayers().size() == 1) {
-            GameEvent<Integer> closeTenderEvent = new GameEvent<>(EventType.TENDER_CLOSED);
-            closeTenderEvent.setPayload(project.getId());
-            broadcastToAllPlayers(GSON.toJson(closeTenderEvent));
-
-            // Make it appear in the next evaluation of assignProjectsPerTick()
-            project.setTenderDeadlineInDays(0);
         }
     }
 
@@ -1167,5 +1156,19 @@ public class Game {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdateEvent.setPayload(project);
         sendMessageToPlayer(player, GSON.toJson(projectUpdateEvent));
+    }
+
+    public void assignProjectToPlayer(Player player, Project project) {
+        // Assign the project to the player
+        project.addParty(player);
+        project.setAcquiredAt(currentTick);
+
+        // Add the project to the project-employee map
+        projectEmployeesMap.put(project, new ArrayList<>());
+
+        // Send PROJECT_RECEIVED event to the player
+        GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+        projectReceivedEvent.setPayload(project);
+        sendMessageToPlayer(player, GSON.toJson(projectReceivedEvent));
     }
 }
