@@ -316,6 +316,19 @@ class GameEventHandler {
                 // Estimate the project progress
                 game.conductTeamEstimation(projectId, player);
             }
+            case PROJECT_CANCEL_REQUESTED -> {
+                int projectId = parseIdByKey(message, "projectId");
+                Project project = game.getProjectById(projectId);
+                Player player = game.getPlayerByWebSocket(websocket);
+
+                // Cancel the project
+                if (project != null) {
+                    logger.debug("Cancelling project '{}'...", projectId);
+                    game.getProjectManager().cancelProject(player, project);
+                } else {
+                    logger.warn("Could not cancel project. Project {} not found.", projectId);
+                }
+            }
             case ROUND_STARTED, STATE_UPDATED, GAME_OVER, NEW_TENDER, NEW_FUNDS, PROJECT_RECEIVED,
                  OBJECTIVES_UPDATED, PROJECT_UPDATED, PLAYER_UPDATED, NEW_STORY_ELEMENT, UPDATE_LOBBY, T,
                  EFFECT_DISABLED, PLAYER_NAME_UPDATED, TENDERS_REMOVED, TALENTS_ADDED, TALENTS_REMOVED, TENDERS_ADDED,

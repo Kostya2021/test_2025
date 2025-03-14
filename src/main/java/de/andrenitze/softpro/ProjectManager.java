@@ -16,9 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.*;
+import static de.andrenitze.softpro.GameServer.GSON;
 import static java.lang.Math.*;
 
 public class ProjectManager {
+    public static final double CANCELLATION_PENALTY = 0.2;
     private final Game game;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final SkillsManager skillsManager;
@@ -144,7 +146,7 @@ public class ProjectManager {
             GameEvent<Player> playerUpdateEvent = new GameEvent<>();
             playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
-            game.sendMessageToPlayer(player, GameServer.GSON.toJson(playerUpdateEvent));
+            game.sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
 
             // After project completion, send gained XP of employees to player
             for (Employee employee : employees) {
@@ -415,5 +417,86 @@ public class ProjectManager {
         return false;
     }
 
-    // Other methods
+    public void cancelProject(Player player, Project project) {
+        if (project == null) {
+            logger.error("Project not found while attempting to cancel.");
+            return;
+        }
+
+        if (project.isCompleted()) {
+            logger.error("Project {} is already completed.", project.getName());
+            return;
+        }
+
+        if (project.getCancelledAt() != 0) {
+            logger.error("Project {} is already cancelled.", project.getName());
+            return;
+        }
+
+        if (project.getInvolvedPlayers().size() > 1) {
+            logger.error("Project {} has more than one player involved. Only the project owner can cancel it.", project.getName());
+            return;
+        }
+
+        if (!project.getInvolvedPlayers().contains(player)) {
+            logger.error("Player {} is not involved in project {}.", player.getName(), project.getName());
+            return;
+        }
+
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            logger.error("Compliance projects cannot be cancelled.");
+            return;
+        }
+
+        project.setCancelledAt(game.getCurrentTick());
+
+        // Calculate cancellation penalty (30% of total value)
+        int cancellationPenalty = 0;
+        if (game.getLevel() != 1) {
+            cancellationPenalty = (int) (project.getTotalValue() * CANCELLATION_PENALTY);
+        }
+        project.setPenalty(cancellationPenalty);
+
+        // If the project has started, apply the penalty
+        if (project.getStartedAt() > 0) {
+            player.subtractFunds(cancellationPenalty);
+            accountingService.addEntry(new AccountingEntry(
+                    player,
+                    game.getCurrentTick(),
+                    cancellationPenalty,
+                    AccountCategory.DEBIT_PROJECTS,
+                    TransactionType.DEBIT,
+                    "Cancellation penalty for project: " + project.getName()
+            ));
+
+            // Update funds
+            game.sendFundsUpdateToPlayer(player);
+        }
+
+        // Remove any employees assigned to this project
+        if (projectEmployeesMap.containsKey(project)) {
+            projectEmployeesMap.get(project).clear();
+        }
+
+        // Remove player from project
+        project.removeParty(player);
+
+        // Create a project update event to notify the player
+        GameEvent<HashMap<String, Object>> projectCancelledEvent = new GameEvent<>(EventType.PROJECT_CANCELLED);
+        HashMap<String, Object> payload = new HashMap<>();
+        payload.put("projectId", project.getId());
+        payload.put("cancellationPenalty", cancellationPenalty);
+        projectCancelledEvent.setPayload(payload);
+
+        // Notify the player
+        game.sendMessageToPlayer(player, GSON.toJson(projectCancelledEvent));
+
+        // If the project was acquired but not started completely remove it from the game.
+        if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
+            game.getProjects().remove(project);
+            projectEmployeesMap.remove(project);
+        }
+
+        logger.debug("Project {} cancelled by player {}", project.getName(), player.getId());
+    }
 }
