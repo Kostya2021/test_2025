@@ -79,7 +79,7 @@ public class Project {
     @Getter @Setter
     private List<ProgressEstimate> progressEstimates = new ArrayList<>();
     @Getter @Setter
-    private int cancelledAt;
+    private int cancelledAt = 0;
 
     /**
      * Generates a project with a random name and volume

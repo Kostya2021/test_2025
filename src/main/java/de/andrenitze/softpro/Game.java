@@ -1166,6 +1166,11 @@ public class Game {
         // Add the project to the project-employee map
         projectEmployeesMap.put(project, new ArrayList<>());
 
+        // Send PROJECT_UPDATED to all players (-> important for tenders!)
+        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+        projectUpdatedEvent.setPayload(project);
+        broadcastToAllPlayers(GSON.toJson(projectUpdatedEvent));
+
         // Send PROJECT_RECEIVED event to the player
         GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
         projectReceivedEvent.setPayload(project);

@@ -481,12 +481,10 @@ public class ProjectManager {
         // Remove player from project
         project.removeParty(player);
 
-        // Create a project update event to notify the player
-        GameEvent<HashMap<String, Object>> projectCancelledEvent = new GameEvent<>(EventType.PROJECT_CANCELLED);
-        HashMap<String, Object> payload = new HashMap<>();
-        payload.put("projectId", project.getId());
-        payload.put("cancellationPenalty", cancellationPenalty);
-        projectCancelledEvent.setPayload(payload);
+        // Create a project update event to notify the player (cancelledAt, penalty and more...)
+        GameEvent<Project> projectCancelledEvent = new GameEvent<>();
+        projectCancelledEvent.setType(EventType.PROJECT_UPDATED);
+        projectCancelledEvent.setPayload(project);
 
         // Notify the player
         game.sendMessageToPlayer(player, GSON.toJson(projectCancelledEvent));
