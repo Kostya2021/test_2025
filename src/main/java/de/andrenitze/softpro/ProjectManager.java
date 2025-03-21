@@ -459,7 +459,7 @@ public class ProjectManager {
                 : CONTRACTOR_CANCELLATION_PENALTY;
 
         int cancellationPenalty = 0;
-        if (game.getLevel() != 2) { // TODO!!
+        if (game.getLevel() != 1) {
             cancellationPenalty = (int) (project.getTotalValue() * penaltyRate);
         }
         project.setPenalty(cancellationPenalty);
