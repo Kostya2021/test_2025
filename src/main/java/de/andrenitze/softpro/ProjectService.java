@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.*;
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
-import static de.andrenitze.softpro.GameServer.GSON;
+import static de.andrenitze.softpro.GameServer.gson;
 import static java.lang.Math.*;
 
 public class ProjectService {
@@ -157,7 +157,7 @@ public class ProjectService {
             GameEvent<Player> playerUpdateEvent = new GameEvent<>();
             playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
-            game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
+            game.getMessagingService().sendMessageToPlayer(player, gson.toJson(playerUpdateEvent));
 
             // After project completion, send gained XP of employees to player
             for (Employee employee : employees) {
@@ -504,7 +504,7 @@ public class ProjectService {
         projectCancelledEvent.setPayload(project);
 
         // Notify the player
-        game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(projectCancelledEvent));
+        game.getMessagingService().sendMessageToPlayer(player, gson.toJson(projectCancelledEvent));
 
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {

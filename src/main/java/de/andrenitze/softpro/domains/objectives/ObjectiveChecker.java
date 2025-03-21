@@ -14,8 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static de.andrenitze.softpro.GameServer.GSON;
-
 public class ObjectiveChecker {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Game game;
@@ -256,6 +254,6 @@ public class ObjectiveChecker {
         List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
         GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
         objectivesUpdatedEvent.setPayload(allActiveObjectives);
-        game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+        game.getMessagingService().sendMessageToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
     }
 }
