@@ -15,10 +15,7 @@ import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
-import de.andrenitze.softpro.domains.projects.Problem;
-import de.andrenitze.softpro.domains.projects.ProblemGenerator;
-import de.andrenitze.softpro.domains.projects.ProjectType;
-import de.andrenitze.softpro.domains.projects.RiskLevel;
+import de.andrenitze.softpro.domains.projects.*;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 import de.andrenitze.softpro.events.EventType;
@@ -39,7 +36,6 @@ import java.net.ConnectException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
@@ -255,7 +251,7 @@ public class Game {
     private void triggerLevel1Consequences() {
         players.forEach((_, player) -> {
             // Decision "Fail to plan, plan to fail" (level 1, decision 1)
-            int option = player.getDecisionsByLevel(1).get(0).getOptionId();
+            int option = player.getDecisionsByLevel(1).getFirst().getOptionId();
 
             if (option == 1) {
                 // Option 1 "Efficiency" -> Increase productivity by 75% for the whole level
@@ -442,40 +438,36 @@ public class Game {
     private void createProblemsInProjectsPerTick() {
         // In all running projectService.getProjects()...
         for (Project project : projectService.getProjects()) {
-            // If it's not running, don't create problems
-            if (project.getStartedAt() == 0 || project.isCompleted()) {
-                continue;
-            }
+            // If it's not running or completed, skip to the next project
+            if (project.getStartedAt() != 0 && !project.isCompleted()) {
+                // For now, with a fixed chance for a problem to occur,
+                // (can be adjusted later depending on project volume, risk level, etc.)
+                double problemSpawnProbability = 0.01;
+                int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
 
-            // For now, with a fixed chance for a problem to occur,
-            // (can be adjusted later depending on project volume, risk level, etc.)
-            double problemSpawnProbability = 0.01;
-            int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
+                // but not more than a certain number problems per project
+                if (RANDOM.nextFloat() <= problemSpawnProbability
+                        && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
+                    // Take all problems of the project
+                    List<Problem> occurredProblems = project.getProblems();
 
-            // but not more than a certain number problems per project
-            if (RANDOM.nextFloat() <= problemSpawnProbability
-                    && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
-                // Take all problems of the project
-                List<Problem> occurredProblems = project.getProblems();
+                    // Create a problem that has not occurred in the project before (independent of resolution state)
+                    Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
+                    if (problem != null) { // Only add if a new problem is generated
+                        // Add the problem to the project
+                        problem.setOccurredAt(currentTick);
+                        project.addProblem(problem);
 
-                // Create a problem that has not occurred in the project before (independent of resolution state)
-                Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
-                if (problem == null) { // All problems have occurred
-                    continue;
+                        // Inform all involved players about the new problem
+                        logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
+
+                        project.getInvolvedPlayers().forEach(player -> {
+                            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                            projectUpdatedEvent.setPayload(project);
+                            messagingService.sendMessageToPlayer(player, getGson().toJson(projectUpdatedEvent));
+                        });
+                    }
                 }
-
-                // Add the problem to the project
-                problem.setOccurredAt(currentTick);
-                project.addProblem(problem);
-
-                // Inform all involved players about the new problem
-                logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
-
-                project.getInvolvedPlayers().forEach(player -> {
-                    GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                    projectUpdatedEvent.setPayload(project);
-                    messagingService.sendMessageToPlayer(player, getGson().toJson(projectUpdatedEvent));
-                });
             }
         }
     }

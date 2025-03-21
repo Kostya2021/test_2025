@@ -7,6 +7,7 @@ import de.andrenitze.softpro.*;
 import de.andrenitze.softpro.domains.decisions.LevelDecisions;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Problem;
+import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectPartyExclusionStrategy;
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import de.andrenitze.softpro.*;
 import de.andrenitze.softpro.config.GameParameters;
+import de.andrenitze.softpro.domains.projects.Project;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

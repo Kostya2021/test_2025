@@ -1,12 +1,9 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.domains.projects;
 
+import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.projects.EarnedValueHistoryEntry;
-import de.andrenitze.softpro.domains.projects.Problem;
-import de.andrenitze.softpro.domains.projects.ProgressEstimate;
-import de.andrenitze.softpro.domains.projects.ProjectType;
-import de.andrenitze.softpro.domains.projects.RiskLevel;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -231,11 +228,11 @@ public class Project {
         return projectName.toString();
     }
 
-    void decreaseTimeLeftForTender() {
+    public void decreaseTimeLeftForTender() {
         --this.tenderDeadlineInDays;
     }
 
-    int getTenderDeadlineInDays() {
+    public int getTenderDeadlineInDays() {
         return tenderDeadlineInDays;
     }
 
@@ -254,7 +251,7 @@ public class Project {
         return involvedParties;
     }
 
-    RiskLevel getRiskLevel() {
+    public RiskLevel getRiskLevel() {
         return risk;
     }
 
@@ -262,7 +259,7 @@ public class Project {
         return id;
     }
 
-    void addEarnedValue(int addedValue, int tick) {
+    public void addEarnedValue(int addedValue, int tick) {
         setEarnedValue(Math.max(getEarnedValue() + addedValue, 0));
 
         if (isCompleted()) {
@@ -310,7 +307,7 @@ public class Project {
         return false;
     }
 
-    protected boolean isRampingUp(int currentTick) {
+    public boolean isRampingUp(int currentTick) {
         // No extra on-boarding effort is assigned at the beginning of the project for the beginning of a project
         // (time to allocate staff to project, also general ramp-up, s. Rule #2)
         // Safe period (10%). No training required.

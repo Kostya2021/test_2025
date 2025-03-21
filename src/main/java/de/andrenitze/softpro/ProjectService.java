@@ -6,6 +6,7 @@ import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.AccountingService;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.domains.projects.ProjectType;

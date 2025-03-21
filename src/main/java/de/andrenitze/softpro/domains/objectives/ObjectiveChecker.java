@@ -3,6 +3,7 @@ package de.andrenitze.softpro.domains.objectives;
 import de.andrenitze.softpro.*;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.domains.employees.Employee;

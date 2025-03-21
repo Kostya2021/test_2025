@@ -1,5 +1,6 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
 import org.java_websocket.WebSocket;

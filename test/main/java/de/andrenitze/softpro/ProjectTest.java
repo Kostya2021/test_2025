@@ -1,6 +1,6 @@
 package main.java.de.andrenitze.softpro;
 
-import de.andrenitze.softpro.Project;
+import de.andrenitze.softpro.domains.projects.Project;
 import org.mockito.Mock;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;

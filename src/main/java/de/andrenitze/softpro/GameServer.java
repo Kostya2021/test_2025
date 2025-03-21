@@ -4,6 +4,7 @@ import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.events.EventType;
