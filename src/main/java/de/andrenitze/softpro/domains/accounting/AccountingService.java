@@ -37,7 +37,6 @@ public class AccountingService {
         entry.setDay(entry.getDay() + 1);
 
         entries.add(entry);
-        logger.debug("Added new entry on day {} with amount {} and category {}.", entry.getDay(), entry.getAmount(), entry.getCategory());
     }
 
     public List<AccountingEntry> getAllEntriesByPlayer(UUID playerId) {
@@ -65,7 +64,7 @@ public class AccountingService {
                         TransactionType.DEBIT, "Insurance"));
 
                 // Subtract rent and insurance from funds (not handled by accounting service)
-                player.subtractFunds(rent + insurance);
+                player.subtractFunds((float) rent + insurance);
 
                 game.getMessagingService().sendFundsUpdateToPlayer(player);
             });

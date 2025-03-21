@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Getter
 public class Objectives {
     private final List<Mission> missions;
@@ -19,20 +17,9 @@ public class Objectives {
     }
 
     public static Objectives getInstance(int level) {
-        Objectives instance = instances.get(level);
-        if (instance == null) {
-            synchronized (Objectives.class) {
-                instance = instances.get(level);
-                if (instance == null) {
-                    List<Mission> loadedMissions = MissionsLoader.loadMissionsFromYamlFile("level-" + level + "-objectives.yaml");
-                    instance = new Objectives(loadedMissions);
-                    instances.put(level, instance);
-                    logger.debug("Creating new Objectives instance for level {} with {} missions",
-                            level,
-                            loadedMissions.size());
-                }
-            }
-        }
-        return instance;
+        return instances.computeIfAbsent(level, k -> {
+            List<Mission> loadedMissions = MissionsLoader.loadMissionsFromYamlFile("level-" + k + "-objectives.yaml");
+            return new Objectives(loadedMissions);
+        });
     }
 }

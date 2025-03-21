@@ -7,25 +7,26 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import javax.sql.DataSource;
 
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Main.logger;
 
 public final class DatabaseConfig {
-    private static volatile DataSource dataSource;
+    private static final AtomicReference<DataSource> dataSource = new AtomicReference<>();
 
     private DatabaseConfig() {
         // private constructor to prevent instantiation
     }
 
     public static DataSource getDataSource() {
-        if (dataSource == null) {
+        if (dataSource.get() == null) {
             synchronized (DatabaseConfig.class) {
-                if (dataSource == null) {
-                    dataSource = createDataSource();
+                if (dataSource.get() == null) {
+                    dataSource.set(createDataSource());
                 }
             }
         }
-        return dataSource;
+        return dataSource.get();
     }
 
     private static DataSource createDataSource() {
@@ -36,9 +37,10 @@ public final class DatabaseConfig {
             logger.debug("MySQL Connector/J Driver Version: {}", driver.getMajorVersion() + "." + driver.getMinorVersion());
         } catch (ClassNotFoundException e) {
             logger.error("MySQL JDBC Driver not found! Please check if the driver JAR is included in the classpath.", e);
-            throw new RuntimeException("MySQL JDBC Driver not found.", e);
+            // Handle the exception, e.g., set a flag or notify the user
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("SQL Exception occurred while registering MySQL JDBC Driver.", e);
+            // Handle the exception, e.g., set a flag or notify the user
         }
 
         ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(

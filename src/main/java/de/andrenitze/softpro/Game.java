@@ -41,6 +41,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.gson;
 import static de.andrenitze.softpro.GameServer.RANDOM;
@@ -212,7 +213,7 @@ public class Game {
             // Send talent market to players at once
             GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcastToAllPlayers(GameServer.getGson().toJson(employeeEvent));
+            messagingService.broadcastToAllPlayers(getGson().toJson(employeeEvent));
         }
 
         // Send all tenders at once
@@ -396,7 +397,7 @@ public class Game {
         players.forEach((webSocket, player) -> {
             List<AccountingEntry> newEntries = accountingService.getAllEntriesByPlayer(player.getId()).stream()
                     .filter(entry -> entry.getDay() == currentTick)
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (!newEntries.isEmpty()) {
                 GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
@@ -554,7 +555,7 @@ public class Game {
             return;
         }
 
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             List<StoryElement> thisPlayersStoryElements = getPlayerStoryElements(relevantStoryElements, player);
 
             if (!thisPlayersStoryElements.isEmpty()) {
@@ -598,7 +599,7 @@ public class Game {
     }
 
     private void simulateEmployeeLivesPerTick() {
-        players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
+        players.forEach((_, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(currentTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
 
@@ -625,7 +626,7 @@ public class Game {
 
     public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
         if (isEmployeeAssignedToProject(employee)) {
-            projectEmployeesMap.forEach((project, employees) -> {
+            projectEmployeesMap.forEach((project, _) -> {
                 if (project.getStartedAt() == 0) {
                     return;
                 }
@@ -662,7 +663,7 @@ public class Game {
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
         ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
-        players.forEach((webSocket, player) -> objectiveChecker.checkObjectives(player));
+        players.forEach((_, player) -> objectiveChecker.checkObjectives(player));
     }
 
     @Nullable
@@ -720,14 +721,13 @@ public class Game {
         // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
-        messagingService.sendMessageToPlayer(player, gson.toJson(gameOverEvent));
-        logger.debug("Sent GAME_OVER event to player: {}", gson.toJson(gameOverEvent));
+        messagingService.sendMessageToPlayer(player, getGson().toJson(gameOverEvent));
 
         // Update player one last time in this level to make sure, client is up-to-date
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
         playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        webSocket.send(gson.toJson(playerUpdateEvent));
+        webSocket.send(getGson().toJson(playerUpdateEvent));
 
         saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
         checkAndBroadcastHighScore(goStats);
