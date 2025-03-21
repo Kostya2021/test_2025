@@ -80,6 +80,8 @@ public class Project {
     private List<ProgressEstimate> progressEstimates = new ArrayList<>();
     @Getter @Setter
     private int cancelledAt = 0;
+    @Getter @Setter
+    private String cancelledBy;
 
     /**
      * Generates a project with a random name and volume

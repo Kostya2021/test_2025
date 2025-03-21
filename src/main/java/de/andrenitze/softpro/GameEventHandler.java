@@ -27,6 +27,8 @@ import static de.andrenitze.softpro.Main.logger;
 class GameEventHandler {
     public static final String TEAM_SPIRIT = "team-spirit";
     public static final String CRUNCH_MODE = "crunch-mode";
+    public static final String PARTY_CONTRACTOR = "contractor";
+    public static final String PARTY_CLIENT = "client";
     private final Game game;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -324,7 +326,7 @@ class GameEventHandler {
                 // Cancel the project
                 if (project != null) {
                     logger.debug("Cancelling project '{}'...", projectId);
-                    game.getProjectManager().cancelProject(player, project);
+                    game.getProjectManager().cancelProject(player, project, PARTY_CONTRACTOR); // contractor = player
                 } else {
                     logger.warn("Could not cancel project. Project {} not found.", projectId);
                 }

@@ -7,5 +7,6 @@ public enum AccountCategory {
     SALARIES,
     CREDIT_PROJECTS,
     DEBIT_PROJECTS,
+    PENALTIES,
     OTHER           // Anything else
 }
