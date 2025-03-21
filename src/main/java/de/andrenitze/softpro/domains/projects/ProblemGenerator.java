@@ -2,6 +2,7 @@ package de.andrenitze.softpro.domains.projects;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.GameServer;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -39,9 +40,8 @@ public class ProblemGenerator {
                 throw new IOException("File not found: " + filePath);
             }
             InputStreamReader reader = new InputStreamReader(inputStream);
-            Gson gson = new Gson();
             Type problemListType = new TypeToken<List<Problem>>() {}.getType();
-            this.problems = gson.fromJson(convertYamlToJson(reader), problemListType);
+            this.problems = GameServer.getGson().fromJson(convertYamlToJson(reader), problemListType);
             logger.debug("Loaded {} problems from file: {}", problems.size(), filePath);
             return true;
         } catch (IOException e) {
@@ -55,8 +55,7 @@ public class ProblemGenerator {
         try {
             Yaml yaml = new Yaml();
             Object data = yaml.load(reader);
-            Gson gson = new Gson();
-            return gson.toJson(data);
+            return GameServer.getGson().toJson(data);
         } catch (Exception e) {
             throw new IOException("Failed to open YAML file", e);
         }

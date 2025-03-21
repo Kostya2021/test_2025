@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -35,10 +36,22 @@ public class GameServer extends WebSocketServer {
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    public static Gson GSON = null;
+    private static final ExclusionStrategy strategy = new ExclusionStrategy() {
+        @Override
+        public boolean shouldSkipClass(Class<?> clazz) {
+            return false;
+        }
+
+        @Override
+        public boolean shouldSkipField(FieldAttributes field) {
+            return field.getAnnotation(ToStringPlugin.Exclude.class) != null;
+        }
+    };
+    @Getter
+    protected static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
     @Getter
     private GameOverStats dailyHighScore;
-    public static final Random RANDOM = new Random();
+    public static final SecureRandom RANDOM = new SecureRandom();
     private List<GameOverStats> dailyHighScores;
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
@@ -52,30 +65,12 @@ public class GameServer extends WebSocketServer {
     public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
-        initializeGson();
-
         // Fetch high-score in a separate thread
         new Thread(this::fetchHighScore).start();
 
         // Graceful shutdown hook
         Thread printingHook = new Thread(this::gracefulShutdown);
         Runtime.getRuntime().addShutdownHook(printingHook);
-    }
-
-    private static void initializeGson() {
-        // Add strategies for GSON serialization and deserialization
-        ExclusionStrategy strategy = new ExclusionStrategy() {
-            @Override
-            public boolean shouldSkipClass(Class<?> clazz) {
-                return false;
-            }
-
-            @Override
-            public boolean shouldSkipField(FieldAttributes field) {
-                return field.getAnnotation(ToStringPlugin.Exclude.class) != null;
-            }
-        };
-        GSON = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
     }
 
     private void gracefulShutdown() {
@@ -208,7 +203,7 @@ public class GameServer extends WebSocketServer {
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
         playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        webSocket.send(GSON.toJson(playerUpdateEvent));
+        webSocket.send(gson.toJson(playerUpdateEvent));
     }
 
     /**
@@ -320,7 +315,7 @@ public class GameServer extends WebSocketServer {
 
         // Handle lobby events (PLAYER_READY, PLAYER_NAME_UPDATED) here and forward everything else to the game instances
         try {
-            GameEvent<?> genericGameEvent = GSON.fromJson(message, GameEvent.class);
+            GameEvent<?> genericGameEvent = gson.fromJson(message, GameEvent.class);
 
             // If player is ready to play, make her available to be picked up by game instances.
             if (EventType.PLAYER_READY.equals(genericGameEvent.getType())) {
@@ -345,7 +340,7 @@ public class GameServer extends WebSocketServer {
             } else if (EventType.PLAYER_NAME_UPDATED.equals(genericGameEvent.getType())) {
                 // Allow name changes in the lobby
                 Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
-                GameEvent<Player> updatedPlayerEvent = GSON.fromJson(message, payloadType);
+                GameEvent<Player> updatedPlayerEvent = gson.fromJson(message, payloadType);
                 Player updatedPlayer = updatedPlayerEvent.getPayload();
 
                 // Sanitize string, but allow spaces, and special characters like é,ß,ä,ö,ü...
@@ -368,7 +363,7 @@ public class GameServer extends WebSocketServer {
                     GameEvent<Player> playerUpdateEvent = new GameEvent<>();
                     playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
                     playerUpdateEvent.setPayload(player);
-                    webSocket.send(GSON.toJson(playerUpdateEvent));
+                    webSocket.send(gson.toJson(playerUpdateEvent));
 
                     // Notify everyone in the lobby
                     broadcastLobbyState();
@@ -436,9 +431,9 @@ public class GameServer extends WebSocketServer {
         broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
                 "\"runningGames\": " + runningGames +
                 ", \"players\": " + playersList +
-                ", \"dailyHighScores\": " + GSON.toJson(anonymizedDailyHighScores) +
-                ", \"monthlyHighScores\": " + GSON.toJson(anonymizedMonthlyHighScores) +
-                ", \"quarterlyHighScores\": " + GSON.toJson(anonymizedQuarterlyHighScores) + "}}");
+                ", \"dailyHighScores\": " + gson.toJson(anonymizedDailyHighScores) +
+                ", \"monthlyHighScores\": " + gson.toJson(anonymizedMonthlyHighScores) +
+                ", \"quarterlyHighScores\": " + gson.toJson(anonymizedQuarterlyHighScores) + "}}");
     }
 
     private List<GameOverStats> getAnonymizedHighScores(List<GameOverStats> highScores) {

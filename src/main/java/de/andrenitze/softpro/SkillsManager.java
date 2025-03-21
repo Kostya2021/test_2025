@@ -17,7 +17,6 @@ import static de.andrenitze.softpro.Main.logger;
 
 public class SkillsManager {
     private final ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
-    private static final Gson gson = new Gson();
     private static final String SKILLS_DIRECTORY = "skills/";
 
     protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
@@ -75,7 +74,7 @@ public class SkillsManager {
                 throw new IllegalStateException("Failed to create directory: " + directory.getAbsolutePath());
             }
             FileWriter writer = new FileWriter(SKILLS_DIRECTORY + player.getId() + ".json");
-            gson.toJson(playersSkills.get(player), writer);
+            GameServer.getGson().toJson(playersSkills.get(player), writer);
             writer.close();
             logger.debug("Skills for player {} saved to {}", player.getName(), SKILLS_DIRECTORY + player.getId() + ".json");
         } catch (IOException e) {
@@ -89,7 +88,7 @@ public class SkillsManager {
             if (file.exists()) {
                 FileReader reader = new FileReader(file);
                 Type type = new TypeToken<HashMap<String, Skill>>() {}.getType();
-                HashMap<String, Skill> skills = gson.fromJson(reader, type);
+                HashMap<String, Skill> skills = GameServer.getGson().fromJson(reader, type);
                 playersSkills.put(player, skills);
                 reader.close();
                 logger.debug("Skills for player {} loaded from {}", player.getName(), SKILLS_DIRECTORY + player.getId() + ".json");
@@ -125,7 +124,7 @@ public class SkillsManager {
                     try {
                         FileReader reader = new FileReader(file);
                         Type type = new TypeToken<HashMap<String, Skill>>() {}.getType();
-                        HashMap<String, Skill> skills = gson.fromJson(reader, type);
+                        HashMap<String, Skill> skills = GameServer.getGson().fromJson(reader, type);
                         String playerId = file.getName().replace(".json", "");
                         Player player = playersSkills.keySet().stream()
                                 .filter(p -> p.getId().toString().equals(playerId))
