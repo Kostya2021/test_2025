@@ -43,7 +43,6 @@ import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
-import static de.andrenitze.softpro.GameServer.gson;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static java.lang.Math.*;
@@ -153,7 +152,7 @@ public class Game {
         messagingService.broadcastToAllPlayers(getGson().toJson(startEvent));
 
         // Send initial state to all players
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // Initialize skills
             skillsManager.addPlayer(player);
 
@@ -204,7 +203,7 @@ public class Game {
                 Project project = new Project().initialize();
 
                 // Set randomly negative publish dates to have some history of tenders
-                project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
+                project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
 
                 projectService.addProject(project);
                 projectEmployeesMap.put(project, new ArrayList<>());
@@ -234,7 +233,7 @@ public class Game {
         }
 
         // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             logger.debug("Checking for permanent status effects for player {}", player.getId());
             if (skillsManager.playerHasSkill(player, TEAM_SPIRIT)) {
                 logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
@@ -245,7 +244,7 @@ public class Game {
             }
         });
 
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             if (player.getDecisionsByLevel(getLevel()).isEmpty()) {
                 logger.warn("Player {} has no decisions for level {}", player.getId(), getLevel());
             }
@@ -254,7 +253,7 @@ public class Game {
 
 
     private void triggerLevel1Consequences() {
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // Decision "Fail to plan, plan to fail" (level 1, decision 1)
             int option = player.getDecisionsByLevel(1).get(0).getOptionId();
 
@@ -282,14 +281,14 @@ public class Game {
 
     private void triggerLevel2Consequences() {
         // Adjust gameplay for each player according to decisions made in briefing
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // "Backup decision" (level 2, decision 1)
-            int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
+            int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (option == 1) {
                 // Option 1 "Employee does it": Lower productivity of first employee as status effect for the whole level
                 // Make sure that the effect stays even if employee is fired. Always use the first employee.
                 player.setFunds(player.getFunds() - 5000);
-                Employee firstEmployee = player.getEmployees().get(0);
+                Employee firstEmployee = player.getEmployees().getFirst();
                 firstEmployee.addStatusEffect(
                         StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
                 // All status effects will be reset when the next level is prepared
@@ -303,9 +302,9 @@ public class Game {
     }
 
     private void triggerLevel3Consequences() {
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // "Backup decision" (level 2, decision 1)
-            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
+            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(
@@ -321,9 +320,9 @@ public class Game {
     }
 
     private void triggerLevel4Consequences() {
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // "Backup decision"
-            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
+            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(
@@ -397,7 +396,7 @@ public class Game {
         players.forEach((webSocket, player) -> {
             List<AccountingEntry> newEntries = accountingService.getAllEntriesByPlayer(player.getId()).stream()
                     .filter(entry -> entry.getDay() == currentTick)
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (!newEntries.isEmpty()) {
                 GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
@@ -829,7 +828,7 @@ public class Game {
         Player p = players.values().iterator().next();
 
         // Don't spawn new projects in level 1 before the first mission is completed
-        if (getLevel() == 1 && p.getMissions().get(0).isNotCompleted()) {
+        if (getLevel() == 1 && p.getMissions().getFirst().isNotCompleted()) {
             return;
         }
 
@@ -892,10 +891,10 @@ public class Game {
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
                     logger.debug("Project {} has no tender process. Assigning project to player {}.",
-                            project.getName(), project.getInvolvedPlayers().get(0).getId());
+                            project.getName(), project.getInvolvedPlayers().getFirst().getId());
 
                     // Inform winner with a confirmation message
-                    assignProjectToPlayer(project.getInvolvedPlayers().get(0), project);
+                    assignProjectToPlayer(project.getInvolvedPlayers().getFirst(), project);
                 }
             } else {
                 // For tender processes, just decrease the time left for tender participation
