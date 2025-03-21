@@ -91,7 +91,7 @@ public class GameEventHandler {
                                 .create();
                         GameEvent<Project> tenderUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                         tenderUpdatedEvent.setPayload(project);
-                        game.getMessagingService().broadcastToAllPlayers(GameServer.getGson().toJson(tenderUpdatedEvent));
+                        game.getMessagingService().broadcastToAllPlayers(gson.toJson(tenderUpdatedEvent));
                     }
                     break;
                 }
