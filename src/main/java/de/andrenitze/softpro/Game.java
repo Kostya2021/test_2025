@@ -65,12 +65,13 @@ public class Game {
     private final SkillsManager skillsManager;
     @Getter
     private final TalentMarket talentMarket;
+    @Getter
     private int level = 1;
     @Getter
     private final ProblemGenerator problemGenerator = new ProblemGenerator();
     @Getter
     private final ProjectManager projectManager;
-    private PropertyChangeSupport support = new PropertyChangeSupport(this);
+    private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -317,10 +318,6 @@ public class Game {
 
     private void setLevel(int i) {
         this.level = i;
-    }
-
-    public int getLevel() {
-        return level;
     }
 
     void loadStory(int level) {
@@ -901,13 +898,6 @@ public class Game {
         return xp;
     }
 
-    private WebSocket getWebSocketByPlayer(Map<WebSocket, Player> map, Player player) {
-        return map.keySet()
-                .stream()
-                .filter(key -> player.equals(map.get(key)))
-                .findFirst().orElse(null);
-    }
-
     void removePlayerFromGame(WebSocket key) {
         players.remove(key);
         support.firePropertyChange("players", null, players);
@@ -992,8 +982,7 @@ public class Game {
 
         // Deduct funds from player
         int riskAssessmentCost = (int) Params.PROJECT_RISK_ASSESSMENT_COST;
-        // getCurrentTick() + 1 to make sure it's processed in the next tick
-        accountingService.addEntry(new AccountingEntry(player, getCurrentTick() + 1, riskAssessmentCost, AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
+        accountingService.addEntry(new AccountingEntry(player, getCurrentTick(), riskAssessmentCost, AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
         player.subtractFunds(riskAssessmentCost);
         messagingService.sendFundsUpdateToPlayer(player);
 
@@ -1136,9 +1125,5 @@ public class Game {
 
     public void addPropertyChangeListener(PropertyChangeListener pcl) {
         support.addPropertyChangeListener(pcl);
-    }
-
-    public void removePropertyChangeListener(PropertyChangeListener pcl) {
-        support.removePropertyChangeListener(pcl);
     }
 }

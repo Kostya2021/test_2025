@@ -33,6 +33,9 @@ public class AccountingService {
             return;
         }
 
+        // Always add 1 to day to make sure the entry is processed (entry could be lost if added between ticks)
+        entry.setDay(entry.getDay() + 1);
+
         entries.add(entry);
         logger.debug("Added new entry on day {} with amount {} and category {}.", entry.getDay(), entry.getAmount(), entry.getCategory());
     }
