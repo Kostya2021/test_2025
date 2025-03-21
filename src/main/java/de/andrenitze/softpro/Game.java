@@ -8,7 +8,9 @@ import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
-import de.andrenitze.softpro.domains.objectives.*;
+import de.andrenitze.softpro.domains.objectives.Mission;
+import de.andrenitze.softpro.domains.objectives.Objective;
+import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.ProblemGenerator;
 import de.andrenitze.softpro.domains.story.StoryElement;
@@ -983,7 +985,14 @@ public class Game {
 
         // Deduct funds from player
         int riskAssessmentCost = (int) Params.PROJECT_RISK_ASSESSMENT_COST;
-        accountingService.addEntry(new AccountingEntry(player, getCurrentTick(), riskAssessmentCost, AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
+        accountingService.addEntry(new AccountingEntry(
+                player,
+                getCurrentTick(),
+                riskAssessmentCost,
+                AccountCategory.DEBIT_PROJECTS,
+                TransactionType.DEBIT,
+                "Project risk assessment")
+        );
         player.subtractFunds(riskAssessmentCost);
         messagingService.sendFundsUpdateToPlayer(player);
 

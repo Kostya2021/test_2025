@@ -2,9 +2,9 @@ package de.andrenitze.softpro.domains.objectives;
 
 import de.andrenitze.softpro.*;
 import de.andrenitze.softpro.domains.GameEvent;
+import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.SalaryHistoryEntry;
 import de.andrenitze.softpro.domains.skills.Skill;
-import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.types.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
