@@ -239,7 +239,7 @@ public class GameEventHandler {
         int salary = employeeUpdatedEvent.getPayload().get("salary");
         employee.setSalary(salary, game.getCurrentTick());
 
-        game.sendEmployeeUpdate(player, employee);
+        game.getMessagingService().sendEmployeeUpdate(player, employee);
     }
 
     private void handleEffectEnabledEvent(WebSocket websocket, String message) {
@@ -257,9 +257,9 @@ public class GameEventHandler {
                 return;
             }
 
-            for (Employee employee : game.getProjectEmployeesMap().get(project)) {
+            for (Employee employee : game.getProjectService().getProjectEmployeesMap().get(project)) {
                 employee.addComplexStatusEffect(effect);
-                game.sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
+                game.getMessagingService().sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
             }
 
             int crunchModeCooldown = 20;
@@ -271,7 +271,7 @@ public class GameEventHandler {
         } else if (effect.equals(TEAM_SPIRIT)) {
             for (Employee employee : game.getPlayerByWebSocket(websocket).getEmployees()) {
                 employee.addComplexStatusEffect(effect);
-                game.sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
+                game.getMessagingService().sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
             }
         }
     }
@@ -316,8 +316,7 @@ public class GameEventHandler {
     private void handleTeamEstimateRequestedEvent(WebSocket websocket, String message) {
         int projectId = parseIdByKey(message, PROJECT_ID);
         Player player = game.getPlayerByWebSocket(websocket);
-
-        game.conductTeamEstimation(projectId, player);
+        game.getProjectService().conductTeamEstimation(projectId, player);
     }
 
     private void handleProjectCancelRequestedEvent(WebSocket websocket, String message) {

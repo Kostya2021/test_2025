@@ -40,7 +40,6 @@ import java.util.concurrent.*;
 import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
@@ -75,8 +74,6 @@ public class Game {
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
-    @Getter
-    protected final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
     private final SkillsManager skillsManager;
@@ -202,7 +199,7 @@ public class Game {
                 project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
 
                 projectService.addProject(project);
-                projectEmployeesMap.put(project, new ArrayList<>());
+                projectService.getProjectEmployeesMap().put(project, new ArrayList<>());
             }
 
             // Send talent market to players at once
@@ -363,21 +360,21 @@ public class Game {
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectService.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeesMap);
+        projectService.conductWorkOnAllProjects(currentTick, currentDate, projectService.getProjectEmployeesMap());
         projectService.cancelOverdueProjects(currentTick);
-        accountingService.processMonthlyPaymentsPerTick(currentDate, players, currentTick);
-        randomlySpawnProjectTendersPerTick();
-        randomlySpawnComplianceProjectsPerTick();
-        removeStaleTendersPerTick();
-        evaluateTenderProcessesPerTick();
-        sendNewObjectivesPerTick();
-        checkObjectivesCriteriaAndSendRewardsPerTick();
-        simulateEmployeeLivesPerTick();
-        sendStoryElementsPerTick();
-        startStaleProjectsPerTick();
-        createProblemsInProjectsPerTick();
-        sendNewAccountingEntriesPerTick();
-        checkGameOverConditionsPerTick();
+        accountingService.processMonthlyPayments(currentDate, players, currentTick);
+        projectService.randomlySpawnProjectTenders();
+        projectService.randomlySpawnComplianceProjects();
+        removeStaleTenders();
+        evaluateTenderProcesses();
+        sendNewObjectives();
+        checkObjectivesCriteriaAndSendRewards();
+        simulateEmployeeLives();
+        sendStoryElements();
+        projectService.startStaleProjects();
+        createProblemsInProjects();
+        sendNewAccountingEntries();
+        checkGameOverConditions();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -387,7 +384,7 @@ public class Game {
         }
     }
 
-    private void sendNewAccountingEntriesPerTick() {
+    private void sendNewAccountingEntries() {
         // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
         players.forEach((webSocket, player) -> {
             List<AccountingEntry> newEntries = accountingService.getAllEntriesByPlayer(player.getId()).stream()
@@ -402,40 +399,7 @@ public class Game {
         });
     }
 
-    private void randomlySpawnComplianceProjectsPerTick() {
-        // Don't auto-spawn compliance projects in level 1
-        if (getLevel() == 1) {
-            return;
-        }
-
-        Player player = players.values().iterator().next();
-
-        // Only have one compliance project at a time
-        if (projectService.getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
-                RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
-            // Generate a new compliance project
-            Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.low, false);
-
-            project.setPublishedAt(getCurrentTick());
-            project.setAcquiredAt(getCurrentTick()); // Immediately acquired: Frontend will show it as "acquired"
-            project.addParty(player); // Add the player as involved party (also important for frontend)
-            project.setDeadline(0);
-            // Select a name from a list of predefined names
-            project.setName(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size())));
-            projectService.getProjects().add(project);
-
-            // Add to project-employee map
-            projectEmployeesMap.put(project, new ArrayList<>());
-
-            // Immediately assign the project to all players
-            GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
-            newProjectEvent.setPayload(project);
-            logger.debug("New compliance project spawned for all players: {}", project.getName());
-            messagingService.broadcastToAllPlayers(getGson().toJson(newProjectEvent));
-        }
-    }
-
-    private void createProblemsInProjectsPerTick() {
+    private void createProblemsInProjects() {
         // In all running projectService.getProjects()...
         for (Project project : projectService.getProjects()) {
             // If it's not running or completed, skip to the next project
@@ -472,43 +436,7 @@ public class Game {
         }
     }
 
-    private void startStaleProjectsPerTick() {
-        // Don't do that in level 1
-        if (getLevel() == 1) {
-            return;
-        }
-
-        // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
-        for (Project project : getProjectService().getProjects()) {
-            if (project.getType() == ProjectType.COMPLIANCE) {
-                continue;
-            }
-
-            // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
-            if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
-                int daysPassed = currentTick - project.getAcquiredAt();
-                if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
-                    // Start the project and inform involved players
-                    projectService.startProject(project, currentTick - 1);
-                    notifyInvolvedPlayers(project);
-                    logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
-                }
-            }
-        }
-    }
-
-    private void notifyInvolvedPlayers(Project project) {
-        GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
-        HashMap<String, Integer> payload = new HashMap<>();
-        payload.put("projectId", project.getId());
-        payload.put("startedAt", project.getStartedAt());
-        projectStartedEvent.setPayload(payload);
-
-        // Notify involved players about forced start
-        project.getInvolvedPlayers().forEach(player -> messagingService.sendMessageToPlayer(player, getGson().toJson(projectStartedEvent)));
-    }
-
-    private void removeStaleTendersPerTick() {
+    private void removeStaleTenders() {
         // Dont remove tenders in level 1
         if (getLevel() == 1) {
             return;
@@ -538,7 +466,7 @@ public class Game {
         messagingService.broadcastToAllPlayers(getGson().toJson(tendersRemovedEvent));
     }
 
-    private void sendStoryElementsPerTick() {
+    private void sendStoryElements() {
         // Check if there's a story element for today
         List<StoryElement> relevantStoryElements = getRelevantStoryElements();
 
@@ -589,7 +517,7 @@ public class Game {
         return thisPlayersStoryElements;
     }
 
-    private void simulateEmployeeLivesPerTick() {
+    private void simulateEmployeeLives() {
         players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(currentTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
@@ -606,53 +534,16 @@ public class Game {
             }
 
             // This could be refactored so that the "needsUpdate" logic can be used here as well
-            applyStatusEffectsForStressfulOnboarding(player, employee);
+            projectService.applyStatusEffectsForStressfulOnboarding(player, employee);
 
             // Send an employee update, if anything has changed
             if (needsUpdate) {
-                sendEmployeeUpdate(player, employee);
+                messagingService.sendEmployeeUpdate(player, employee);
             }
         }));
     }
 
-    public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
-        if (isEmployeeAssignedToProject(employee)) {
-            projectEmployeesMap.forEach((project, employees) -> {
-                if (project.getStartedAt() == 0) {
-                    return;
-                }
-                applyStatusEffectForProjectType(employee, project);
-                applyStatusEffectForProjectDomain(employee, project);
-                sendEmployeeUpdate(player, employee);
-            });
-        }
-    }
-
-    private boolean isEmployeeAssignedToProject(Employee employee) {
-        return projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee));
-    }
-
-    private void applyStatusEffectForProjectType(Employee employee, Project project) {
-        StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.7f, FAMILIARIZATION_WITH_NEW_TYPE);
-        if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
-            employee.addStatusEffect(newProjectTypeEffect);
-        }
-    }
-
-    private void applyStatusEffectForProjectDomain(Employee employee, Project project) {
-        StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.85f, FAMILIARIZATION_WITH_NEW_DOMAIN);
-        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
-            employee.addStatusEffect(newProjectDomainEffect);
-        }
-    }
-
-    public void sendEmployeeUpdate(Player player, Employee employee) {
-        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
-        employeeUpdateEvent.setPayload(employee);
-        messagingService.sendMessageToPlayer(player, getGson().toJson(employeeUpdateEvent));
-    }
-
-    private void checkObjectivesCriteriaAndSendRewardsPerTick() {
+    private void checkObjectivesCriteriaAndSendRewards() {
         ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
         players.forEach((webSocket, player) -> objectiveChecker.checkObjectives(player));
     }
@@ -674,7 +565,7 @@ public class Game {
 
 
 
-    void checkGameOverConditionsPerTick() {
+    void checkGameOverConditions() {
         players.forEach((webSocket, player) -> {
             if (player.isBankrupt() || player.completedAllObjectives()) {
                 stopGameTime();
@@ -788,7 +679,7 @@ public class Game {
 
     // Note: This method sends an OBJECTIVES_UPDATED event (i.e., it includes ALL objectives of this level),
 // because the frontend needs to show the completed objectives of other missions as well as the new objectives.
-    void sendNewObjectivesPerTick() {
+    void sendNewObjectives() {
         players.forEach((webSocket, player) -> {
             boolean thereAreNewObjectives = !player.getNewObjectivesByTick(getCurrentTick()).isEmpty();
             if (thereAreNewObjectives) {
@@ -815,60 +706,7 @@ public class Game {
                 highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
-    private void randomlySpawnProjectTendersPerTick() {
-        // There is only one player in level 1
-        Player p = players.values().iterator().next();
-
-        // Don't spawn new projects in level 1 before the first mission is completed
-        if (getLevel() == 1 && p.getMissions().getFirst().isNotCompleted()) {
-            return;
-        }
-
-        if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
-            // Generate a new project
-            Project project;
-
-            // For level 1, make sure that it's only easy and small projects
-            if (getLevel() == 1) {
-                // 25% chance for a perfect project
-                if (RANDOM.nextFloat() <= 0.75) {
-                    // Low-risk, small projects
-                    project = new Project(RiskLevel.low).initialize();
-
-                    // No tender process for level 1
-                    project.setTenderProcess(false);
-                } else {
-                    // Find the project type and domain where one employee has the most experience
-                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.
-                            comparing(Employee::getExperience)).orElse(null);
-                    if (bestEmployee == null) {
-                        logger.error("No employee found for player {}.", p.getId());
-                        return;
-                    }
-                    String domain = bestEmployee.getDomainOfExpertise();
-                    ProjectType type = ProjectType.getTypeByDomain(domain);
-
-                    project = new Project(type, domain, RiskLevel.low, false);
-                }
-            } else {
-                project = new Project().initialize();
-            }
-
-            project.setPublishedAt(getCurrentTick());
-            projectService.getProjects().add(project);
-
-            // Initialize project-employee map
-            projectEmployeesMap.put(project, new ArrayList<>(2));
-
-            // Inform players about the new tender
-            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
-            newTenderEvent.setPayload(project);
-
-            messagingService.broadcastToAllPlayers(getGson().toJson(newTenderEvent));
-        }
-    }
-
-    private void evaluateTenderProcessesPerTick() {
+    private void evaluateTenderProcesses() {
         for (Project project : getProjectService().getProjects()) {
             // Don't evaluate acquired projects
             if (project.getAcquiredAt() != 0) {
@@ -1022,14 +860,7 @@ public class Game {
 
         // If there are projectService.getProjects()...
         if (getProjectService().getProjects() != null) {
-            // Remove employee from all projects
-            for (Project project : getProjectService().getProjects()) {
-                if (projectEmployeesMap.containsKey(project)) {
-                    ArrayList<Employee> employees = projectEmployeesMap.get(project);
-                    employees.remove(employee);
-                    projectEmployeesMap.put(project, employees);
-                }
-            }
+            projectService.removeEmployeeFromAllProjects(employee);
         }
 
         // Send employee dismissal confirmation
@@ -1068,36 +899,7 @@ public class Game {
     public void conductOneToOneMeeting(Player player, Employee employee) {
         // Increase satisfaction of employee
         employee.haveOneToOneMeeting();
-        sendEmployeeUpdate(player, employee);
-    }
-
-    public void conductTeamEstimation(int projectId, Player player) {
-        Project project = projectService.getProjectById(projectId);
-        if (project == null) {
-            logger.error("Project with ID {} not found.", projectId);
-            return;
-        }
-
-        // Calculate remaining value of the project
-        int remainingValue = project.getTotalValue() - project.getEarnedValue();
-        // Remaining value and project volume affect estimation duration, but it's at least 2 days
-        int estimationDurationInDays = (int) Math.max(2, 3 * Math.log(remainingValue) - 30);
-        logger.debug("Estimation duration for remaining value {} € project {}: {} days", remainingValue, project.getName(), estimationDurationInDays);
-
-        // Add status effect with decreased productivity for all employees in the project
-        for (Employee employee : player.getEmployees()) {
-            if (projectEmployeesMap.containsKey(project) && projectEmployeesMap.get(project).contains(employee)) {
-                employee.addStatusEffect(new StatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 0.1f,
-                        "Estimating project", estimationDurationInDays));
-            }
-        }
-
-        // Calculate the estimation and add it to the project
-        project.estimateProgress(currentTick);
-
-        // Send project update to player
-        messagingService.sendProjectUpdateToPlayer(player, project);
+        messagingService.sendEmployeeUpdate(player, employee);
     }
 
     public void assignProjectToPlayer(Player player, Project project) {
@@ -1106,7 +908,7 @@ public class Game {
         project.setAcquiredAt(currentTick);
 
         // Add the project to the project-employee map
-        projectEmployeesMap.put(project, new ArrayList<>());
+        projectService.addProject(project);
 
         // Send PROJECT_UPDATED to all players (-> important for tenders!)
         GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);

@@ -45,7 +45,7 @@ public class AccountingService {
                 .collect(Collectors.toList());
     }
 
-    public void processMonthlyPaymentsPerTick(LocalDate d, ConcurrentMap<WebSocket, Player> players, int currentTick) {
+    public void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players, int currentTick) {
         if (d.getDayOfMonth() == 1) {
             players.forEach((webSocket, player) -> {
                 // Calculate and subtract salaries

@@ -1,5 +1,6 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
@@ -58,5 +59,11 @@ public class MessagingService implements PropertyChangeListener {
     public void broadcastToAllPlayers(String message) {
         // Send the message to all players
         players.forEach((webSocket, player) -> webSocket.send(message));
+    }
+
+    public void sendEmployeeUpdate(Player player, Employee employee) {
+        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+        employeeUpdateEvent.setPayload(employee);
+        sendMessageToPlayer(player, GameServer.getGson().toJson(employeeUpdateEvent));
     }
 }
