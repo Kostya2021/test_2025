@@ -266,7 +266,7 @@ public class GameEventHandler {
                 GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
                 effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE));
                 game.getMessagingService().sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GameServer.getGson().toJson(effectDisabledEvent));
-            }, GAME_SPEED_IN_MILLISECONDS * crunchModeCooldown, TimeUnit.MILLISECONDS);
+            }, GAME_SPEED_IN_MILLISECONDS * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
         } else if (effect.equals(TEAM_SPIRIT)) {
             for (Employee employee : game.getPlayerByWebSocket(websocket).getEmployees()) {
                 employee.addComplexStatusEffect(effect);

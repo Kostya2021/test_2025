@@ -109,7 +109,7 @@ public class ObjectiveChecker {
     }
 
     private boolean checkObjective16(Player player, SkillsManager skillsManager, Objective objective) {
-        HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
         if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 16 completed.");
@@ -144,7 +144,7 @@ public class ObjectiveChecker {
     }
 
     private boolean checkObjective210(Player player, SkillsManager skillsManager, Objective objective) {
-        HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
         if ((skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked()) ||
                 (skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked())) {
             objective.setCompleted(currentTick);
@@ -155,7 +155,7 @@ public class ObjectiveChecker {
     }
 
     private boolean checkObjective220(Player player, SkillsManager skillsManager, Objective objective) {
-        HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
         if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 220 completed.");
@@ -214,7 +214,7 @@ public class ObjectiveChecker {
     }
 
     private boolean checkObjective231(Player player, SkillsManager skillsManager, Objective objective) {
-        HashMap<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
         if (skills.containsKey("team-lead") && skills.get("team-lead").isUnlocked()) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 231 completed.");
