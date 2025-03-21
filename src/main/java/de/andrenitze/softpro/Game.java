@@ -57,8 +57,6 @@ public class Game {
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final String RESTORE_LOST_DATA = "Restore lost data";
     public static final int BACKUP_BLUES_LEVEL = 2;
-    public static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
-    private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     @Getter
     private final AccountingService accountingService;
