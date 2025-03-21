@@ -96,48 +96,60 @@ public class GameServer extends WebSocketServer {
         List<GameOverStats> highScores = gameOverStatsDAO.getCurrentHighScores();
 
         if (highScores != null && !highScores.isEmpty()) {
-            List<GameOverStats> dailyHighScores = new ArrayList<>();
-            List<GameOverStats> monthlyHighScores = new ArrayList<>();
-            List<GameOverStats> quarterlyHighScores = new ArrayList<>();
-
-            for (GameOverStats highScore : highScores) {
-                switch (highScore.getPeriod()) {
-                    case "daily":
-                        dailyHighScores.add(highScore);
-                        break;
-                    case "monthly":
-                        monthlyHighScores.add(highScore);
-                        break;
-                    case "quarterly":
-                        quarterlyHighScores.add(highScore);
-                        break;
-                    default:
-                        logger.warn("Unknown period: {}", highScore.getPeriod());
-                }
-            }
-
-            if (!dailyHighScores.isEmpty()) {
-                this.dailyHighScores = dailyHighScores;
-                logger.info("Daily high-scores fetched from database");
-            } else {
-                logger.info("No daily high-scores set for today, yet.");
-            }
-
-            if (!monthlyHighScores.isEmpty()) {
-                this.monthlyHighScores = monthlyHighScores;
-                logger.info("Monthly high-scores fetched from database");
-            } else {
-                logger.info("No monthly high-scores set for this month, yet.");
-            }
-
-            if (!quarterlyHighScores.isEmpty()) {
-                this.quarterlyHighScores = quarterlyHighScores;
-                logger.info("Quarterly high-scores fetched from database");
-            } else {
-                logger.info("No quarterly high-scores set for this quarter, yet.");
-            }
+            processHighScores(highScores);
         } else {
             logger.info("No high-scores found in database");
+        }
+    }
+
+    private void processHighScores(List<GameOverStats> highScores) {
+        List<GameOverStats> newDailyHighScores = new ArrayList<>();
+        List<GameOverStats> newMonthlyHighScores = new ArrayList<>();
+        List<GameOverStats> newQuarterlyHighScores = new ArrayList<>();
+
+        for (GameOverStats highScore : highScores) {
+            addHighScoreToList(highScore, newDailyHighScores, newMonthlyHighScores, newQuarterlyHighScores);
+        }
+
+        updateHighScores(newDailyHighScores, newMonthlyHighScores, newQuarterlyHighScores);
+    }
+
+    private void addHighScoreToList(GameOverStats highScore, List<GameOverStats> daily, List<GameOverStats> monthly, List<GameOverStats> quarterly) {
+        switch (highScore.getPeriod()) {
+            case "daily":
+                daily.add(highScore);
+                break;
+            case "monthly":
+                monthly.add(highScore);
+                break;
+            case "quarterly":
+                quarterly.add(highScore);
+                break;
+            default:
+                logger.warn("Unknown period: {}", highScore.getPeriod());
+        }
+    }
+
+    private void updateHighScores(List<GameOverStats> daily, List<GameOverStats> monthly, List<GameOverStats> quarterly) {
+        if (!daily.isEmpty()) {
+            this.dailyHighScores = daily;
+            logger.info("Daily high-scores fetched from database");
+        } else {
+            logger.info("No daily high-scores set for today, yet.");
+        }
+
+        if (!monthly.isEmpty()) {
+            this.monthlyHighScores = monthly;
+            logger.info("Monthly high-scores fetched from database");
+        } else {
+            logger.info("No monthly high-scores set for this month, yet.");
+        }
+
+        if (!quarterly.isEmpty()) {
+            this.quarterlyHighScores = quarterly;
+            logger.info("Quarterly high-scores fetched from database");
+        } else {
+            logger.info("No quarterly high-scores set for this quarter, yet.");
         }
     }
 
@@ -313,99 +325,109 @@ public class GameServer extends WebSocketServer {
     public void onMessage(WebSocket webSocket, String message) {
         logger.debug("received message from {}: {}", webSocket.getRemoteSocketAddress(), message);
 
-        // Handle lobby events (PLAYER_READY, PLAYER_NAME_UPDATED) here and forward everything else to the game instances
         try {
             GameEvent<?> genericGameEvent = gson.fromJson(message, GameEvent.class);
 
-            // If player is ready to play, make her available to be picked up by game instances.
             if (EventType.PLAYER_READY.equals(genericGameEvent.getType())) {
-                try {
-                    Player player = lobby.get(webSocket);
-
-                    // Forward this event to the game event handler for level and player initialization tasks
-                    for (Game game : games) {
-                        if (game.hasWebSocket(webSocket)) {
-                            game.getEventHandler().handleEvent(webSocket, message);
-                        }
-                    }
-
-                    logger.debug("Player has level {}.", player.getLevel());
-                    player.setReady(true);
-
-                    broadcastLobbyState();
-                } catch (Exception e) {
-                    logger.debug(e.getMessage());
-                    logger.error("Websocket message was malformed!");
-                }
+                handlePlayerReadyEvent(webSocket, message);
             } else if (EventType.PLAYER_NAME_UPDATED.equals(genericGameEvent.getType())) {
-                // Allow name changes in the lobby
-                Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
-                GameEvent<Player> updatedPlayerEvent = gson.fromJson(message, payloadType);
-                Player updatedPlayer = updatedPlayerEvent.getPayload();
-
-                // Sanitize string, but allow spaces, and special characters like é,ß,ä,ö,ü...
-                String newName = updatedPlayer.getName();
-                newName = newName.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, newName.length())).replaceAll("[^\\p{L}\\p{M}\\s]", "").trim();
-                if (newName.length() >= 2) {
-                    Player player = this.lobby.get(webSocket);
-                    String oldName = player.getName();
-                    player.setName(newName);
-
-                    // Change first employee name for level 1 accordingly
-                    try {
-                        player.getEmployees().get(0).setFirstName(player.getFirstName());
-                        player.getEmployees().get(0).setLastName(player.getLastName());
-                    } catch (IndexOutOfBoundsException e) {
-                        logger.error("No employees found for player {}", player.getId());
-                    }
-
-                    // Confirm successful name change
-                    GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-                    playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
-                    playerUpdateEvent.setPayload(player);
-                    webSocket.send(gson.toJson(playerUpdateEvent));
-
-                    // Notify everyone in the lobby
-                    broadcastLobbyState();
-                    logger.info("{} changed name to {}", oldName, newName);
-                }
+                handlePlayerNameUpdatedEvent(webSocket, message);
             } else {
-                // Forward all other events to the corresponding game instance
-                // Find out which game the message belongs to by its Websocket connection
-                // WARNING This is on the critical path, so look for performance issues!
-                for (Game game : games) {
-                    if (game.hasWebSocket(webSocket)) {
-                        game.getEventHandler().handleEvent(webSocket, message);
-                    }
-                }
+                forwardEventToGame(webSocket, message);
             }
 
-            // Start game sessions for all ready players in the game lobby
-            for (Map.Entry<WebSocket, Player> player : lobby.entrySet()) {
-                if (player.getValue().isReady()) {
-                    // Remove player from lobby
-                    lobby.remove(player.getKey());
-
-                    // Find corresponding game instance for this player
-                    Game game = games.stream()
-                            .filter(g -> g.hasWebSocket(player.getKey()))
-                            .findFirst()
-                            .orElse(null);
-
-                    if (game == null) {
-                        logger.error("Could not find game instance for player {}", player.getValue().getName());
-                        return;
-                    }
-
-                    game.addPlayerToGame(player.getKey(), player.getValue());
-                    game.start();
-
-                    logger.info("Players in the lobby: {} | Running games: {}", lobby.size(), games.size());
-                    broadcastLobbyState();
-                }
-            }
+            startGameSessionsForReadyPlayers();
         } catch (JSONException | JsonSyntaxException e) {
             logger.error("Received invalid websocket message: {}", e.getMessage());
+        }
+    }
+
+    private void handlePlayerReadyEvent(WebSocket webSocket, String message) {
+        try {
+            Player player = lobby.get(webSocket);
+
+            for (Game game : games) {
+                if (game.hasWebSocket(webSocket)) {
+                    game.getEventHandler().handleEvent(webSocket, message);
+                }
+            }
+
+            logger.debug("Player has level {}.", player.getLevel());
+            player.setReady(true);
+
+            broadcastLobbyState();
+        } catch (Exception e) {
+            logger.debug(e.getMessage());
+            logger.error("Websocket message was malformed!");
+        }
+    }
+
+    private void handlePlayerNameUpdatedEvent(WebSocket webSocket, String message) {
+        Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
+        GameEvent<Player> updatedPlayerEvent = gson.fromJson(message, payloadType);
+        Player updatedPlayer = updatedPlayerEvent.getPayload();
+
+        String newName = sanitizePlayerName(updatedPlayer.getName());
+        if (newName.length() >= 2) {
+            Player player = this.lobby.get(webSocket);
+            String oldName = player.getName();
+            player.setName(newName);
+
+            updateFirstEmployeeName(player);
+
+            GameEvent<Player> playerUpdateEvent = new GameEvent<>();
+            playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+            playerUpdateEvent.setPayload(player);
+            webSocket.send(gson.toJson(playerUpdateEvent));
+
+            broadcastLobbyState();
+            logger.info("{} changed name to {}", oldName, newName);
+        }
+    }
+
+    private String sanitizePlayerName(String name) {
+        return name.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, name.length()))
+                .replaceAll("[^\\p{L}\\p{M}\\s]", "").trim();
+    }
+
+    private void updateFirstEmployeeName(Player player) {
+        try {
+            player.getEmployees().getFirst().setFirstName(player.getFirstName());
+            player.getEmployees().getFirst().setLastName(player.getLastName());
+        } catch (IndexOutOfBoundsException e) {
+            logger.error("No employees found for player {}", player.getId());
+        }
+    }
+
+    private void forwardEventToGame(WebSocket webSocket, String message) {
+        for (Game game : games) {
+            if (game.hasWebSocket(webSocket)) {
+                game.getEventHandler().handleEvent(webSocket, message);
+            }
+        }
+    }
+
+    private void startGameSessionsForReadyPlayers() {
+        for (Map.Entry<WebSocket, Player> player : lobby.entrySet()) {
+            if (player.getValue().isReady()) {
+                lobby.remove(player.getKey());
+
+                Game game = games.stream()
+                        .filter(g -> g.hasWebSocket(player.getKey()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (game == null) {
+                    logger.error("Could not find game instance for player {}", player.getValue().getName());
+                    return;
+                }
+
+                game.addPlayerToGame(player.getKey(), player.getValue());
+                game.start();
+
+                logger.info("Players in the lobby: {} | Running games: {}", lobby.size(), games.size());
+                broadcastLobbyState();
+            }
         }
     }
 
