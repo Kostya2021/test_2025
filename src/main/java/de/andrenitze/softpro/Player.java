@@ -17,17 +17,17 @@ import static de.andrenitze.softpro.Main.logger;
 public class Player {
     private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
         put(1, 18000f);
-        put(2, 150000f);
-        put(3, 1000f);
+        put(2, 35000f);
+        put(3, 75000f);
         put(4, 150000f);
         put(5, 150000f);
         put(6, 150000f);
         put(7, 150000f);
     }};
     private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
-        put(1, -500);
-        put(2, -100000);
-        put(3, 0);
+        put(1, -2500);
+        put(2, -25000);
+        put(3, -100000);
         put(4, 0);
         put(5, 0);
         put(6, 0);
@@ -123,11 +123,11 @@ public class Player {
         return funds;
     }
 
-    void subtractFunds(float fundsToSubtract) {
+    public void subtractFunds(float fundsToSubtract) {
         this.funds -= fundsToSubtract;
     }
 
-    int calculateAndSubtractSalaries() {
+    public int calculateAndSubtractSalaries() {
         AtomicInteger salaries = new AtomicInteger();
         employees.forEach(employee -> {
             this.subtractFunds(employee.getSalary());

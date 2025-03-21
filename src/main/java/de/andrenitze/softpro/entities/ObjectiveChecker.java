@@ -264,6 +264,6 @@ public class ObjectiveChecker {
         List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
         GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
         objectivesUpdatedEvent.setPayload(allActiveObjectives);
-        game.sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+        game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
     }
 }

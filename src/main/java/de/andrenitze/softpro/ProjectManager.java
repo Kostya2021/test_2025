@@ -16,9 +16,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.*;
+import static de.andrenitze.softpro.GameEventHandler.PARTY_CLIENT;
+import static de.andrenitze.softpro.GameServer.GSON;
 import static java.lang.Math.*;
 
 public class ProjectManager {
+    public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
+    public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
     private final Game game;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final SkillsManager skillsManager;
@@ -95,7 +99,7 @@ public class ProjectManager {
 
             // Send update to all involved players
             for (Player player : project.getInvolvedPlayers()) {
-                game.sendMessageToPlayer(player, event.toString());
+                game.getMessagingService().sendMessageToPlayer(player, event.toString());
             }
         }
     }
@@ -135,7 +139,7 @@ public class ProjectManager {
             AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
-            game.sendFundsUpdateToPlayer(player);
+            game.getMessagingService().sendFundsUpdateToPlayer(player);
 
             // Calculate player's XP gained in this project
             float xp = calculateXP(project);
@@ -144,7 +148,7 @@ public class ProjectManager {
             GameEvent<Player> playerUpdateEvent = new GameEvent<>();
             playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
-            game.sendMessageToPlayer(player, GameServer.GSON.toJson(playerUpdateEvent));
+            game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
 
             // After project completion, send gained XP of employees to player
             for (Employee employee : employees) {
@@ -415,5 +419,150 @@ public class ProjectManager {
         return false;
     }
 
-    // Other methods
+    public void cancelProject(Player player, Project project, String cancelledBy) {
+        if (project == null) {
+            logger.error("Project not found while attempting to cancel.");
+            return;
+        }
+
+        if (project.isCompleted()) {
+            logger.error("Project {} is already completed.", project.getName());
+            return;
+        }
+
+        if (project.getCancelledAt() != 0) {
+            logger.error("Project {} is already cancelled.", project.getName());
+            return;
+        }
+
+        if (project.getInvolvedPlayers().size() > 1) {
+            logger.error("Project {} has more than one player involved. Only the project owner can cancel it.", project.getName());
+            return;
+        }
+
+        if (!project.getInvolvedPlayers().contains(player)) {
+            logger.error("Player {} is not involved in project {}.", player.getName(), project.getName());
+            return;
+        }
+
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            logger.error("Compliance projects cannot be cancelled.");
+            return;
+        }
+
+        project.setCancelledAt(game.getCurrentTick());
+        project.setCancelledBy(cancelledBy);
+
+        // Apply different penalty rates based on who cancelled
+        double penaltyRate = PARTY_CLIENT.equals(cancelledBy)
+                ? CLIENT_CANCELLATION_PENALTY
+                : CONTRACTOR_CANCELLATION_PENALTY;
+
+        int cancellationPenalty = 0;
+        if (game.getLevel() != 1) {
+            cancellationPenalty = (int) (project.getTotalValue() * penaltyRate);
+        }
+        project.setPenalty(cancellationPenalty);
+
+        // If the project has started, apply the penalty
+        if (project.getStartedAt() > 0) {
+            // Update funds
+            player.subtractFunds(cancellationPenalty);
+            game.getMessagingService().sendFundsUpdateToPlayer(player);
+
+            // Add accounting entry
+            accountingService.addEntry(new AccountingEntry(
+                    player,
+                    game.getCurrentTick(),
+                    cancellationPenalty,
+                    AccountCategory.PENALTIES,
+                    TransactionType.DEBIT,
+                    "Cancellation penalty for project: " + project.getName()
+            ));
+        }
+
+        // Remove any employees assigned to this project
+        if (projectEmployeesMap.containsKey(project)) {
+            projectEmployeesMap.get(project).clear();
+        }
+
+        // Remove player from project
+        project.removeParty(player);
+
+        // Create a project update event to notify the player (cancelledAt, penalty and more...)
+        GameEvent<Project> projectCancelledEvent = new GameEvent<>();
+        projectCancelledEvent.setType(EventType.PROJECT_UPDATED);
+        projectCancelledEvent.setPayload(project);
+
+        // Notify the player
+        game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(projectCancelledEvent));
+
+        // If the project was acquired but not started completely remove it from the game.
+        if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
+            game.getProjects().remove(project);
+            projectEmployeesMap.remove(project);
+        }
+
+        logger.debug("Project {} cancelled by player {}", project.getName(), player.getId());
+    }
+
+    public void cancelOverdueProjects(int currentTick) {
+        List<Project> projectsToCancel = new ArrayList<>();
+
+        // Identify projects that meet the cancellation criteria
+        for (Project project : game.getProjects()) {
+            // Check if project should be automatically cancelled
+            if (shouldAutomaticallyCancel(project, currentTick)) {
+                projectsToCancel.add(project);
+            }
+        }
+
+        // Process cancellations outside the iteration loop
+        for (Project project : projectsToCancel) {
+            logger.info("Auto-cancelling project {} due to excessive schedule overrun", project.getName());
+
+            // Cancel for each involved player
+            for (Player player : project.getInvolvedPlayers()) {
+                cancelProject(player, project, PARTY_CLIENT);
+            }
+        }
+    }
+
+    /**
+     * Checks if the project should be automatically cancelled based on criteria:
+     * - Project is over 100% schedule overrun
+     * - Less than 50% complete
+     * - Not a compliance project
+     *
+     * @param project The project to check
+     * @param currentTick Current game tick
+     * @return true if project should be cancelled, false otherwise
+     */
+    private boolean shouldAutomaticallyCancel(Project project, int currentTick) {
+        // Don't cancel if not started, already completed or already cancelled
+        if (!project.hasBeenStarted() || project.isCompleted() || project.getCancelledAt() > 0) {
+            return false;
+        }
+
+        // Don't cancel compliance projects
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            return false;
+        }
+
+        // Don't cancel projects with no deadline (deadline <= 0)
+        if (project.getDeadline() <= 0) {
+            return false;
+        }
+
+        // Calculate progress percentage
+        int progressPercentage = (int)(100.0 * project.getEarnedValue() / project.getTotalValue());
+
+        // Calculate schedule overrun
+        int scheduledEndDate = project.getStartedAt() + project.getDeadline();
+        int overrunDays = currentTick - scheduledEndDate;
+        int scheduleOverrunPercentage = (int)(100.0 * overrunDays / project.getDeadline());
+
+        // Cancel if overrun > 100% and progress < 50%
+        return scheduleOverrunPercentage > 100 && progressPercentage < 50;
+    }
 }

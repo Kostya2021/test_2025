@@ -27,6 +27,8 @@ import static de.andrenitze.softpro.Main.logger;
 class GameEventHandler {
     public static final String TEAM_SPIRIT = "team-spirit";
     public static final String CRUNCH_MODE = "crunch-mode";
+    public static final String PARTY_CONTRACTOR = "contractor";
+    public static final String PARTY_CLIENT = "client";
     private final Game game;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -68,7 +70,7 @@ class GameEventHandler {
                                         .create();
                                 GameEvent<Project> tenderUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                                 tenderUpdatedEvent.setPayload(project);
-                                game.broadcastToAllPlayers(gson.toJson(tenderUpdatedEvent));
+                                game.getMessagingService().broadcastToAllPlayers(gson.toJson(tenderUpdatedEvent));
                             }
                             break;
                         }
@@ -156,14 +158,14 @@ class GameEventHandler {
                 // Notify player about new employee
                 GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.STATE_UPDATED);
                 playerUpdateEvent.setPayload(player);
-                game.sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
+                game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
 
                 // Remove employee from talent market, so that other players can't hire the same employee
                 GameEvent<ArrayList<Integer>> employeeHiredEvent = new GameEvent<>(EventType.TALENTS_REMOVED);
                 ArrayList<Integer> employeeList = new ArrayList<>();
                 employeeList.add(employee.getId());
                 employeeHiredEvent.setPayload(employeeList);
-                game.broadcastToAllPlayers(GSON.toJson(employeeHiredEvent));
+                game.getMessagingService().broadcastToAllPlayers(GSON.toJson(employeeHiredEvent));
             }
             case RISK_ASSESSMENT_REQUESTED -> {
                 // Parse the project id out of the message
@@ -260,7 +262,7 @@ class GameEventHandler {
                     scheduler.schedule(() -> {
                         GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
                         effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE));
-                        game.sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(effectDisabledEvent));
+                        game.getMessagingService().sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GSON.toJson(effectDisabledEvent));
                     }, GAME_SPEED_IN_MILLISECONDS * crunchModeCooldown, TimeUnit.MILLISECONDS);
                 } else if (effect.equals(TEAM_SPIRIT)) {
                     for (Employee employee : game.getPlayerByWebSocket(websocket).getEmployees()) {
@@ -316,6 +318,19 @@ class GameEventHandler {
                 // Estimate the project progress
                 game.conductTeamEstimation(projectId, player);
             }
+            case PROJECT_CANCEL_REQUESTED -> {
+                int projectId = parseIdByKey(message, "projectId");
+                Project project = game.getProjectById(projectId);
+                Player player = game.getPlayerByWebSocket(websocket);
+
+                // Cancel the project
+                if (project != null) {
+                    logger.debug("Cancelling project '{}'...", projectId);
+                    game.getProjectManager().cancelProject(player, project, PARTY_CONTRACTOR); // contractor = player
+                } else {
+                    logger.warn("Could not cancel project. Project {} not found.", projectId);
+                }
+            }
             case ROUND_STARTED, STATE_UPDATED, GAME_OVER, NEW_TENDER, NEW_FUNDS, PROJECT_RECEIVED,
                  OBJECTIVES_UPDATED, PROJECT_UPDATED, PLAYER_UPDATED, NEW_STORY_ELEMENT, UPDATE_LOBBY, T,
                  EFFECT_DISABLED, PLAYER_NAME_UPDATED, TENDERS_REMOVED, TALENTS_ADDED, TALENTS_REMOVED, TENDERS_ADDED,
@@ -352,6 +367,6 @@ class GameEventHandler {
         // Notify frontend about change
         GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
         projectUpdatedEvent.setPayload(project);
-        game.broadcastToAllPlayers(GSON.toJson(projectUpdatedEvent));
+        game.getMessagingService().broadcastToAllPlayers(GSON.toJson(projectUpdatedEvent));
     }
 }

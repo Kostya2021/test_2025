@@ -74,12 +74,14 @@ public class Project {
     private final String description = ""; // Description text is generated in the frontend
     @Getter
     private boolean hasBeenRiskAssessed = false;
-
     @Getter
     private final List<Problem> problems = new ArrayList<>();
-
     @Getter @Setter
     private List<ProgressEstimate> progressEstimates = new ArrayList<>();
+    @Getter @Setter
+    private int cancelledAt = 0;
+    @Getter @Setter
+    private String cancelledBy;
 
     /**
      * Generates a project with a random name and volume
@@ -356,5 +358,9 @@ public class Project {
         int adjustedEstimate = (int) (riskMultiplier * estimate);
         estimate += adjustedEstimate > 0 ? RANDOM.nextInt(adjustedEstimate) : 0;
         addProgressEstimate(currentTick, Math.min(90, estimate)); // 90% is the maximum progress estimate
+    }
+
+    public void removeParty(Player player) {
+        this.involvedParties.remove(player);
     }
 }
