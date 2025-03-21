@@ -1,6 +1,6 @@
 package de.andrenitze.softpro.types;
 
-import de.andrenitze.softpro.entities.GameOverStats;
+import de.andrenitze.softpro.domains.GameOverStats;
 
 import javax.sql.DataSource;
 import java.sql.*;

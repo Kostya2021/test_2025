@@ -2,7 +2,7 @@ package de.andrenitze.softpro;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.entities.Skill;
+import de.andrenitze.softpro.domains.skills.Skill;
 
 import java.io.File;
 import java.io.FileReader;

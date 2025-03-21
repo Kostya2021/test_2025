@@ -269,19 +269,19 @@
                         <jsonLibrary>jackson2</jsonLibrary>
                         <classes>
                             <class>de.andrenitze.softpro.events.AbstractGameEvent</class>
-                            <class>de.andrenitze.softpro.entities.GameEvent</class>
-                            <class>de.andrenitze.softpro.entities.Objective</class>
-                            <class>de.andrenitze.softpro.entities.GameOverStats</class>
-                            <class>de.andrenitze.softpro.entities.Objectives</class>
-                            <class>de.andrenitze.softpro.entities.StoryElement</class>
-                            <class>de.andrenitze.softpro.entities.StoryElements</class>
+                            <class>de.andrenitze.softpro.domains.GameEvent</class>
+                            <class>de.andrenitze.softpro.domains.objectives.Objective</class>
+                            <class>de.andrenitze.softpro.domains.GameOverStats</class>
+                            <class>de.andrenitze.softpro.domains.objectives.Objectives</class>
+                            <class>de.andrenitze.softpro.domains.story.StoryElement</class>
+                            <class>de.andrenitze.softpro.domains.story.StoryElements</class>
                             <class>de.andrenitze.softpro.Player</class>
-                            <class>de.andrenitze.softpro.Employee</class>
+                            <class>de.andrenitze.softpro.domains.employees.Employee</class>
                             <class>de.andrenitze.softpro.Project</class>
-                            <class>de.andrenitze.softpro.types.AvatarType</class>
+                            <class>de.andrenitze.softpro.domains.story.AvatarType</class>
                             <class>de.andrenitze.softpro.types.EventType</class>
                             <class>de.andrenitze.softpro.types.ProjectType</class>
-                            <class>de.andrenitze.softpro.types.DeliveryMediumType</class>
+                            <class>de.andrenitze.softpro.domains.story.DeliveryMediumType</class>
                             <class>de.andrenitze.softpro.types.RiskLevel</class>
                             <class>de.andrenitze.softpro.types.StatusEffect</class>
                             <class>de.andrenitze.softpro.types.StatusEffectType</class>

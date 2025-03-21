@@ -1,5 +1,7 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.types.ProjectType;
 
 import java.util.ArrayList;

@@ -1,6 +1,18 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.entities.*;
+import de.andrenitze.softpro.domains.*;
+import de.andrenitze.softpro.domains.accounting.AccountCategory;
+import de.andrenitze.softpro.domains.accounting.AccountingEntry;
+import de.andrenitze.softpro.domains.accounting.AccountingService;
+import de.andrenitze.softpro.domains.accounting.TransactionType;
+import de.andrenitze.softpro.domains.decisions.DecisionDAO;
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
+import de.andrenitze.softpro.domains.objectives.*;
+import de.andrenitze.softpro.domains.projects.Problem;
+import de.andrenitze.softpro.domains.projects.ProblemGenerator;
+import de.andrenitze.softpro.domains.story.StoryElement;
+import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;

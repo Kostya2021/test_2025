@@ -1,9 +1,10 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.entities.Mission;
-import de.andrenitze.softpro.entities.Objective;
-import de.andrenitze.softpro.entities.Objectives;
-import de.andrenitze.softpro.types.Decision;
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.objectives.Mission;
+import de.andrenitze.softpro.domains.objectives.Objective;
+import de.andrenitze.softpro.domains.objectives.Objectives;
+import de.andrenitze.softpro.domains.decisions.Decision;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
