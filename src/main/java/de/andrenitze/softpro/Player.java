@@ -16,24 +16,27 @@ import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Player {
-    private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
-        put(1, 18000f);
-        put(2, 35000f);
-        put(3, 75000f);
-        put(4, 150000f);
-        put(5, 150000f);
-        put(6, 150000f);
-        put(7, 150000f);
-    }};
-    private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
-        put(1, -2500);
-        put(2, -25000);
-        put(3, -100000);
-        put(4, 0);
-        put(5, 0);
-        put(6, 0);
-        put(7, 0);
-    }};
+    static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
+    static {
+        INITIAL_FUNDS.put(1, 100000f);
+        INITIAL_FUNDS.put(2, 100000f);
+        INITIAL_FUNDS.put(3, 100000f);
+        INITIAL_FUNDS.put(4, 100000f);
+        INITIAL_FUNDS.put(5, 100000f);
+        INITIAL_FUNDS.put(6, 100000f);
+        INITIAL_FUNDS.put(7, 100000f);
+    }
+    static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>();
+    static {
+        BANKRUPTCY_THRESHOLD.put(1, 0);
+        BANKRUPTCY_THRESHOLD.put(2, 0);
+        BANKRUPTCY_THRESHOLD.put(3, 0);
+        BANKRUPTCY_THRESHOLD.put(4, 0);
+        BANKRUPTCY_THRESHOLD.put(5, 0);
+        BANKRUPTCY_THRESHOLD.put(6, 0);
+        BANKRUPTCY_THRESHOLD.put(7, 0);
+    }
+
     @Getter
     private final UUID id;
     @Getter
