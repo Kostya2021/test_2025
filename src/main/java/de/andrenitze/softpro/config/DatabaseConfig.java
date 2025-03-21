@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.util;
+package de.andrenitze.softpro.config;
 
 import org.apache.commons.dbcp2.*;
 import org.apache.commons.pool2.impl.GenericObjectPool;

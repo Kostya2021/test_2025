@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.util;
+package de.andrenitze.softpro.config;
 
 import io.github.cdimascio.dotenv.Dotenv;
 
