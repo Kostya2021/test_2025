@@ -5,7 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.GameOverStats;
 import de.andrenitze.softpro.entities.GameEvent;
 import de.andrenitze.softpro.types.*;
-import de.andrenitze.softpro.util.DatabaseConfig;
+import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
 import net.bytebuddy.build.ToStringPlugin;
 import org.java_websocket.WebSocket;
@@ -255,7 +255,7 @@ public class GameServer extends WebSocketServer {
 
             // Generate a friendly low-risk project matching the player's skill
             Project perfectProject = new Project(type, domain, RiskLevel.low, false);
-            game.addProject(perfectProject);
+            game.getProjectService().addProject(perfectProject);
 
             // Generate two more random non-compliance projects
             for (int i = 0; i < 2; i++) {
@@ -263,7 +263,7 @@ public class GameServer extends WebSocketServer {
                         type.getRandomDomain(),
                         RiskLevel.low,
                         false);
-                game.addProject(project);
+                game.getProjectService().addProject(project);
             }
         }
 

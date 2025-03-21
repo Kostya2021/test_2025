@@ -6,11 +6,11 @@ import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.LevelDecisions;
 import de.andrenitze.softpro.entities.Problem;
 import de.andrenitze.softpro.entities.GameEvent;
-import de.andrenitze.softpro.util.ProjectPartyExclusionStrategy;
+import de.andrenitze.softpro.config.ProjectPartyExclusionStrategy;
 import de.andrenitze.softpro.types.Decision;
 import de.andrenitze.softpro.types.DecisionDAO;
 import de.andrenitze.softpro.types.EventType;
-import de.andrenitze.softpro.util.DatabaseConfig;
+import de.andrenitze.softpro.config.DatabaseConfig;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
@@ -54,7 +54,7 @@ class GameEventHandler {
 
                 // A player joins a tender or simply accepts a project
                 try {
-                    for (Project project : game.getProjects()) {
+                    for (Project project : game.getProjectService().getProjects()) {
                         if (project.getId() == joinTenderEvent.getPayload()) {
                             // Assign player to project
                             Player player = game.getPlayerByWebSocket(websocket);
@@ -206,9 +206,9 @@ class GameEventHandler {
                 int projectId = projectStartedEvent.getPayload().get("projectId");
                 int startedAt = projectStartedEvent.getPayload().get("startedAt");
 
-                Project project = game.getProjectById(projectId);
+                Project project = game.getProjectService().getProjectById(projectId);
 
-                game.startProject(project, startedAt);
+                game.getProjectService().startProject(project, startedAt);
             }
             case EMPLOYEE_SALARY_UPDATED -> {
                 Player player = game.getPlayerByWebSocket(websocket);
@@ -244,7 +244,7 @@ class GameEventHandler {
                     int projectId = Integer.parseInt(effectEnabledEvent.getPayload().get("projectId"));
 
                     // Apply the effect to the project
-                    Project project = game.getProjectById(projectId);
+                    Project project = game.getProjectService().getProjectById(projectId);
 
                     // Apply the effect to the employees in the project
                     if (project == null) {
@@ -283,7 +283,7 @@ class GameEventHandler {
                 String translationKey = problemSolvedEvent.getPayload().get("translationKey");
                 int tick = Integer.parseInt(problemSolvedEvent.getPayload().get("tick"));
 
-                Project project = game.getProjectById(projectId);
+                Project project = game.getProjectService().getProjectById(projectId);
                 if (project == null) {
                     logger.warn("Could not solve problem. Project {} not found.", projectId);
                     break;
@@ -320,13 +320,13 @@ class GameEventHandler {
             }
             case PROJECT_CANCEL_REQUESTED -> {
                 int projectId = parseIdByKey(message, "projectId");
-                Project project = game.getProjectById(projectId);
+                Project project = game.getProjectService().getProjectById(projectId);
                 Player player = game.getPlayerByWebSocket(websocket);
 
                 // Cancel the project
                 if (project != null) {
                     logger.debug("Cancelling project '{}'...", projectId);
-                    game.getProjectManager().cancelProject(player, project, PARTY_CONTRACTOR); // contractor = player
+                    game.getProjectService().cancelProject(player, project, PARTY_CONTRACTOR); // contractor = player
                 } else {
                     logger.warn("Could not cancel project. Project {} not found.", projectId);
                 }
@@ -356,12 +356,12 @@ class GameEventHandler {
     private void changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
         Player player = game.getPlayerByWebSocket(websocket);
         Employee employee = player.getEmployeeById(employeeId);
-        Project project = game.getProjectById(projectId);
+        Project project = game.getProjectService().getProjectById(projectId);
 
         if (isAssignOperation) {
-            game.getProjectManager().assignEmployeeToProject(employee, project);
+            game.getProjectService().assignEmployeeToProject(employee, project);
         } else {
-            game.getProjectManager().removeEmployeeFromProject(employee, project);
+            game.getProjectService().removeEmployeeFromProject(employee, project);
         }
 
         // Notify frontend about change

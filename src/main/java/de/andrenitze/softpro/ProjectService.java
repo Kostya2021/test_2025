@@ -5,6 +5,7 @@ import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.StatusEffect;
 import de.andrenitze.softpro.types.StatusEffectType;
+import lombok.Getter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +21,7 @@ import static de.andrenitze.softpro.GameEventHandler.PARTY_CLIENT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static java.lang.Math.*;
 
-public class ProjectManager {
+public class ProjectService {
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
     private final Game game;
@@ -28,12 +29,14 @@ public class ProjectManager {
     private final SkillsManager skillsManager;
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private final AccountingService accountingService;
+    @Getter
+    private ArrayList<Project> projects = new ArrayList<>();
 
     private static final String EVENT_TYPE = "type";
     private static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
 
-    public ProjectManager(Game game) {
+    public ProjectService(Game game) {
         this.game = game;
         this.skillsManager = game.getSkillsManager();
         this.projectEmployeesMap = game.getProjectEmployeesMap();
@@ -499,7 +502,7 @@ public class ProjectManager {
 
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
-            game.getProjects().remove(project);
+            getProjects().remove(project);
             projectEmployeesMap.remove(project);
         }
 
@@ -510,7 +513,7 @@ public class ProjectManager {
         List<Project> projectsToCancel = new ArrayList<>();
 
         // Identify projects that meet the cancellation criteria
-        for (Project project : game.getProjects()) {
+        for (Project project : getProjects()) {
             // Check if project should be automatically cancelled
             if (shouldAutomaticallyCancel(project, currentTick)) {
                 projectsToCancel.add(project);
@@ -564,5 +567,38 @@ public class ProjectManager {
 
         // Cancel if overrun > 100% and progress < 50%
         return scheduleOverrunPercentage > 100 && progressPercentage < 50;
+    }
+
+    public void setProjects(ArrayList<Object> objects) {
+        for (Object object : objects) {
+            if (object instanceof Project) {
+                projects.add((Project) object);
+            }
+        }
+    }
+
+    public void addProject(Project project) {
+        // Check if project id already exists, if not, add the project
+        if (getProjectById(project.getId()) == null) {
+            projects.add(project);
+        }
+    }
+
+    Project getProjectById(int projectId) {
+        for (Project project : projects) {
+            if (project.getId() == projectId) {
+                return project;
+            }
+        }
+        return null;
+    }
+
+    public void startProject(Project project, int startedAt) {
+        if (project == null) {
+            logger.error("Project not found.");
+            return;
+        }
+
+        project.setStartedAt(startedAt);
     }
 }

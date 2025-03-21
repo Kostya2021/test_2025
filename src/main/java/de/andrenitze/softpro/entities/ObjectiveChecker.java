@@ -21,7 +21,7 @@ public class ObjectiveChecker {
     }
 
     public void checkObjectives(Player player) {
-        List<Project> projects = game.getProjects();
+        List<Project> projects = game.getProjectService().getProjects();
         Map<Project, ArrayList<Employee>> projectEmployeesMap = game.getProjectEmployeesMap();
         SkillsManager skillsManager = game.getSkillsManager();
 

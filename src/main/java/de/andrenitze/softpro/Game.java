@@ -2,7 +2,7 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.*;
 import de.andrenitze.softpro.types.*;
-import de.andrenitze.softpro.util.DatabaseConfig;
+import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.jetbrains.annotations.Nullable;
@@ -52,8 +52,6 @@ public class Game {
     @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;
     @Getter
-    private ArrayList<Project> projects = new ArrayList<>();
-    @Getter
     private int currentTick = 0;
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
@@ -70,7 +68,7 @@ public class Game {
     @Getter
     private final ProblemGenerator problemGenerator = new ProblemGenerator();
     @Getter
-    private final ProjectManager projectManager;
+    private final ProjectService projectService;
     private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
@@ -104,7 +102,7 @@ public class Game {
         accountingService = new AccountingService(this);
 
         // Initialize the project manager to manage all projects
-        projectManager = new ProjectManager(this);
+        projectService = new ProjectService(this);
 
         // Initialize messaging service
         messagingService = new MessagingService(this);
@@ -177,14 +175,14 @@ public class Game {
         logger.debug("prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
 
         if (getLevel() != 1) {
-            projects = new ArrayList<>();
+            projectService.setProjects(new ArrayList<>());
             for (int i = 0; i < 100; i++) {
                 Project project = new Project().initialize();
 
                 // Set randomly negative publish dates to have some history of tenders
                 project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
 
-                projects.add(project);
+                projectService.addProject(project);
                 projectEmployeesMap.put(project, new ArrayList<>());
             }
 
@@ -196,7 +194,7 @@ public class Game {
 
         // Send all tenders at once
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
-        projectEvent.setPayload(projects);
+        projectEvent.setPayload(projectService.getProjects());
         messagingService.broadcastToAllPlayers(GSON.toJson(projectEvent));
 
         // Logic for decisions and their consequences
@@ -346,8 +344,8 @@ public class Game {
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectManager.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeesMap);
-        projectManager.cancelOverdueProjects(currentTick);
+        projectService.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeesMap);
+        projectService.cancelOverdueProjects(currentTick);
         accountingService.processMonthlyPaymentsPerTick(currentDate, players, currentTick);
         randomlySpawnProjectTendersPerTick();
         randomlySpawnComplianceProjectsPerTick();
@@ -394,7 +392,7 @@ public class Game {
         Player player = players.values().iterator().next();
 
         // Only have one compliance project at a time
-        if (projects.stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
+        if (projectService.getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
                 RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
             // Generate a new compliance project
             Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.low, false);
@@ -405,7 +403,7 @@ public class Game {
             project.setDeadline(0);
             // Select a name from a list of predefined names
             project.setName(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size())));
-            projects.add(project);
+            projectService.getProjects().add(project);
 
             // Add to project-employee map
             projectEmployeesMap.put(project, new ArrayList<>());
@@ -419,8 +417,8 @@ public class Game {
     }
 
     private void createProblemsInProjectsPerTick() {
-        // In all running projects...
-        for (Project project : projects) {
+        // In all running projectService.getProjects()...
+        for (Project project : projectService.getProjects()) {
             // If it's not running, don't create problems
             if (project.getStartedAt() == 0 || project.isCompleted()) {
                 continue;
@@ -466,7 +464,7 @@ public class Game {
         }
 
         // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
-        for (Project project : projects) {
+        for (Project project : getProjectService().getProjects()) {
             if (project.getType() == ProjectType.COMPLIANCE) {
                 continue;
             }
@@ -476,7 +474,7 @@ public class Game {
                 int daysPassed = currentTick - project.getAcquiredAt();
                 if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
                     // Start the project and inform involved players
-                    startProject(project, currentTick - 1);
+                    projectService.startProject(project, currentTick - 1);
                     notifyInvolvedPlayers(project);
                     logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
                 }
@@ -503,7 +501,7 @@ public class Game {
 
         // Remove tenders that have been on the market for a long time and store them in a separate array
         List<Project> staleTenders = new ArrayList<>();
-        for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
+        for (Iterator<Project> iterator = projectService.getProjects().iterator(); iterator.hasNext();) {
             Project project = iterator.next();
             if (project.getEarnedValue() == 0 &&
                     project.getInvolvedPlayers().isEmpty() &&
@@ -720,7 +718,7 @@ public class Game {
     private GameOverStats createGameOverStats(Player player) {
         int deliveredProjects = 0;
         int projectsVolume = 0;
-        for (Project project : getProjects()) {
+        for (Project project : projectService.getProjects()) {
             if (project.isCompleted() && project.playerWasInvolved(player)) {
                 deliveredProjects++;
                 projectsVolume += project.getTotalValue();
@@ -841,7 +839,7 @@ public class Game {
             }
 
             project.setPublishedAt(getCurrentTick());
-            projects.add(project);
+            projectService.getProjects().add(project);
 
             // Initialize project-employee map
             projectEmployeesMap.put(project, new ArrayList<>(2));
@@ -855,7 +853,7 @@ public class Game {
     }
 
     private void evaluateTenderProcessesPerTick() {
-        for (Project project : projects) {
+        for (Project project : getProjectService().getProjects()) {
             // Don't evaluate acquired projects
             if (project.getAcquiredAt() != 0) {
                 continue;
@@ -916,15 +914,6 @@ public class Game {
         return players.get(websocket);
     }
 
-    Project getProjectById(int projectId) {
-        for (Project project : projects) {
-            if (project.getId() == projectId) {
-                return project;
-            }
-        }
-        return null;
-    }
-
     public void closeGameIfEmpty() {
         int numberOfPlayers = players.size();
 
@@ -974,7 +963,7 @@ public class Game {
     }
 
     public void assessProjectRiskForPlayer(int projectId, Player player) {
-        Project project = getProjectById(projectId);
+        Project project = projectService.getProjectById(projectId);
         if (project == null) {
             logger.error("Project with ID {} could not be found.", projectId);
             return;
@@ -1008,10 +997,10 @@ public class Game {
         employee.removeAllStatusEffects();
         talentMarket.addTalent(employee);
 
-        // If there are projects...
-        if (projects != null) {
+        // If there are projectService.getProjects()...
+        if (getProjectService().getProjects() != null) {
             // Remove employee from all projects
-            for (Project project : projects) {
+            for (Project project : getProjectService().getProjects()) {
                 if (projectEmployeesMap.containsKey(project)) {
                     ArrayList<Employee> employees = projectEmployeesMap.get(project);
                     employees.remove(employee);
@@ -1041,22 +1030,6 @@ public class Game {
         logger.debug("Talent market initialized with {} employees.", talentMarket.getTalents().size());
     }
 
-    public void startProject(Project project, int startedAt) {
-        if (project == null) {
-            logger.error("Project not found.");
-            return;
-        }
-
-        project.setStartedAt(startedAt);
-    }
-
-    public void addProject(Project project) {
-        // Check if project id already exists, if not, add the project
-        if (getProjectById(project.getId()) == null) {
-            projects.add(project);
-        }
-    }
-
     public boolean isRunning() {
         return isRunning;
     }
@@ -1076,7 +1049,7 @@ public class Game {
     }
 
     public void conductTeamEstimation(int projectId, Player player) {
-        Project project = getProjectById(projectId);
+        Project project = projectService.getProjectById(projectId);
         if (project == null) {
             logger.error("Project with ID {} not found.", projectId);
             return;
