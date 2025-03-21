@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.entities;
+package de.andrenitze.softpro.entities.projects;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

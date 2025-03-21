@@ -1,6 +1,15 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.*;
+import de.andrenitze.softpro.entities.accounting.AccountCategory;
+import de.andrenitze.softpro.entities.accounting.AccountingEntry;
+import de.andrenitze.softpro.entities.accounting.AccountingService;
+import de.andrenitze.softpro.entities.accounting.TransactionType;
+import de.andrenitze.softpro.entities.employees.Employee;
+import de.andrenitze.softpro.entities.employees.EmployeeIdGenerator;
+import de.andrenitze.softpro.entities.objectives.*;
+import de.andrenitze.softpro.entities.projects.Problem;
+import de.andrenitze.softpro.entities.projects.ProblemGenerator;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;

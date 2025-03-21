@@ -1,6 +1,11 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.entities.*;
+import de.andrenitze.softpro.entities.accounting.AccountCategory;
+import de.andrenitze.softpro.entities.accounting.AccountingEntry;
+import de.andrenitze.softpro.entities.accounting.AccountingService;
+import de.andrenitze.softpro.entities.accounting.TransactionType;
+import de.andrenitze.softpro.entities.employees.Employee;
 import de.andrenitze.softpro.types.EventType;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.StatusEffect;

@@ -4,7 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.entities.LevelDecisions;
-import de.andrenitze.softpro.entities.Problem;
+import de.andrenitze.softpro.entities.employees.Employee;
+import de.andrenitze.softpro.entities.projects.Problem;
 import de.andrenitze.softpro.entities.GameEvent;
 import de.andrenitze.softpro.config.ProjectPartyExclusionStrategy;
 import de.andrenitze.softpro.types.Decision;
@@ -24,7 +25,7 @@ import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.Main.logger;
 
-class GameEventHandler {
+public class GameEventHandler {
     public static final String TEAM_SPIRIT = "team-spirit";
     public static final String CRUNCH_MODE = "crunch-mode";
     public static final String PARTY_CONTRACTOR = "contractor";

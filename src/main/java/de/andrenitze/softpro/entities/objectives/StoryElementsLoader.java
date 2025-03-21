@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.entities;
+package de.andrenitze.softpro.entities.objectives;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -13,7 +13,6 @@ import static de.andrenitze.softpro.Main.logger;
 
 public class StoryElementsLoader {
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-    private static final int NUMBER_OF_LEVELS = 2;
     private final Map<Integer, ArrayList<StoryElement>> levelStoryElements = new HashMap<>();
 
     private InputStream getFileFromResourceAsStream(int level) {

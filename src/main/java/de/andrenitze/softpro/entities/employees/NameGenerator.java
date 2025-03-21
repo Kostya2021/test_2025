@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.entities;
+package de.andrenitze.softpro.entities.employees;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 

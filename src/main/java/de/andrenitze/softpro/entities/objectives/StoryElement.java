@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.entities;
+package de.andrenitze.softpro.entities.objectives;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIdentityReference;

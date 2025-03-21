@@ -1,7 +1,8 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.entities.EarnedValueHistoryEntry;
-import de.andrenitze.softpro.entities.Problem;
+import de.andrenitze.softpro.entities.employees.Employee;
+import de.andrenitze.softpro.entities.projects.EarnedValueHistoryEntry;
+import de.andrenitze.softpro.entities.projects.Problem;
 import de.andrenitze.softpro.types.ProgressEstimate;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.RiskLevel;

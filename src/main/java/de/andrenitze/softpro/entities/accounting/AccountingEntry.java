@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.entities;
+package de.andrenitze.softpro.entities.accounting;
 
 import de.andrenitze.softpro.Player;
 import lombok.Getter;

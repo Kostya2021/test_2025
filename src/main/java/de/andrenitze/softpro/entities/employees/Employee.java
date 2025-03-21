@@ -1,6 +1,6 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.entities.employees;
 
-import de.andrenitze.softpro.entities.NameGenerator;
+import de.andrenitze.softpro.Project;
 import de.andrenitze.softpro.entities.SalaryHistoryEntry;
 import de.andrenitze.softpro.types.ProjectType;
 import de.andrenitze.softpro.types.StatusEffect;
@@ -67,7 +67,7 @@ public class Employee {
     @Getter @Setter
     private transient int xpInDaysBeforeHiring = 0;
 
-    Employee(Integer id) {
+    public Employee(Integer id) {
         this.id = id;
         String[] generatedName = nameGenerator.generateName();
         this.firstName = generatedName[0];
@@ -110,7 +110,7 @@ public class Employee {
         }
     }
 
-    Integer getExperienceInDaysByProject(Project project) {
+    public Integer getExperienceInDaysByProject(Project project) {
         Integer experience = 0;
         if (projectExperience.get(project) != null) {
             experience = projectExperience.get(project);

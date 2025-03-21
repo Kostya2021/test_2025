@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.entities;
+package de.andrenitze.softpro.entities.accounting;
 
 // Enum for cost categories
 public enum AccountCategory {

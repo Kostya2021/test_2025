@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.entities;
+package de.andrenitze.softpro.entities.projects;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;

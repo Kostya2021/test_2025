@@ -270,13 +270,13 @@
                         <classes>
                             <class>de.andrenitze.softpro.events.AbstractGameEvent</class>
                             <class>de.andrenitze.softpro.entities.GameEvent</class>
-                            <class>de.andrenitze.softpro.entities.Objective</class>
+                            <class>de.andrenitze.softpro.entities.objectives.Objective</class>
                             <class>de.andrenitze.softpro.entities.GameOverStats</class>
-                            <class>de.andrenitze.softpro.entities.Objectives</class>
-                            <class>de.andrenitze.softpro.entities.StoryElement</class>
-                            <class>de.andrenitze.softpro.entities.StoryElements</class>
+                            <class>de.andrenitze.softpro.entities.objectives.Objectives</class>
+                            <class>de.andrenitze.softpro.entities.objectives.StoryElement</class>
+                            <class>de.andrenitze.softpro.entities.objectives.StoryElements</class>
                             <class>de.andrenitze.softpro.Player</class>
-                            <class>de.andrenitze.softpro.Employee</class>
+                            <class>de.andrenitze.softpro.entities.employees.Employee</class>
                             <class>de.andrenitze.softpro.Project</class>
                             <class>de.andrenitze.softpro.types.AvatarType</class>
                             <class>de.andrenitze.softpro.types.EventType</class>
