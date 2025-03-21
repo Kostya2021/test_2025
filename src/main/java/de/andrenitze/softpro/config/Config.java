@@ -12,6 +12,9 @@ public class Config {
     private static final Properties properties = new Properties();
     private static final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 
+    private Config() {
+    }
+
     static {
         try (InputStream input = Config.class.getClassLoader().getResourceAsStream("project.properties")) {
             if (input != null) {

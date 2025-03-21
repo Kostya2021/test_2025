@@ -1,7 +1,7 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.domains.GameEvent;
-import de.andrenitze.softpro.types.EventType;
+import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.events.EventType;
 import org.java_websocket.WebSocket;
 
 import java.beans.PropertyChangeEvent;
@@ -54,7 +54,7 @@ public class MessagingService implements PropertyChangeListener {
                 .findFirst().orElse(null);
     }
 
-    protected void broadcastToAllPlayers(String message) {
+    public void broadcastToAllPlayers(String message) {
         // Send the message to all players
         players.forEach((webSocket, player) -> webSocket.send(message));
     }

@@ -1,11 +1,12 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.EarnedValueHistoryEntry;
 import de.andrenitze.softpro.domains.projects.Problem;
-import de.andrenitze.softpro.types.ProgressEstimate;
-import de.andrenitze.softpro.types.ProjectType;
-import de.andrenitze.softpro.types.RiskLevel;
+import de.andrenitze.softpro.domains.projects.ProgressEstimate;
+import de.andrenitze.softpro.domains.projects.ProjectType;
+import de.andrenitze.softpro.domains.projects.RiskLevel;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -244,7 +245,7 @@ public class Project {
      * After the tender, several companies can work on the project together.
      *
      */
-    void addParty(Player player) {
+    public void addParty(Player player) {
         if (!involvedParties.contains(player)) {
             involvedParties.add(player);
         }
@@ -279,7 +280,7 @@ public class Project {
                 );
     }
 
-    boolean hasNoTenderProcess() {
+    public boolean hasNoTenderProcess() {
         return !tenderProcess;
     }
 
@@ -297,8 +298,8 @@ public class Project {
         }
 
         // After "safe period": Does any of the employees need on-boarding?
-        int safePeriodInDays = (int) (Params.SAFE_PERIOD_PERCENT * getScheduledDuration())
-                + Params.ASSIGNMENT_TIME_IN_DAYS;
+        int safePeriodInDays = (int) (GameParameters.SAFE_PERIOD_PERCENT * getScheduledDuration())
+                + GameParameters.ASSIGNMENT_TIME_IN_DAYS;
         for (Employee employee : employees) {
             // Employee has no experience in this project and needs to be trained
             if (employee.getExperienceInDaysByProject(this) <= safePeriodInDays) {
@@ -313,9 +314,9 @@ public class Project {
         // No extra on-boarding effort is assigned at the beginning of the project for the beginning of a project
         // (time to allocate staff to project, also general ramp-up, s. Rule #2)
         // Safe period (10%). No training required.
-        return currentTick <= (getScheduledDuration() * Params.SAFE_PERIOD_PERCENT
+        return currentTick <= (getScheduledDuration() * GameParameters.SAFE_PERIOD_PERCENT
                 + getAcquiredAt()
-                + Params.ASSIGNMENT_TIME_IN_DAYS);
+                + GameParameters.ASSIGNMENT_TIME_IN_DAYS);
     }
 
     public int getScheduledDuration() {

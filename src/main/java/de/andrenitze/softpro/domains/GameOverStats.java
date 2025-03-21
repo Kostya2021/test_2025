@@ -1,6 +1,6 @@
 package de.andrenitze.softpro.domains;
 
-import de.andrenitze.softpro.types.OptionVoteDistribution;
+import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import lombok.Data;
 
 import java.util.Date;

@@ -1,6 +1,6 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.config;
 
-public final class Params {
+public final class GameParameters {
     public static final float EMPLOYEE_ONBOARDING_TIME_IN_PERCENT = 0.1f;
     public static final double SAFE_PERIOD_PERCENT = 0.1;
     // Give the player some days to assign all employees to a project, before it impacts productivity

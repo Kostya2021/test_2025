@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.types;
+package de.andrenitze.softpro.events;
 
 public enum EventType {
     ASSIGN_EMPLOYEE,

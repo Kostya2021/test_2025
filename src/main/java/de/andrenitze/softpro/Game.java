@@ -1,20 +1,29 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.*;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.AccountingService;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
+import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
+import de.andrenitze.softpro.domains.employees.StatusEffect;
+import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.ProblemGenerator;
+import de.andrenitze.softpro.domains.projects.ProjectType;
+import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
@@ -32,10 +41,10 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.types.ProjectType.COMPLIANCE_PROJECT_NAMES;
+import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
@@ -175,7 +184,7 @@ public class Game {
     /**
      * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
      */
-    protected void prepareNextLevel() {
+    public void prepareNextLevel() {
         // Get next level from players. Highest level wins, but all players in one instance should have the same level.
         int nextLevel = 0;
         for (Player player : players.values()) {
@@ -539,6 +548,25 @@ public class Game {
 
     private void sendStoryElementsPerTick() {
         // Check if there's a story element for today
+        List<StoryElement> relevantStoryElements = getRelevantStoryElements();
+
+        if (relevantStoryElements.isEmpty()) {
+            return;
+        }
+
+        players.forEach((webSocket, player) -> {
+            List<StoryElement> thisPlayersStoryElements = getPlayerStoryElements(relevantStoryElements, player);
+
+            if (!thisPlayersStoryElements.isEmpty()) {
+                // Send the compiled list to the player
+                GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
+                newStoryElementEvent.setPayload(thisPlayersStoryElements);
+                messagingService.sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
+            }
+        });
+    }
+
+    private List<StoryElement> getRelevantStoryElements() {
         List<StoryElement> relevantStoryElements = new ArrayList<>();
         this.storyElements.forEach(element -> {
             // Relevant = Has not been sent AND (is scheduled earliest for this tick OR has an objective precondition)
@@ -547,37 +575,26 @@ public class Game {
                 relevantStoryElements.add(element);
             }
         });
+        return relevantStoryElements;
+    }
 
-        if (relevantStoryElements.isEmpty()) {
-            return;
-        }
-
-        players.forEach((webSocket, player) -> {
-            GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
-            List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
-
-            // Compile a list of all relevant story elements
-            relevantStoryElements.forEach(storyElement -> {
-                // Check if there are any required objectives before sending
-                ArrayList<Objective> completedObjectives = (ArrayList<Objective>) player.getCompletedObjectives();
-                if (storyElement.getAfterObjective() != 0) {
-                    completedObjectives.forEach(objective -> {
-                        if (storyElement.getAfterObjective() == objective.getId()) {
-                            thisPlayersStoryElements.add(storyElement);
-                            storyElement.setSent(true);
-                        }
-                    });
-                } else {
-                    thisPlayersStoryElements.add(storyElement);
-                }
-            });
-
-            if (!thisPlayersStoryElements.isEmpty()) {
-                // Send the compiled list to the player
-                newStoryElementEvent.setPayload(thisPlayersStoryElements);
-                messagingService.sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
+    private List<StoryElement> getPlayerStoryElements(List<StoryElement> relevantStoryElements, Player player) {
+        List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
+        relevantStoryElements.forEach(storyElement -> {
+            // Check if there are any required objectives before sending
+            ArrayList<Objective> completedObjectives = (ArrayList<Objective>) player.getCompletedObjectives();
+            if (storyElement.getAfterObjective() != 0) {
+                completedObjectives.forEach(objective -> {
+                    if (storyElement.getAfterObjective() == objective.getId()) {
+                        thisPlayersStoryElements.add(storyElement);
+                        storyElement.setSent(true);
+                    }
+                });
+            } else {
+                thisPlayersStoryElements.add(storyElement);
             }
         });
+        return thisPlayersStoryElements;
     }
 
     private void simulateEmployeeLivesPerTick() {
@@ -607,40 +624,33 @@ public class Game {
     }
 
     public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
-        // If employee is assigned to a project, in which he/she has low experience, satisfaction decreases (status effect)
-        if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee))) {
+        if (isEmployeeAssignedToProject(employee)) {
             projectEmployeesMap.forEach((project, employees) -> {
-                // Make sure project has started to prevent status effect from being applied
                 if (project.getStartedAt() == 0) {
                     return;
                 }
-
-                // New project type decreases satisfaction by 30%
-                StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION,
-                        0.7f,
-                        FAMILIARIZATION_WITH_NEW_TYPE);
-
-                // New project domain decreases satisfaction by 15%
-                StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION,
-                        0.85f,
-                        FAMILIARIZATION_WITH_NEW_DOMAIN);
-
-                // Make sure it's only applied once
-                if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
-                    if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS) {
-                        employee.addStatusEffect(newProjectTypeEffect);
-                    }
-                }
-
-                if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
-                    if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
-                        employee.addStatusEffect(newProjectDomainEffect);
-                    }
-                }
-
-                // Notify frontend about status effect
+                applyStatusEffectForProjectType(employee, project);
+                applyStatusEffectForProjectDomain(employee, project);
                 sendEmployeeUpdate(player, employee);
             });
+        }
+    }
+
+    private boolean isEmployeeAssignedToProject(Employee employee) {
+        return projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee));
+    }
+
+    private void applyStatusEffectForProjectType(Employee employee, Project project) {
+        StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.7f, FAMILIARIZATION_WITH_NEW_TYPE);
+        if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
+            employee.addStatusEffect(newProjectTypeEffect);
+        }
+    }
+
+    private void applyStatusEffectForProjectDomain(Employee employee, Project project) {
+        StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.85f, FAMILIARIZATION_WITH_NEW_DOMAIN);
+        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
+            employee.addStatusEffect(newProjectDomainEffect);
         }
     }
 
@@ -924,7 +934,7 @@ public class Game {
         return eventHandler;
     }
 
-    Player getPlayerByWebSocket(WebSocket websocket) {
+    public Player getPlayerByWebSocket(WebSocket websocket) {
         return players.get(websocket);
     }
 
@@ -984,7 +994,7 @@ public class Game {
         }
 
         // Deduct funds from player
-        int riskAssessmentCost = (int) Params.PROJECT_RISK_ASSESSMENT_COST;
+        int riskAssessmentCost = (int) GameParameters.PROJECT_RISK_ASSESSMENT_COST;
         accountingService.addEntry(new AccountingEntry(
                 player,
                 getCurrentTick(),

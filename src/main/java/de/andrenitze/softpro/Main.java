@@ -14,7 +14,7 @@ public class Main {
         try {
             String hostAddress = InetAddress.getLocalHost().getHostAddress();
 
-            // Accept first external ajva argument for port or use 80
+            // Accept first external argument for port or use 80
             int port = args.length > 0 ? Integer.parseInt(args[0]) : 80;
 
             GameServer server = new GameServer(hostAddress, port);

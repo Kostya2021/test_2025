@@ -1,7 +1,5 @@
 package de.andrenitze.softpro.domains.decisions;
 
-import de.andrenitze.softpro.types.OptionVoteDistribution;
-
 import javax.sql.DataSource;
 import java.net.ConnectException;
 import java.sql.*;

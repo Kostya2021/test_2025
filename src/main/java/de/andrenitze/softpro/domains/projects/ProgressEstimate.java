@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.types;
+package de.andrenitze.softpro.domains.projects;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

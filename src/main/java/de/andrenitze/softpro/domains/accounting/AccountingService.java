@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.Main.logger;
@@ -46,7 +46,7 @@ public class AccountingService {
                 .collect(Collectors.toList());
     }
 
-    public void processMonthlyPaymentsPerTick(LocalDate d, ConcurrentHashMap<WebSocket, Player> players, int currentTick) {
+    public void processMonthlyPaymentsPerTick(LocalDate d, ConcurrentMap<WebSocket, Player> players, int currentTick) {
         if (d.getDayOfMonth() == 1) {
             players.forEach((webSocket, player) -> {
                 // Calculate and subtract salaries

@@ -2,7 +2,7 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
-import de.andrenitze.softpro.types.ProjectType;
+import de.andrenitze.softpro.domains.projects.ProjectType;
 
 import java.util.ArrayList;
 import java.util.HashMap;

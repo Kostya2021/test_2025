@@ -12,7 +12,7 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.Main.logger;
 
 public class SkillsManager {
@@ -28,7 +28,7 @@ public class SkillsManager {
         loadAllSkills();
     }
 
-    void unlockSkill(Player player, String skillId, int unlockSkillPoints) {
+    public void unlockSkill(Player player, String skillId, int unlockSkillPoints) {
         Skill skill = new Skill();
         skill.setId(skillId);
         skill.setUnlocked(true);
@@ -43,7 +43,7 @@ public class SkillsManager {
         addPermanentStatusEffectsToAllEmployees();
     }
 
-    boolean playerHasSkill(Player player, String skillId) {
+    public boolean playerHasSkill(Player player, String skillId) {
         HashMap<String, Skill> skills = playersSkills.get(player);
         if (skills == null) {
             logger.debug("Player {} has no skills registered.", player.getName());

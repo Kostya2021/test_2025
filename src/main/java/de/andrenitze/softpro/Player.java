@@ -36,6 +36,7 @@ public class Player {
     }};
     @Getter
     private final UUID id;
+    @Getter
     private String name;
     @Getter @Setter
     private String firstName;
@@ -101,10 +102,6 @@ public class Player {
         initializeObjectives();
     }
 
-    String getName() {
-        return name;
-    }
-
     public void setName(String name) {
         this.name = name;
 
@@ -137,7 +134,7 @@ public class Player {
         return salaries.get();
     }
 
-    Employee getEmployeeById(int id) {
+    public Employee getEmployeeById(int id) {
         for (Employee employee : employees) {
             if (employee.getId() == id) {
                 return employee;

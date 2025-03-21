@@ -1,7 +1,6 @@
-package de.andrenitze.softpro.domains;
+package de.andrenitze.softpro.events;
 
 import com.google.gson.annotations.SerializedName;
-import de.andrenitze.softpro.types.EventType;
 import lombok.Getter;
 import lombok.Setter;
 

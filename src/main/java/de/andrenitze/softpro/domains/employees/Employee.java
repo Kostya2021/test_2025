@@ -1,16 +1,14 @@
 package de.andrenitze.softpro.domains.employees;
 
 import de.andrenitze.softpro.Project;
-import de.andrenitze.softpro.types.ProjectType;
-import de.andrenitze.softpro.types.StatusEffect;
-import de.andrenitze.softpro.types.StatusEffectType;
+import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.*;
 
-import static de.andrenitze.softpro.GameEventHandler.CRUNCH_MODE;
-import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
+import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 

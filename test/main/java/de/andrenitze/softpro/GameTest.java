@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 import de.andrenitze.softpro.*;
+import de.andrenitze.softpro.config.GameParameters;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ public class GameTest {
 
         // Check the consequences in Level 3
         assertFalse(player.getEmployees().isEmpty(), "Player should have employees in Level 3");
-        assertEquals(-Params.PROJECT_RISK_ASSESSMENT_COST, player.getFunds(), "Player's funds should be deducted correctly");
+        assertEquals(-GameParameters.PROJECT_RISK_ASSESSMENT_COST, player.getFunds(), "Player's funds should be deducted correctly");
         assertTrue(game.getProjectService().getProjects().contains(project), "Project should still be part of the game");
     }
 }

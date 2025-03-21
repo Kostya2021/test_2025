@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.types;
+package de.andrenitze.softpro.domains.decisions;
 
 import lombok.Getter;
 import lombok.Setter;

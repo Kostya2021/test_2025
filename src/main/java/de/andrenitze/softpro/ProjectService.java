@@ -1,15 +1,16 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.domains.*;
+import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.AccountingService;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.types.EventType;
-import de.andrenitze.softpro.types.ProjectType;
-import de.andrenitze.softpro.types.StatusEffect;
-import de.andrenitze.softpro.types.StatusEffectType;
+import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.domains.projects.ProjectType;
+import de.andrenitze.softpro.domains.employees.StatusEffect;
+import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import lombok.Getter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -22,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.*;
-import static de.andrenitze.softpro.GameEventHandler.PARTY_CLIENT;
+import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
 import static de.andrenitze.softpro.GameServer.GSON;
 import static java.lang.Math.*;
 
@@ -346,7 +347,7 @@ public class ProjectService {
 
         for (Employee employee : employees) {
             // FIXED: 30,4 (10% of a 304-day project)
-            float onboardingDays = Params.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
+            float onboardingDays = GameParameters.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
 
             // VARIABLE (depending on employees' experience): 4 days / 30,4 days = 0,1333%
             float onboardingProgress = employee.getExperienceInDaysByProject(project) / onboardingDays;
@@ -359,7 +360,7 @@ public class ProjectService {
             // Example 1: 10% onboardingProgress => 13,5% productivity decrease
             // Example 2: 50% onboardingProgress => 7,5% productivity decrease
             // Example 3: 100% onboardingProgress => 0% productivity decrease
-            float onboardingFactor = 1 - (1 - onboardingProgress) * Params.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
+            float onboardingFactor = 1 - (1 - onboardingProgress) * GameParameters.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
             onboardingFactors.add(onboardingFactor);
 
             logger.debug("{} is being on-boarded in project {}: {} productivity factor, {}/{} days",
@@ -387,7 +388,7 @@ public class ProjectService {
         return numberOfProjects;
     }
 
-    void assignEmployeeToProject(Employee employee, Project project) {
+    public void assignEmployeeToProject(Employee employee, Project project) {
         if (isNull(employee, project)) return;
 
         // Get current list of employees working on that project
@@ -406,7 +407,7 @@ public class ProjectService {
         }
     }
 
-    void removeEmployeeFromProject(Employee employee, Project project) {
+    public void removeEmployeeFromProject(Employee employee, Project project) {
         if (isNull(employee, project)) return;
 
         // Get current list of employees working on that project
@@ -589,7 +590,7 @@ public class ProjectService {
         }
     }
 
-    Project getProjectById(int projectId) {
+    public Project getProjectById(int projectId) {
         for (Project project : projects) {
             if (project.getId() == projectId) {
                 return project;
