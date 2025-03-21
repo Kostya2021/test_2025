@@ -99,7 +99,7 @@ public class ProjectManager {
 
             // Send update to all involved players
             for (Player player : project.getInvolvedPlayers()) {
-                game.sendMessageToPlayer(player, event.toString());
+                game.getMessagingService().sendMessageToPlayer(player, event.toString());
             }
         }
     }
@@ -139,7 +139,7 @@ public class ProjectManager {
             AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
-            game.sendFundsUpdateToPlayer(player);
+            game.getMessagingService().sendFundsUpdateToPlayer(player);
 
             // Calculate player's XP gained in this project
             float xp = calculateXP(project);
@@ -148,7 +148,7 @@ public class ProjectManager {
             GameEvent<Player> playerUpdateEvent = new GameEvent<>();
             playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
-            game.sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
+            game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(playerUpdateEvent));
 
             // After project completion, send gained XP of employees to player
             for (Employee employee : employees) {
@@ -458,9 +458,8 @@ public class ProjectManager {
                 ? CLIENT_CANCELLATION_PENALTY
                 : CONTRACTOR_CANCELLATION_PENALTY;
 
-        // Calculate cancellation penalty (30% of total value)
         int cancellationPenalty = 0;
-        if (game.getLevel() != 1) {
+        if (game.getLevel() != 2) { // TODO!!
             cancellationPenalty = (int) (project.getTotalValue() * penaltyRate);
         }
         project.setPenalty(cancellationPenalty);
@@ -469,7 +468,7 @@ public class ProjectManager {
         if (project.getStartedAt() > 0) {
             // Update funds
             player.subtractFunds(cancellationPenalty);
-            game.sendFundsUpdateToPlayer(player);
+            game.getMessagingService().sendFundsUpdateToPlayer(player);
 
             // Add accounting entry
             accountingService.addEntry(new AccountingEntry(
@@ -496,7 +495,7 @@ public class ProjectManager {
         projectCancelledEvent.setPayload(project);
 
         // Notify the player
-        game.sendMessageToPlayer(player, GSON.toJson(projectCancelledEvent));
+        game.getMessagingService().sendMessageToPlayer(player, GSON.toJson(projectCancelledEvent));
 
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {

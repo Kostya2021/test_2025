@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.net.ConnectException;
 import java.time.LocalDate;
 import java.util.*;
@@ -24,7 +26,7 @@ import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
 public class Game {
-    public static final int GAME_SPEED_IN_MILLISECONDS = 600;
+    public static final int GAME_SPEED_IN_MILLISECONDS = 250; // TODO
     private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
@@ -42,9 +44,12 @@ public class Game {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     @Getter
     private final AccountingService accountingService;
+    @Getter
+    private final MessagingService messagingService;
     private boolean isRunning; // Game instance is active
     private boolean isPaused = false; // Game instance is active, but paused (e.g., for briefing and tutorials)
     private final GameServer gameServer;
+    @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;
     @Getter
     private ArrayList<Project> projects = new ArrayList<>();
@@ -65,6 +70,7 @@ public class Game {
     private final ProblemGenerator problemGenerator = new ProblemGenerator();
     @Getter
     private final ProjectManager projectManager;
+    private PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
      * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
@@ -94,10 +100,13 @@ public class Game {
         skillsManager = new SkillsManager();
 
         // Initialize the accounting service to keep track of all financial transactions
-        accountingService = new AccountingService();
+        accountingService = new AccountingService(this);
 
         // Initialize the project manager to manage all projects
         projectManager = new ProjectManager(this);
+
+        // Initialize messaging service
+        messagingService = new MessagingService(this);
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -118,7 +127,7 @@ public class Game {
         isRunning = true;
         GameEvent<Object> startEvent = new GameEvent<>();
         startEvent.setType(EventType.ROUND_STARTED);
-        broadcastToAllPlayers(GSON.toJson(startEvent));
+        messagingService.broadcastToAllPlayers(GSON.toJson(startEvent));
 
         // Send initial state to all players
         players.forEach((webSocket, player) -> {
@@ -129,7 +138,7 @@ public class Game {
             logger.debug("Sending initial state to players");
             GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.STATE_UPDATED);
             initialPlayerEvent.setPayload(player);
-            sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
+            messagingService.sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
         });
 
         // Start running the game time
@@ -140,7 +149,7 @@ public class Game {
             }
 
             // Notify all clients of current time
-            this.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
+            messagingService.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
                     "\", \"payload\": " + getCurrentTick() + "}");
 
             // Progress game time and calculate the world's state for each tick
@@ -181,13 +190,13 @@ public class Game {
             // Send talent market to players at once
             GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
-            broadcastToAllPlayers(GSON.toJson(employeeEvent));
+            messagingService.broadcastToAllPlayers(GSON.toJson(employeeEvent));
         }
 
         // Send all tenders at once
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projects);
-        broadcastToAllPlayers(GSON.toJson(projectEvent));
+        messagingService.broadcastToAllPlayers(GSON.toJson(projectEvent));
 
         // Logic for decisions and their consequences
         // Beware: Decisions from previous levels might have consequences in other levels
@@ -310,7 +319,7 @@ public class Game {
         this.level = i;
     }
 
-    protected int getLevel() {
+    public int getLevel() {
         return level;
     }
 
@@ -341,7 +350,8 @@ public class Game {
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
         projectManager.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeesMap);
-        processMonthlyPaymentsPerTick(currentDate);
+        projectManager.cancelOverdueProjects(currentTick);
+        accountingService.processMonthlyPaymentsPerTick(currentDate, players, currentTick);
         randomlySpawnProjectTendersPerTick();
         randomlySpawnComplianceProjectsPerTick();
         removeStaleTendersPerTick();
@@ -373,7 +383,7 @@ public class Game {
             if (!newEntries.isEmpty()) {
                 GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
                 newAccountingEntriesEvent.setPayload(newEntries);
-                sendMessageToPlayer(player, GSON.toJson(newAccountingEntriesEvent));
+                messagingService.sendMessageToPlayer(player, GSON.toJson(newAccountingEntriesEvent));
             }
         });
     }
@@ -407,7 +417,7 @@ public class Game {
             GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
             newProjectEvent.setPayload(project);
             logger.debug("New compliance project spawned for all players: {}", project.getName());
-            broadcastToAllPlayers(GSON.toJson(newProjectEvent));
+            messagingService.broadcastToAllPlayers(GSON.toJson(newProjectEvent));
         }
     }
 
@@ -446,7 +456,7 @@ public class Game {
                 project.getInvolvedPlayers().forEach(player -> {
                     GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                     projectUpdatedEvent.setPayload(project);
-                    sendMessageToPlayer(player, GSON.toJson(projectUpdatedEvent));
+                    messagingService.sendMessageToPlayer(player, GSON.toJson(projectUpdatedEvent));
                 });
             }
         }
@@ -485,7 +495,7 @@ public class Game {
         projectStartedEvent.setPayload(payload);
 
         // Notify involved players about forced start
-        project.getInvolvedPlayers().forEach(player -> sendMessageToPlayer(player, GSON.toJson(projectStartedEvent)));
+        project.getInvolvedPlayers().forEach(player -> messagingService.sendMessageToPlayer(player, GSON.toJson(projectStartedEvent)));
     }
 
     private void removeStaleTendersPerTick() {
@@ -515,7 +525,7 @@ public class Game {
         }
         GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
         tendersRemovedEvent.setPayload(staleTenders);
-        broadcastToAllPlayers(GSON.toJson(tendersRemovedEvent));
+        messagingService.broadcastToAllPlayers(GSON.toJson(tendersRemovedEvent));
     }
 
     private void sendStoryElementsPerTick() {
@@ -556,7 +566,7 @@ public class Game {
             if (!thisPlayersStoryElements.isEmpty()) {
                 // Send the compiled list to the player
                 newStoryElementEvent.setPayload(thisPlayersStoryElements);
-                sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
+                messagingService.sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
             }
         });
     }
@@ -628,7 +638,7 @@ public class Game {
     public void sendEmployeeUpdate(Player player, Employee employee) {
         GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
         employeeUpdateEvent.setPayload(employee);
-        sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
+        messagingService.sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
     }
 
     private void checkObjectivesCriteriaAndSendRewardsPerTick() {
@@ -651,31 +661,7 @@ public class Game {
         return mission;
     }
 
-    private void processMonthlyPaymentsPerTick(LocalDate d) {
-        if (d.getDayOfMonth() == 1) {
-            players.forEach((webSocket, player) -> {
-                // Calculate and subtract salaries
-                int salaries = player.calculateAndSubtractSalaries();
-                accountingService.addEntry(new AccountingEntry(player, currentTick, salaries, AccountCategory.SALARIES,
-                        TransactionType.DEBIT, "Monthly salaries"));
 
-                // Office rent (fixed costs, rises with level)
-                int rent = 500 * (getLevel()-1);
-                accountingService.addEntry(new AccountingEntry(player, currentTick, rent, AccountCategory.OVERHEAD,
-                        TransactionType.DEBIT, "Office rent"));
-
-                // Insurance (fixed costs, rises with level)
-                int insurance = 150 * getLevel();
-                accountingService.addEntry(new AccountingEntry(player, currentTick, insurance, AccountCategory.OVERHEAD,
-                        TransactionType.DEBIT, "Insurance"));
-
-                // Subtract rent and insurance from funds (not handled by accounting service)
-                player.subtractFunds(rent + insurance);
-
-                sendFundsUpdateToPlayer(player);
-            });
-        }
-    }
 
     void checkGameOverConditionsPerTick() {
         players.forEach((webSocket, player) -> {
@@ -715,7 +701,7 @@ public class Game {
         // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
-        sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
+        messagingService.sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
         logger.debug("Sent GAME_OVER event to player: {}", GSON.toJson(gameOverEvent));
 
         // Update player one last time in this level to make sure, client is up-to-date
@@ -802,15 +788,9 @@ public class Game {
                 // For the frontend, still include ALL objectives, even completed ones, in this event
                 List<Objective> allObjectives = player.getObjectivesUntilThisTick(getCurrentTick());
                 objectivesUpdatedEvent.setPayload(allObjectives);
-                sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+                messagingService.sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
             }
         });
-    }
-
-    void sendFundsUpdateToPlayer(Player player) {
-        GameEvent<Float> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
-        newFundsEvent.setPayload(player.getFunds());
-        sendMessageToPlayer(player, GSON.toJson(newFundsEvent));
     }
 
     private boolean isNewHighScore(GameOverStats highScoreCandidate) {
@@ -873,7 +853,7 @@ public class Game {
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
             newTenderEvent.setPayload(project);
 
-            broadcastToAllPlayers(GSON.toJson(newTenderEvent));
+            messagingService.broadcastToAllPlayers(GSON.toJson(newTenderEvent));
         }
     }
 
@@ -921,21 +901,6 @@ public class Game {
         return xp;
     }
 
-    protected void broadcastToAllPlayers(String message) {
-        // Send the message to all players
-        players.forEach((webSocket, player) -> webSocket.send(message));
-    }
-
-    public void sendMessageToPlayer(Player player, String message) {
-        // Get the WebSocket connection of the player
-        WebSocket webSocket = getWebSocketByPlayer(players, player);
-
-        if (webSocket != null) {
-            // Send a single message on that WebSocket connection
-            webSocket.send(message);
-        }
-    }
-
     private WebSocket getWebSocketByPlayer(Map<WebSocket, Player> map, Player player) {
         return map.keySet()
                 .stream()
@@ -943,13 +908,10 @@ public class Game {
                 .findFirst().orElse(null);
     }
 
-    void removePlayerFromGame(WebSocket webSocket) {
-        players.remove(webSocket);
+    void removePlayerFromGame(WebSocket key) {
+        players.remove(key);
+        support.firePropertyChange("players", null, players);
         closeGameIfEmpty();
-    }
-
-    Map<WebSocket, Player> getPlayers() {
-        return players;
     }
 
     boolean hasWebSocket(WebSocket conn) {
@@ -1018,6 +980,7 @@ public class Game {
 
     public void addPlayerToGame(WebSocket key, Player value) {
         players.put(key, value);
+        support.firePropertyChange("players", null, players);
     }
 
     public void assessProjectRiskForPlayer(int projectId, Player player) {
@@ -1032,12 +995,12 @@ public class Game {
         // getCurrentTick() + 1 to make sure it's processed in the next tick
         accountingService.addEntry(new AccountingEntry(player, getCurrentTick() + 1, riskAssessmentCost, AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
         player.subtractFunds(riskAssessmentCost);
-        sendFundsUpdateToPlayer(player);
+        messagingService.sendFundsUpdateToPlayer(player);
 
         // Send project update to player
         GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
         riskAssessedConfirmation.setPayload(project);
-        sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
+        messagingService.sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
     }
 
     public void generateFirstEmployeesForPlayers() {
@@ -1071,12 +1034,12 @@ public class Game {
         // Send employee dismissal confirmation
         GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
         employeeDismissedEvent.setPayload(employee);
-        sendMessageToPlayer(player, GSON.toJson(employeeDismissedEvent));
+        messagingService.sendMessageToPlayer(player, GSON.toJson(employeeDismissedEvent));
 
         // Send new employee to all players' TalentMarkets in the game
         GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
         employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
-        broadcastToAllPlayers(GSON.toJson(employeeEvent));
+        messagingService.broadcastToAllPlayers(GSON.toJson(employeeEvent));
     }
 
     void initializeTalentMarket() {
@@ -1149,13 +1112,7 @@ public class Game {
         project.estimateProgress(currentTick);
 
         // Send project update to player
-        sendProjectUpdateToPlayer(player, project);
-    }
-
-    private void sendProjectUpdateToPlayer(Player player, Project project) {
-        GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-        projectUpdateEvent.setPayload(project);
-        sendMessageToPlayer(player, GSON.toJson(projectUpdateEvent));
+        messagingService.sendProjectUpdateToPlayer(player, project);
     }
 
     public void assignProjectToPlayer(Player player, Project project) {
@@ -1169,11 +1126,19 @@ public class Game {
         // Send PROJECT_UPDATED to all players (-> important for tenders!)
         GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdatedEvent.setPayload(project);
-        broadcastToAllPlayers(GSON.toJson(projectUpdatedEvent));
+        messagingService.broadcastToAllPlayers(GSON.toJson(projectUpdatedEvent));
 
         // Send PROJECT_RECEIVED event to the player
         GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
         projectReceivedEvent.setPayload(project);
-        sendMessageToPlayer(player, GSON.toJson(projectReceivedEvent));
+        messagingService.sendMessageToPlayer(player, GSON.toJson(projectReceivedEvent));
+    }
+
+    public void addPropertyChangeListener(PropertyChangeListener pcl) {
+        support.addPropertyChangeListener(pcl);
+    }
+
+    public void removePropertyChangeListener(PropertyChangeListener pcl) {
+        support.removePropertyChangeListener(pcl);
     }
 }
