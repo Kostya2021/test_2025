@@ -26,6 +26,7 @@ public class Project {
     private int earnedValue;
     private final List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
     private boolean tenderProcess;
+    @Getter
     @Setter
     private int tenderDeadlineInDays;
 
@@ -59,9 +60,9 @@ public class Project {
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur,Byte,Zero,System,Cypher,Kernel,Logic,Protocol,Nexus,Mainframe,Quantum,Bit,Octet,Hex,Cluster,Cloud,Node,Stack".split(","));
     private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen,Protocol,System,Bit,Stream,Array,Packet,Frame,Sync,Cache,Wire,Loop,Cipher,Source".split(","));
     private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
-    private static final int projectNameSnippetsSize = PROJECT_NAME_SNIPPETS.size();
-    private static final int projectNameSpacersSize = PROJECT_NAME_SPACERS.size();
-    private static final int projectNameSuffixesSize = PROJECT_NAME_SUFFIXES.size();
+    private static final int PROJECT_NAME_SNIPPETS_SIZE = PROJECT_NAME_SNIPPETS.size();
+    private static final int PROJECT_NAME_SPACERS_SIZE = PROJECT_NAME_SPACERS.size();
+    private static final int PROJECT_NAME_SUFFIXES_SIZE = PROJECT_NAME_SUFFIXES.size();
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
@@ -70,7 +71,7 @@ public class Project {
     @Getter
     private String domain;
     @Getter
-    private final String description = ""; // Description text is generated in the frontend
+    private static final String description = ""; // Description text is generated in the frontend
     @Getter
     private boolean hasBeenRiskAssessed = false;
     @Getter
@@ -170,10 +171,10 @@ public class Project {
         // By defining a deadline, inherently, every project is suited for a specific number of people.
 
         float riskMultiplier = switch (getRiskLevel()) {
-            case low -> 2.0f;
-            case medium -> 1.0f;
-            case high -> 0.5f;
-            case extreme -> 0.25f;
+            case LOW -> 2.0f;
+            case MEDIUM -> 1.0f;
+            case HIGH -> 0.5f;
+            case EXTREME -> 0.25f;
         };
 
         // Generate random deadline, loosely based on project volume
@@ -187,10 +188,10 @@ public class Project {
     private int generateVolume() {
         // The higher the risk level the higher the project volume
         float riskMultiplier = switch (getRiskLevel()) {
-            case low -> 1.0f;
-            case medium -> 2.0f;
-            case high -> 4.0f;
-            case extreme -> 8.0f;
+            case LOW -> 1.0f;
+            case MEDIUM -> 2.0f;
+            case HIGH -> 4.0f;
+            case EXTREME -> 8.0f;
         };
 
         int randomVolume = RANDOM.nextInt(1000) * 100;
@@ -204,12 +205,12 @@ public class Project {
 
         while (!isUniqueName) {
             // Pick a random name
-            projectName.append(PROJECT_NAME_SNIPPETS.get(RANDOM.nextInt(projectNameSnippetsSize)));
+            projectName.append(PROJECT_NAME_SNIPPETS.get(RANDOM.nextInt(PROJECT_NAME_SNIPPETS_SIZE)));
 
             // Add 50% chance for suffixes
             if (RANDOM.nextInt(100) < 50) {
-                String spacer = PROJECT_NAME_SPACERS.get(RANDOM.nextInt(projectNameSpacersSize));
-                String secondPart = PROJECT_NAME_SUFFIXES.get(RANDOM.nextInt(projectNameSuffixesSize));
+                String spacer = PROJECT_NAME_SPACERS.get(RANDOM.nextInt(PROJECT_NAME_SPACERS_SIZE));
+                String secondPart = PROJECT_NAME_SUFFIXES.get(RANDOM.nextInt(PROJECT_NAME_SUFFIXES_SIZE));
 
                 projectName.append(spacer);
                 projectName.append(secondPart);
@@ -230,10 +231,6 @@ public class Project {
 
     public void decreaseTimeLeftForTender() {
         --this.tenderDeadlineInDays;
-    }
-
-    public int getTenderDeadlineInDays() {
-        return tenderDeadlineInDays;
     }
 
     /**
@@ -289,7 +286,7 @@ public class Project {
         return getInvolvedPlayers().contains(player);
     }
 
-    public boolean hasOnboardingEmployees(ArrayList<Employee> employees) {
+    public boolean hasOnboardingEmployees(List<Employee> employees) {
         if (this.getType() == ProjectType.COMPLIANCE) {
             return false;
         }
@@ -347,10 +344,10 @@ public class Project {
 
         // Add variance of up to 70% based on risk level (e.g., the more risk the more variance)
         float riskMultiplier = switch (getRiskLevel()) {
-            case low -> 0.3f;
-            case medium -> 0.5f;
-            case high -> 0.7f;
-            case extreme -> 1.0f;
+            case LOW -> 0.3f;
+            case MEDIUM -> 0.5f;
+            case HIGH -> 0.7f;
+            case EXTREME -> 1.0f;
         };
 
 

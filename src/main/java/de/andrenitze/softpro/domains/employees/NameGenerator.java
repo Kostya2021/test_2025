@@ -44,6 +44,7 @@ public class NameGenerator {
     // Global population distribution
     private static final float[] REGION_DISTRIBUTION = {0.595f, 0.172f, 0.096f, 0.084f, 0.048f, 0.005f};
 
+    @SuppressWarnings("squid:S1192")
     private static String[][] initializeMaleNamesByRegion() {
         String[][] names = new String[6][];
 
@@ -94,6 +95,7 @@ public class NameGenerator {
         return names;
     }
 
+    @SuppressWarnings("squid:S1192")
     private static String[][] initializeFemaleNamesByRegion() {
         String[][] names = new String[6][];
 
@@ -143,6 +145,7 @@ public class NameGenerator {
         return names;
     }
 
+    @SuppressWarnings("squid:S1192")
     private static String[][] initializeUnisexNamesByRegion() {
         String[][] names = new String[6][];
 
@@ -191,6 +194,7 @@ public class NameGenerator {
         return names;
     }
 
+    @SuppressWarnings("squid:S1192")
     private static String[][] initializeLastNamesByRegion() {
         String[][] names = new String[6][];
 

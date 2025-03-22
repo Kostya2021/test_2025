@@ -653,7 +653,7 @@ public class ProjectService {
         if (getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
                 RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
             // Generate a new compliance project
-            Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.low, false);
+            Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.LOW, false);
 
             project.setPublishedAt(game.getCurrentTick());
             project.setAcquiredAt(game.getCurrentTick()); // Immediately acquired: Frontend will show it as "acquired"
@@ -692,7 +692,7 @@ public class ProjectService {
                 // 25% chance for a perfect project
                 if (RANDOM.nextFloat() <= 0.75) {
                     // Low-risk, small projects
-                    project = new Project(RiskLevel.low).initialize();
+                    project = new Project(RiskLevel.LOW).initialize();
 
                     // No tender process for level 1
                     project.setTenderProcess(false);
@@ -707,7 +707,7 @@ public class ProjectService {
                     String domain = bestEmployee.getDomainOfExpertise();
                     ProjectType type = ProjectType.getTypeByDomain(domain);
 
-                    project = new Project(type, domain, RiskLevel.low, false);
+                    project = new Project(type, domain, RiskLevel.LOW, false);
                 }
             } else {
                 project = new Project().initialize();

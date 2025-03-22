@@ -380,7 +380,7 @@ public class Game {
 
     private void sendNewAccountingEntries() {
         // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             List<AccountingEntry> newEntries = accountingService.getAllEntriesByPlayer(player.getId()).stream()
                     .filter(entry -> entry.getDay() == currentTick)
                     .toList();
@@ -401,7 +401,7 @@ public class Game {
             return;
         }
 
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             List<StoryElement> thisPlayersStoryElements = getPlayerStoryElements(relevantStoryElements, player);
 
             if (!thisPlayersStoryElements.isEmpty()) {
@@ -445,7 +445,7 @@ public class Game {
     }
 
     private void simulateEmployeeLives() {
-        players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
+        players.forEach((_, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(currentTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
 
@@ -472,7 +472,7 @@ public class Game {
 
     private void checkObjectivesCriteriaAndSendRewards() {
         ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
-        players.forEach((webSocket, player) -> objectiveChecker.checkObjectives(player));
+        players.forEach((_, player) -> objectiveChecker.checkObjectives(player));
     }
 
     @Nullable
@@ -607,7 +607,7 @@ public class Game {
     // Note: This method sends an OBJECTIVES_UPDATED event (i.e., it includes ALL objectives of this level),
 // because the frontend needs to show the completed objectives of other missions as well as the new objectives.
     void sendNewObjectives() {
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             boolean thereAreNewObjectives = !player.getNewObjectivesByTick(getCurrentTick()).isEmpty();
             if (thereAreNewObjectives) {
                 logger.debug("Sending {} new objectives to player.", player.getNewObjectivesByTick(getCurrentTick()).size());
@@ -637,10 +637,10 @@ public class Game {
         // Riskier and larger projects yield more XP
         float xp = project.getTotalValue() / 1000f;
         switch (project.getRiskLevel()) {
-            case low -> xp *= 0.75F;
-            case medium -> xp *= 1;
-            case high -> xp *= 2;
-            case extreme -> xp *= 4;
+            case LOW -> xp *= 0.75F;
+            case MEDIUM -> xp *= 1;
+            case HIGH -> xp *= 2;
+            case EXTREME -> xp *= 4;
         }
 
         // Compliance projects yield no XP
@@ -744,10 +744,10 @@ public class Game {
 
     public void generateFirstEmployeesForPlayers() {
         // Remove any existing employees from the player
-        players.forEach((webSocket, player) -> player.getEmployees().clear());
+        players.forEach((_, player) -> player.getEmployees().clear());
 
         // Generate first employees for all players (necessary for Level 2)
-        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(
+        players.forEach((_, player) -> talentMarket.generateFirstEmployees().forEach(
                 employee -> player.addEmployee(employee, 0)
         ));
     }
