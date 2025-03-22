@@ -71,8 +71,6 @@ public class Project {
     @Getter
     private String domain;
     @Getter
-    private static final String description = ""; // Description text is generated in the frontend
-    @Getter
     private boolean hasBeenRiskAssessed = false;
     @Getter
     private final List<Problem> problems = new ArrayList<>();
