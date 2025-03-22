@@ -20,6 +20,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.*;
@@ -53,7 +54,7 @@ public class ProjectService {
     }
 
     public void conductWorkOnAllProjects(int currentTick, LocalDate currentDate,
-                                         ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap) {
+                                         ConcurrentMap<Project, ArrayList<Employee>> projectEmployeesMap) {
         // No work on weekends
         if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
             return;
@@ -66,52 +67,43 @@ public class ProjectService {
             Project project = entry.getKey();
             ArrayList<Employee> employees = entry.getValue();
 
-            // Ignore not started projects
-            if (project.getStartedAt() == 0) {
-                continue;
-            }
+            // Only process started projects with assigned employees
+            if (project.getStartedAt() != 0 && !employees.isEmpty()) {
+                addEarnedValueForEachEmployee(project, employees, currentTick);
 
-            // Ignore empty projects
-            if (employees.isEmpty()) {
-                continue;
-            }
+                JSONObject event = new JSONObject();
+                event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
+                var projectObject = new JSONObject();
 
-            addEarnedValueForEachEmployee(project, employees, currentTick);
+                // Finish the project if completed
+                if (project.isCompleted()) {
+                    // Remove all status effects on employees related to this project
+                    projectEmployeesMap.get(project).forEach(employee -> {
+                        employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_DOMAIN);
+                        employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_TYPE);
+                    });
 
-            JSONObject event = new JSONObject();
-            event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
-            var projectObject = new JSONObject();
+                    // Send reward
+                    handleProjectCompletion(project, employees, currentTick, projectObject);
 
-            // Finish the project
-            if (project.isCompleted()) {
-                // Remove all status effects on employees related to this project
-                projectEmployeesMap.get(project).forEach(employee -> {
-                    employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_DOMAIN);
-                    employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_TYPE);
-                });
+                    // Remove the project from employees map, so that employees are unassigned
+                    project.setEarnedValue(project.getTotalValue());
+                    iterator.remove();
 
-                // Send reward
-                handleProjectCompletion(project, employees, currentTick, projectObject);
+                    projectObject.put("completedAt", currentTick);
+                }
 
-                // Remove the project from employees map, so that employees are unassigned
-                project.setEarnedValue(project.getTotalValue());
-                iterator.remove();
-            }
+                // Build a small custom event to just send new project progress and success metrics
+                projectObject.put("id", project.getId());
+                projectObject.put("earnedValue", project.getEarnedValue());
+                projectObject.put("tick", currentTick);
 
-            // Build a small custom event to just send new project progress and success metrics
-            projectObject.put("id", project.getId());
-            projectObject.put("earnedValue", project.getEarnedValue());
-            projectObject.put("tick", currentTick);
+                event.put("payload", projectObject);
 
-            if (project.isCompleted()) {
-                projectObject.put("completedAt", currentTick);
-            }
-
-            event.put("payload", projectObject);
-
-            // Send update to all involved players
-            for (Player player : project.getInvolvedPlayers()) {
-                game.getMessagingService().sendMessageToPlayer(player, event.toString());
+                // Send update to all involved players
+                for (Player player : project.getInvolvedPlayers()) {
+                    game.getMessagingService().sendMessageToPlayer(player, event.toString());
+                }
             }
         }
     }
@@ -173,7 +165,7 @@ public class ProjectService {
     }
 
     private void calculateProjectQuality(Project project, ArrayList<Employee> employees, JSONObject projectObject) {
-        HashMap<Employee, Integer> projectExperience = new HashMap<>(10);
+        HashMap<Employee, Integer> projectExperience = new HashMap<>();
         Integer totalDaysWorkedOnProject = 0;
         var skillMultipliers = new HashMap<Employee, Float>();
 
@@ -197,8 +189,8 @@ public class ProjectService {
         // Average of all employees' skills weighted by days worked in the project
         var weightedProjectContributions = new HashMap<Employee, Float>();
         Integer finalTotalDaysWorkedOnProject = totalDaysWorkedOnProject;
-        projectExperience.forEach((employee, XP) -> {
-            var contribution = (float) XP / (float) finalTotalDaysWorkedOnProject;
+        projectExperience.forEach((employee, experience) -> {
+            var contribution = (float) experience / (float) finalTotalDaysWorkedOnProject;
             weightedProjectContributions.put(employee, contribution);
             logger.debug("Project work done by {}: {}%", employee.getName(), weightedProjectContributions.get(employee)*100);
         });
@@ -222,99 +214,137 @@ public class ProjectService {
             return;
         }
 
-        int earnedValue;
+        float onboardingFactor = calculateTeamOnboardingFactor(project, employees, currentTick);
 
-        // Rule #3: Adding people to a late software project makes it later (Brooks' law)
-        // New employees will decrease the whole team's productivity for on-boarding and training
-        float onboardingFactor;
-        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
-            onboardingFactor = calculateOnboardingFactor(project, employees);
-            logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", onboardingFactor);
-        } else {
-            // No onboarding required (safe period or no new employees)
-            onboardingFactor = 1;
+        // Special case: Compliance projects have simplified productivity calculation
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            int earnedValue = (int)(BASE_PRODUCTIVITY_VALUE * 0.8);
+            project.addEarnedValue(earnedValue, currentTick);
+            return;
         }
 
+        // Process each employee's contribution
         for (Employee employee : employees) {
             if (employee.isSick()) {
-                continue; // Go to next employee
+                continue;
             }
 
-            // Fixed imaginary number
-            earnedValue = BASE_PRODUCTIVITY_VALUE;
-
-            // Rule x?: No one ever gains experience in compliance projects, so productivity is the same for everyone
-            if (project.getType() == ProjectType.COMPLIANCE) {
-                earnedValue = (int)(earnedValue * 0.8);
-                project.addEarnedValue(earnedValue, currentTick);
-                return;
-            }
-
-            // Experience in days for project type and domain
-            int typeXP = employee.getExperienceInDaysByProjectType(project.getType());
-            int domainXP = employee.getExperienceInDaysByProjectDomain(project.getDomain());
-
-            float productivityFactor = calculateProductivityFactor(typeXP, domainXP);
-
-            earnedValue = (int) (earnedValue * productivityFactor * 2);
-
-            // Rule #1: Context changes decrease employee productivity.
-            int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
-            earnedValue /= (numberOfParallelProjects == 0) ? 1 : numberOfParallelProjects;
-            switch (numberOfParallelProjects) {
-                case 1 -> earnedValue = (int) (earnedValue * 1.0);
-                case 2 -> earnedValue = (int) (earnedValue * 0.4);
-                case 3 -> earnedValue = (int) (earnedValue * 0.2);
-                case 4 -> earnedValue = (int) (earnedValue * 0.1);
-                case 5 -> earnedValue = (int) (earnedValue * 0.05);
-                default -> earnedValue = 1;
-            }
-
-            // Rule #2: Productivity ramp-up: New staff in project needs some time to get fully productive.
-            float x = employee.getExperienceInDaysByProject(project);
-            if (x < 30) {
-                float rampUpProductivityFactor = (float) (1.022595 - 1.02502 * exp(-0.1399307 * x));
-                earnedValue = (int) (earnedValue * rampUpProductivityFactor);
-            }
+            int earnedValue = calculateEmployeeEarnedValue(employee, project, currentTick, onboardingFactor);
+            updateProjectWithEarnedValue(project, earnedValue, currentTick);
 
             // Increase the employee's experience
             employee.gainExperience(project, 1);
-
-            earnedValue = (int) (earnedValue * onboardingFactor);
-
-            if (project.getEarnedValue() == 0 && earnedValue > 0) {
-                project.setStartedAt(currentTick);
-            }
-
-            // Rule #5: Organizational skills affect productivity.
-            earnedValue = (int) (earnedValue * calculateSkillsFactor(project));
-
-            // Rule #6: Employees are affected by external status effects
-            if (!employee.getStatusEffects().isEmpty()) {
-                for (StatusEffect effect : employee.getStatusEffects()) {
-                    if (effect.getType() == StatusEffectType.PRODUCTIVITY) {
-                        earnedValue = (int) (earnedValue * effect.getMultiplier());
-                    }
-                }
-            }
-
-            // Rule #7: Productivity is decreased by unsolved problems in projects
-            if (!project.getUnsolvedProblems().isEmpty()) {
-                // For each unsolved problem, that has been lingering for some time, add a penalty of 25% to productivity
-                int gracePeriod = 30;
-
-                // Count lingering projects
-                int unsolvedLingeringProblems = (int) project.getUnsolvedProblems().stream()
-                        .filter(problem -> currentTick - problem.getOccurredAt() > gracePeriod)
-                        .count();
-
-                // Add the productivity penalty
-                earnedValue = (int) (earnedValue * pow(0.75, unsolvedLingeringProblems));
-            }
-
-            // Increase the project's earnedValue for this employee
-            project.addEarnedValue(earnedValue, currentTick);
         }
+    }
+
+    private float calculateTeamOnboardingFactor(Project project, ArrayList<Employee> employees, int currentTick) {
+        // Rule #3: Adding people to a late software project makes it later (Brooks' law)
+        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
+            float factor = calculateOnboardingFactor(project, employees);
+            logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", factor);
+            return factor;
+        }
+        return 1.0f; // No onboarding required (safe period or no new employees)
+    }
+
+    private int calculateEmployeeEarnedValue(Employee employee, Project project, int currentTick, float onboardingFactor) {
+        // Base productivity
+        int earnedValue = BASE_PRODUCTIVITY_VALUE;
+
+        // Apply experience factors
+        earnedValue = applyExperienceFactors(employee, project, earnedValue);
+
+        // Apply context switching penalty
+        earnedValue = applyContextSwitchingPenalty(employee, earnedValue);
+
+        // Apply productivity ramp-up for new employees on the project
+        earnedValue = applyRampUpFactor(employee, project, earnedValue);
+
+        // Apply team onboarding factor
+        earnedValue = (int)(earnedValue * onboardingFactor);
+
+        // Apply organizational skills factor
+        earnedValue = (int)(earnedValue * calculateSkillsFactor(project));
+
+        // Apply employee status effects
+        earnedValue = applyStatusEffects(employee, earnedValue);
+
+        // Apply unsolved problems penalty
+        earnedValue = applyUnsolvedProblemsPenalty(project, earnedValue, currentTick);
+
+        return earnedValue;
+    }
+
+    private int applyExperienceFactors(Employee employee, Project project, int baseValue) {
+        int typeXP = employee.getExperienceInDaysByProjectType(project.getType());
+        int domainXP = employee.getExperienceInDaysByProjectDomain(project.getDomain());
+
+        float productivityFactor = calculateProductivityFactor(typeXP, domainXP);
+        return (int)(baseValue * productivityFactor * 2);
+    }
+
+    private int applyContextSwitchingPenalty(Employee employee, int earnedValue) {
+        // Rule #1: Context changes decrease employee productivity
+        int numberOfParallelProjects = getNumberOfParallelProjectsForEmployee(employee);
+
+        return switch (numberOfParallelProjects) {
+            case 0, 1 -> earnedValue;
+            case 2 -> (int)(earnedValue * 0.4);
+            case 3 -> (int)(earnedValue * 0.2);
+            case 4 -> (int)(earnedValue * 0.1);
+            case 5 -> (int)(earnedValue * 0.05);
+            default -> 1;
+        };
+    }
+
+    private int applyRampUpFactor(Employee employee, Project project, int earnedValue) {
+        // Rule #2: Productivity ramp-up for new staff
+        float experience = employee.getExperienceInDaysByProject(project);
+        if (experience < 30) {
+            float rampUpProductivityFactor = (float)(1.022595 - 1.02502 * exp(-0.1399307 * experience));
+            return (int)(earnedValue * rampUpProductivityFactor);
+        }
+        return earnedValue;
+    }
+
+    private int applyStatusEffects(Employee employee, int earnedValue) {
+        // Rule #6: Apply status effects
+        if (employee.getStatusEffects().isEmpty()) {
+            return earnedValue;
+        }
+
+        float multiplier = 1.0f;
+        for (StatusEffect effect : employee.getStatusEffects()) {
+            if (effect.getType() == StatusEffectType.PRODUCTIVITY) {
+                multiplier *= effect.getMultiplier();
+            }
+        }
+
+        return (int)(earnedValue * multiplier);
+    }
+
+    private int applyUnsolvedProblemsPenalty(Project project, int earnedValue, int currentTick) {
+        // Rule #7: Penalty for unsolved problems
+        if (project.getUnsolvedProblems().isEmpty()) {
+            return earnedValue;
+        }
+
+        int gracePeriod = 30;
+        int unsolvedLingeringProblems = (int)project.getUnsolvedProblems().stream()
+                .filter(problem -> currentTick - problem.getOccurredAt() > gracePeriod)
+                .count();
+
+        return (int)(earnedValue * pow(0.75, unsolvedLingeringProblems));
+    }
+
+    private void updateProjectWithEarnedValue(Project project, int earnedValue, int currentTick) {
+        // Set project start time if this is the first earned value
+        if (project.getEarnedValue() == 0 && earnedValue > 0) {
+            project.setStartedAt(currentTick);
+        }
+
+        // Add the earned value to the project
+        project.addEarnedValue(earnedValue, currentTick);
     }
 
     private float calculateProductivityFactor(int typeXP, int domainXP) {
@@ -337,7 +367,7 @@ public class ProjectService {
 
         // If only one player is working on the project
         if (players.size() == 1) {
-            Player player = players.get(0);
+            Player player = players.getFirst();
             if (skillsManager.playerHasSkill(player, "pmo")) {
                 return 1.05f;
             }
@@ -578,10 +608,10 @@ public class ProjectService {
         return scheduleOverrunPercentage > 100 && progressPercentage < 50;
     }
 
-    public void setProjects(ArrayList<Object> objects) {
+    public void setProjects(List<Object> objects) {
         for (Object object : objects) {
-            if (object instanceof Project) {
-                projects.add((Project) object);
+            if (object instanceof Project project) {
+                projects.add(project);
             }
         }
     }
@@ -736,7 +766,7 @@ public class ProjectService {
 
     public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
         if (isEmployeeAssignedToProject(employee)) {
-            projectEmployeesMap.forEach((project, employees) -> {
+            projectEmployeesMap.forEach((project, _) -> {
                 if (project.getStartedAt() == 0) {
                     return;
                 }
