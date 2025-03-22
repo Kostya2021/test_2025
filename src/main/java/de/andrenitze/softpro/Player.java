@@ -102,7 +102,6 @@ public class Player {
 
         this.company = company;
         this.id = UUID.randomUUID();
-        initializeObjectives();
     }
 
     public void setName(String name) {

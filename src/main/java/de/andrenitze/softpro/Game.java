@@ -10,7 +10,6 @@ import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
-import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
@@ -80,8 +79,6 @@ public class Game {
     @Getter
     private int level = 1;
     @Getter
-    private final ProblemGenerator problemGenerator = new ProblemGenerator();
-    @Getter
     private final ProjectService projectService;
     private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
@@ -144,9 +141,6 @@ public class Game {
 
         // Send initial state to all players
         players.forEach((_, player) -> {
-            // Initialize skills
-            skillsManager.addPlayer(player);
-
             // Send state
             logger.debug("Sending initial state to players");
             GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.STATE_UPDATED);
@@ -184,9 +178,8 @@ public class Game {
             }
         }
         setLevel(nextLevel);
-        problemGenerator.loadProblemsByLevel(getLevel());
 
-        logger.debug("prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
+        logger.debug("prepareNextLevel(): Players' highest level (= {}) will be the next level", nextLevel);
 
         if (getLevel() != 1) {
             projectService.setProjects(new ArrayList<>());
@@ -330,6 +323,9 @@ public class Game {
 
     private void setLevel(int i) {
         this.level = i;
+
+        // Load problems for the level
+        projectService.loadProblems();
     }
 
     void loadStory(int level) {
@@ -363,14 +359,14 @@ public class Game {
         accountingService.processMonthlyPayments(currentDate, players, currentTick);
         projectService.randomlySpawnProjectTenders();
         projectService.randomlySpawnComplianceProjects();
-        removeStaleTenders();
-        evaluateTenderProcesses();
+        projectService.removeStaleTenders();
+        projectService.evaluateTenderProcesses();
         sendNewObjectives();
         checkObjectivesCriteriaAndSendRewards();
         simulateEmployeeLives();
         sendStoryElements();
         projectService.startStaleProjects();
-        createProblemsInProjects();
+        projectService.createProblemsInProjects();
         sendNewAccountingEntries();
         checkGameOverConditions();
 
@@ -395,73 +391,6 @@ public class Game {
                 messagingService.sendMessageToPlayer(player, getGson().toJson(newAccountingEntriesEvent));
             }
         });
-    }
-
-    private void createProblemsInProjects() {
-        // In all running projectService.getProjects()...
-        for (Project project : projectService.getProjects()) {
-            // If it's not running or completed, skip to the next project
-            if (project.getStartedAt() != 0 && !project.isCompleted()) {
-                // For now, with a fixed chance for a problem to occur,
-                // (can be adjusted later depending on project volume, risk level, etc.)
-                double problemSpawnProbability = 0.01;
-                int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
-
-                // but not more than a certain number problems per project
-                if (RANDOM.nextFloat() <= problemSpawnProbability
-                        && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
-                    // Take all problems of the project
-                    List<Problem> occurredProblems = project.getProblems();
-
-                    // Create a problem that has not occurred in the project before (independent of resolution state)
-                    Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
-                    if (problem != null) { // Only add if a new problem is generated
-                        // Add the problem to the project
-                        problem.setOccurredAt(currentTick);
-                        project.addProblem(problem);
-
-                        // Inform all involved players about the new problem
-                        logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
-
-                        project.getInvolvedPlayers().forEach(player -> {
-                            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                            projectUpdatedEvent.setPayload(project);
-                            messagingService.sendMessageToPlayer(player, getGson().toJson(projectUpdatedEvent));
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    private void removeStaleTenders() {
-        // Dont remove tenders in level 1
-        if (getLevel() == 1) {
-            return;
-        }
-
-        // Remove tenders that have been on the market for a long time and store them in a separate array
-        List<Project> staleTenders = new ArrayList<>();
-        for (Iterator<Project> iterator = projectService.getProjects().iterator(); iterator.hasNext();) {
-            Project project = iterator.next();
-            if (project.getEarnedValue() == 0 &&
-                    project.getInvolvedPlayers().isEmpty() &&
-                    project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < this.currentTick) {
-                // Add the tender to the list of stale tenders
-                staleTenders.add(project);
-
-                // Remove the current element from the iterator and the list
-                iterator.remove();
-            }
-        }
-
-        // Send an update to the clients, if there are any stale tenders
-        if (staleTenders.isEmpty()) {
-            return;
-        }
-        GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
-        tendersRemovedEvent.setPayload(staleTenders);
-        messagingService.broadcastToAllPlayers(getGson().toJson(tendersRemovedEvent));
     }
 
     private void sendStoryElements() {
@@ -602,7 +531,7 @@ public class Game {
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
         messagingService.sendMessageToPlayer(player, getGson().toJson(gameOverEvent));
-        logger.debug("Sent GAME_OVER event to player: {}", getGson().toJson(gameOverEvent));
+        logger.debug("Sent GAME_OVER event to player.");
 
         // Update player one last time in this level to make sure, client is up-to-date
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
@@ -702,33 +631,6 @@ public class Game {
 
         return highScores.stream().anyMatch(highScore ->
                 highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
-    }
-
-    private void evaluateTenderProcesses() {
-        for (Project project : getProjectService().getProjects()) {
-            // Don't evaluate acquired projects
-            if (project.getAcquiredAt() != 0) {
-                continue;
-            }
-
-            // Regular case: No tender process, assign project immediately
-            if (project.getTenderDeadlineInDays() == 0 || project.getTenderDeadlineInDays() == -1) {
-                // Set deadline to -1 to exclude it from further evaluations
-                project.setTenderDeadlineInDays(-1);
-
-                // Decide who gets the project
-                if (project.getInvolvedPlayers().size() == 1) {
-                    logger.debug("Project {} has no tender process. Assigning project to player {}.",
-                            project.getName(), project.getInvolvedPlayers().getFirst().getId());
-
-                    // Inform winner with a confirmation message
-                    assignProjectToPlayer(project.getInvolvedPlayers().getFirst(), project);
-                }
-            } else {
-                // For tender processes, just decrease the time left for tender participation
-                project.decreaseTimeLeftForTender();
-            }
-        }
     }
 
     static float calculateXP(Project project) {
@@ -898,25 +800,6 @@ public class Game {
         // Increase satisfaction of employee
         employee.haveOneToOneMeeting();
         messagingService.sendEmployeeUpdate(player, employee);
-    }
-
-    public void assignProjectToPlayer(Player player, Project project) {
-        // Assign the project to the player
-        project.addParty(player);
-        project.setAcquiredAt(currentTick);
-
-        // Add the project to the project-employee map
-        projectService.addProject(project);
-
-        // Send PROJECT_UPDATED to all players (-> important for tenders!)
-        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-        projectUpdatedEvent.setPayload(project);
-        messagingService.broadcastToAllPlayers(getGson().toJson(projectUpdatedEvent));
-
-        // Send PROJECT_RECEIVED event to the player
-        GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
-        projectReceivedEvent.setPayload(project);
-        messagingService.sendMessageToPlayer(player, getGson().toJson(projectReceivedEvent));
     }
 
     public void addPropertyChangeListener(PropertyChangeListener pcl) {

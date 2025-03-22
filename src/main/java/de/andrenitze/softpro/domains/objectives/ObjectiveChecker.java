@@ -80,7 +80,7 @@ public class ObjectiveChecker {
     }
 
     private boolean checkObjective12(Player player, Map<Project, ArrayList<Employee>> projectEmployeesMap, Objective objective) {
-        if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))) {
+        if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().getFirst()))) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 12 completed.");
             return true;
@@ -89,7 +89,7 @@ public class ObjectiveChecker {
     }
 
     private boolean checkObjective13(Player player, Map<Project, ArrayList<Employee>> projectEmployeesMap, Objective objective) {
-        if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().get(0)))
+        if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().getFirst()))
                 && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 13 completed.");
@@ -167,12 +167,12 @@ public class ObjectiveChecker {
 
     private boolean checkObjective222(Player player, Objective objective) {
         if (!player.getEmployees().isEmpty()) {
-            Employee employee = player.getEmployees().get(0);
+            Employee employee = player.getEmployees().getFirst();
             List<SalaryHistoryEntry> history = employee.getSalaryHistory();
 
             if (history.size() > 1) {
-                SalaryHistoryEntry initialEntry = history.get(0);
-                SalaryHistoryEntry latestEntry = history.get(history.size() - 1);
+                SalaryHistoryEntry initialEntry = history.getFirst();
+                SalaryHistoryEntry latestEntry = history.getLast();
 
                 if (latestEntry.salary() >= initialEntry.salary() * 1.1) {
                     objective.setCompleted(currentTick);
@@ -186,7 +186,7 @@ public class ObjectiveChecker {
 
     private boolean checkObjective223(Player player, Objective objective) {
         if (!player.getEmployees().isEmpty()) {
-            Employee employee = player.getEmployees().get(0);
+            Employee employee = player.getEmployees().getFirst();
             List<StatusEffect> statusEffects = employee.getStatusEffects();
 
             if (statusEffects.stream().anyMatch(statusEffect ->

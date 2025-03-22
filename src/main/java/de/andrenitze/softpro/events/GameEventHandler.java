@@ -84,7 +84,7 @@ public class GameEventHandler {
                     project.addParty(player);
 
                     if (project.hasNoTenderProcess()) {
-                        game.assignProjectToPlayer(player, project);
+                        game.getProjectService().assignProjectToPlayer(player, project);
                     } else {
                         Gson gson = new GsonBuilder()
                                 .setExclusionStrategies(new ProjectPartyExclusionStrategy())

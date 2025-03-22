@@ -243,7 +243,7 @@ public class GameServer extends WebSocketServer {
         game.getSkillsManager().addPlayer(player);
 
         // Load problems for the next level
-        game.getProblemGenerator().loadProblemsByLevel(player.getLevel());
+        game.getProjectService().loadProblems();
 
         logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
 

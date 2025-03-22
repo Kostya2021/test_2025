@@ -6,11 +6,9 @@ import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.AccountingService;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.domains.projects.RiskLevel;
+import de.andrenitze.softpro.domains.projects.*;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
-import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import lombok.Getter;
@@ -41,10 +39,11 @@ public class ProjectService {
     private final AccountingService accountingService;
     @Getter
     private ArrayList<Project> projects = new ArrayList<>();
-
     private static final String EVENT_TYPE = "type";
     private static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
+    @Getter
+    private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
     public ProjectService(Game game) {
         this.game = game;
@@ -802,5 +801,122 @@ public class ProjectService {
 
         // Send project update to player
         game.getMessagingService().sendProjectUpdateToPlayer(player, project);
+    }
+
+    public void assignProjectToPlayer(Player player, Project project) {
+        // Assign the project to the player
+        project.addParty(player);
+        project.setAcquiredAt(game.getCurrentTick());
+
+        // Add the project to the project-employee map
+        addProject(project);
+
+        // Send PROJECT_UPDATED to all players (-> important for tenders!)
+        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+        projectUpdatedEvent.setPayload(project);
+        game.getMessagingService().broadcastToAllPlayers(getGson().toJson(projectUpdatedEvent));
+
+        // Send PROJECT_RECEIVED event to the player
+        GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+        projectReceivedEvent.setPayload(project);
+        game.getMessagingService().sendMessageToPlayer(player, getGson().toJson(projectReceivedEvent));
+    }
+
+    void evaluateTenderProcesses() {
+        for (Project project : getProjects()) {
+            // Don't evaluate acquired projects
+            if (project.getAcquiredAt() != 0) {
+                continue;
+            }
+
+            // Regular case: No tender process, assign project immediately
+            if (project.getTenderDeadlineInDays() == 0 || project.getTenderDeadlineInDays() == -1) {
+                // Set deadline to -1 to exclude it from further evaluations
+                project.setTenderDeadlineInDays(-1);
+
+                // Decide who gets the project
+                if (project.getInvolvedPlayers().size() == 1) {
+                    logger.debug("Project {} has no tender process. Assigning project to player {}.",
+                            project.getName(), project.getInvolvedPlayers().getFirst().getId());
+
+                    // Inform winner with a confirmation message
+                    assignProjectToPlayer(project.getInvolvedPlayers().getFirst(), project);
+                }
+            } else {
+                // For tender processes, just decrease the time left for tender participation
+                project.decreaseTimeLeftForTender();
+            }
+        }
+    }
+
+    protected void removeStaleTenders() {
+        // Dont remove tenders in level 1
+        if (game.getLevel() == 1) {
+            return;
+        }
+
+        // Remove tenders that have been on the market for a long time and store them in a separate array
+        List<Project> staleTenders = new ArrayList<>();
+        for (Iterator<Project> iterator = getProjects().iterator(); iterator.hasNext();) {
+            Project project = iterator.next();
+            if (project.getEarnedValue() == 0 &&
+                    project.getInvolvedPlayers().isEmpty() &&
+                    project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < game.getCurrentTick()) {
+                // Add the tender to the list of stale tenders
+                staleTenders.add(project);
+
+                // Remove the current element from the iterator and the list
+                iterator.remove();
+            }
+        }
+
+        // Send an update to the clients, if there are any stale tenders
+        if (staleTenders.isEmpty()) {
+            return;
+        }
+        GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
+        tendersRemovedEvent.setPayload(staleTenders);
+        game.getMessagingService().broadcastToAllPlayers(getGson().toJson(tendersRemovedEvent));
+    }
+
+    protected void createProblemsInProjects() {
+        // In all running projectService.getProjects()...
+        for (Project project : getProjects()) {
+            // If it's not running or completed, skip to the next project
+            if (project.getStartedAt() != 0 && !project.isCompleted()) {
+                // For now, with a fixed chance for a problem to occur,
+                // (can be adjusted later depending on project volume, risk level, etc.)
+                double problemSpawnProbability = 0.01;
+                int maxUnsolvedProblemsPerProject = game.getLevel(); // In higher levels, more problems can occur
+
+                // but not more than a certain number problems per project
+                if (RANDOM.nextFloat() <= problemSpawnProbability
+                        && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
+                    // Take all problems of the project
+                    List<Problem> occurredProblems = project.getProblems();
+
+                    // Create a problem that has not occurred in the project before (independent of resolution state)
+                    Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
+                    if (problem != null) { // Only add if a new problem is generated
+                        // Add the problem to the project
+                        problem.setOccurredAt(game.getCurrentTick());
+                        project.addProblem(problem);
+
+                        // Inform all involved players about the new problem
+                        logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
+
+                        project.getInvolvedPlayers().forEach(player -> {
+                            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                            projectUpdatedEvent.setPayload(project);
+                            game.getMessagingService().sendMessageToPlayer(player, getGson().toJson(projectUpdatedEvent));
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    public void loadProblems() {
+        problemGenerator.loadProblemsByLevel(game.getLevel());
     }
 }

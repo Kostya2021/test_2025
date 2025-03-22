@@ -10,14 +10,14 @@ import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class GameTest {
+class GameTest {
 
     private Game game;
     private Player player;
     private Project project;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         GameServer gameServer = new GameServer("TestGameServer", 8070);
         game = new Game(gameServer);
         player = new Player("TestPlayer", "TestCompany");
@@ -30,7 +30,7 @@ public class GameTest {
     }
 
     @Test
-    public void testDecisionConsequences() {
+    void testDecisionConsequences() {
         // Simulate a decision made by the player in Level 2
         game.assessProjectRiskForPlayer(project.getId(), player);
 
@@ -41,5 +41,16 @@ public class GameTest {
         assertFalse(player.getEmployees().isEmpty(), "Player should have employees in Level 3");
         assertEquals(-GameParameters.PROJECT_RISK_ASSESSMENT_COST, player.getFunds(), "Player's funds should be deducted correctly");
         assertTrue(game.getProjectService().getProjects().contains(project), "Project should still be part of the game");
+    }
+
+    @Test
+    void testAddPlayerToGame() {
+        WebSocket mockWebSocket = mock(WebSocket.class);
+        Player testPlayer = new Player("TestPlayer", "TestCompany");
+
+        game.addPlayerToGame(mockWebSocket, testPlayer);
+
+        assertTrue(game.getPlayers().containsKey(mockWebSocket), "Player should be added to the game");
+        assertEquals(testPlayer, game.getPlayers().get(mockWebSocket), "The correct player should be associated with the WebSocket");
     }
 }
