@@ -1,8 +1,27 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.entities.*;
+import de.andrenitze.softpro.config.GameParameters;
+import de.andrenitze.softpro.domains.*;
+import de.andrenitze.softpro.domains.accounting.AccountCategory;
+import de.andrenitze.softpro.domains.accounting.AccountingEntry;
+import de.andrenitze.softpro.domains.accounting.AccountingService;
+import de.andrenitze.softpro.domains.accounting.TransactionType;
+import de.andrenitze.softpro.domains.decisions.DecisionDAO;
+import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
+import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.domains.objectives.Mission;
+import de.andrenitze.softpro.domains.objectives.Objective;
+import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
+import de.andrenitze.softpro.domains.projects.*;
+import de.andrenitze.softpro.domains.story.StoryElement;
+import de.andrenitze.softpro.domains.story.StoryElementsLoader;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.types.*;
-import de.andrenitze.softpro.util.DatabaseConfig;
+import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.jetbrains.annotations.Nullable;
@@ -16,12 +35,10 @@ import java.net.ConnectException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
-import static de.andrenitze.softpro.GameEventHandler.TEAM_SPIRIT;
-import static de.andrenitze.softpro.GameServer.GSON;
+import static de.andrenitze.softpro.GameServer.*;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.types.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
@@ -39,8 +56,6 @@ public class Game {
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final String RESTORE_LOST_DATA = "Restore lost data";
     public static final int BACKUP_BLUES_LEVEL = 2;
-    public static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
-    private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     @Getter
     private final AccountingService accountingService;
@@ -52,14 +67,10 @@ public class Game {
     @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;
     @Getter
-    private ArrayList<Project> projects = new ArrayList<>();
-    @Getter
     private int currentTick = 0;
     private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
-    @Getter
-    protected final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
     private final SkillsManager skillsManager;
@@ -68,9 +79,7 @@ public class Game {
     @Getter
     private int level = 1;
     @Getter
-    private final ProblemGenerator problemGenerator = new ProblemGenerator();
-    @Getter
-    private final ProjectManager projectManager;
+    private final ProjectService projectService;
     private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
@@ -104,7 +113,7 @@ public class Game {
         accountingService = new AccountingService(this);
 
         // Initialize the project manager to manage all projects
-        projectManager = new ProjectManager(this);
+        projectService = new ProjectService(this);
 
         // Initialize messaging service
         messagingService = new MessagingService(this);
@@ -128,18 +137,15 @@ public class Game {
         isRunning = true;
         GameEvent<Object> startEvent = new GameEvent<>();
         startEvent.setType(EventType.ROUND_STARTED);
-        messagingService.broadcastToAllPlayers(GSON.toJson(startEvent));
+        messagingService.broadcastToAllPlayers(getGson().toJson(startEvent));
 
         // Send initial state to all players
-        players.forEach((webSocket, player) -> {
-            // Initialize skills
-            skillsManager.addPlayer(player);
-
+        players.forEach((_, player) -> {
             // Send state
             logger.debug("Sending initial state to players");
             GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.STATE_UPDATED);
             initialPlayerEvent.setPayload(player);
-            messagingService.sendMessageToPlayer(player, GSON.toJson(initialPlayerEvent));
+            messagingService.sendMessageToPlayer(player, getGson().toJson(initialPlayerEvent));
         });
 
         // Start running the game time
@@ -163,7 +169,7 @@ public class Game {
     /**
      * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
      */
-    protected void prepareNextLevel() {
+    public void prepareNextLevel() {
         // Get next level from players. Highest level wins, but all players in one instance should have the same level.
         int nextLevel = 0;
         for (Player player : players.values()) {
@@ -172,32 +178,31 @@ public class Game {
             }
         }
         setLevel(nextLevel);
-        problemGenerator.loadProblemsByLevel(getLevel());
 
-        logger.debug("prepareNextLevel(): Players's highest level (= {}) will be the next level", nextLevel);
+        logger.debug("prepareNextLevel(): Players' highest level (= {}) will be the next level", nextLevel);
 
         if (getLevel() != 1) {
-            projects = new ArrayList<>();
+            projectService.setProjects(new ArrayList<>());
             for (int i = 0; i < 100; i++) {
                 Project project = new Project().initialize();
 
                 // Set randomly negative publish dates to have some history of tenders
-                project.setPublishedAt((int) round(Math.random() * STALE_TENDERS_KILL_DAYS * -1));
+                project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
 
-                projects.add(project);
-                projectEmployeesMap.put(project, new ArrayList<>());
+                projectService.addProject(project);
+                projectService.getProjectEmployeesMap().put(project, new ArrayList<>());
             }
 
             // Send talent market to players at once
             GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcastToAllPlayers(GSON.toJson(employeeEvent));
+            messagingService.broadcastToAllPlayers(getGson().toJson(employeeEvent));
         }
 
         // Send all tenders at once
         GameEvent<ArrayList<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
-        projectEvent.setPayload(projects);
-        messagingService.broadcastToAllPlayers(GSON.toJson(projectEvent));
+        projectEvent.setPayload(projectService.getProjects());
+        messagingService.broadcastToAllPlayers(getGson().toJson(projectEvent));
 
         // Logic for decisions and their consequences
         // Beware: Decisions from previous levels might have consequences in other levels
@@ -212,7 +217,7 @@ public class Game {
         }
 
         // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             logger.debug("Checking for permanent status effects for player {}", player.getId());
             if (skillsManager.playerHasSkill(player, TEAM_SPIRIT)) {
                 logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
@@ -223,7 +228,7 @@ public class Game {
             }
         });
 
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             if (player.getDecisionsByLevel(getLevel()).isEmpty()) {
                 logger.warn("Player {} has no decisions for level {}", player.getId(), getLevel());
             }
@@ -232,9 +237,9 @@ public class Game {
 
 
     private void triggerLevel1Consequences() {
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // Decision "Fail to plan, plan to fail" (level 1, decision 1)
-            int option = player.getDecisionsByLevel(1).get(0).getOptionId();
+            int option = player.getDecisionsByLevel(1).getFirst().getOptionId();
 
             if (option == 1) {
                 // Option 1 "Efficiency" -> Increase productivity by 75% for the whole level
@@ -260,14 +265,14 @@ public class Game {
 
     private void triggerLevel2Consequences() {
         // Adjust gameplay for each player according to decisions made in briefing
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // "Backup decision" (level 2, decision 1)
-            int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
+            int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (option == 1) {
                 // Option 1 "Employee does it": Lower productivity of first employee as status effect for the whole level
                 // Make sure that the effect stays even if employee is fired. Always use the first employee.
                 player.setFunds(player.getFunds() - 5000);
-                Employee firstEmployee = player.getEmployees().get(0);
+                Employee firstEmployee = player.getEmployees().getFirst();
                 firstEmployee.addStatusEffect(
                         StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
                 // All status effects will be reset when the next level is prepared
@@ -281,9 +286,9 @@ public class Game {
     }
 
     private void triggerLevel3Consequences() {
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // "Backup decision" (level 2, decision 1)
-            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
+            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(
@@ -299,9 +304,9 @@ public class Game {
     }
 
     private void triggerLevel4Consequences() {
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             // "Backup decision"
-            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).get(0).getOptionId();
+            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
                 // Dramatically decrease productivity of all employees as status effect for the whole level
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(
@@ -318,6 +323,9 @@ public class Game {
 
     private void setLevel(int i) {
         this.level = i;
+
+        // Load problems for the level
+        projectService.loadProblems();
     }
 
     void loadStory(int level) {
@@ -346,21 +354,21 @@ public class Game {
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectManager.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeesMap);
-        projectManager.cancelOverdueProjects(currentTick);
-        accountingService.processMonthlyPaymentsPerTick(currentDate, players, currentTick);
-        randomlySpawnProjectTendersPerTick();
-        randomlySpawnComplianceProjectsPerTick();
-        removeStaleTendersPerTick();
-        evaluateTenderProcessesPerTick();
-        sendNewObjectivesPerTick();
-        checkObjectivesCriteriaAndSendRewardsPerTick();
-        simulateEmployeeLivesPerTick();
-        sendStoryElementsPerTick();
-        startStaleProjectsPerTick();
-        createProblemsInProjectsPerTick();
-        sendNewAccountingEntriesPerTick();
-        checkGameOverConditionsPerTick();
+        projectService.conductWorkOnAllProjects(currentTick, currentDate, projectService.getProjectEmployeesMap());
+        projectService.cancelOverdueProjects(currentTick);
+        accountingService.processMonthlyPayments(currentDate, players, currentTick);
+        projectService.randomlySpawnProjectTenders();
+        projectService.randomlySpawnComplianceProjects();
+        projectService.removeStaleTenders();
+        projectService.evaluateTenderProcesses();
+        sendNewObjectives();
+        checkObjectivesCriteriaAndSendRewards();
+        simulateEmployeeLives();
+        sendStoryElements();
+        projectService.startStaleProjects();
+        projectService.createProblemsInProjects();
+        sendNewAccountingEntries();
+        checkGameOverConditions();
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
@@ -370,163 +378,42 @@ public class Game {
         }
     }
 
-    private void sendNewAccountingEntriesPerTick() {
+    private void sendNewAccountingEntries() {
         // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
-        players.forEach((webSocket, player) -> {
+        players.forEach((_, player) -> {
             List<AccountingEntry> newEntries = accountingService.getAllEntriesByPlayer(player.getId()).stream()
                     .filter(entry -> entry.getDay() == currentTick)
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (!newEntries.isEmpty()) {
                 GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
                 newAccountingEntriesEvent.setPayload(newEntries);
-                messagingService.sendMessageToPlayer(player, GSON.toJson(newAccountingEntriesEvent));
+                messagingService.sendMessageToPlayer(player, getGson().toJson(newAccountingEntriesEvent));
             }
         });
     }
 
-    private void randomlySpawnComplianceProjectsPerTick() {
-        // Don't auto-spawn compliance projects in level 1
-        if (getLevel() == 1) {
-            return;
-        }
-
-        Player player = players.values().iterator().next();
-
-        // Only have one compliance project at a time
-        if (projects.stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
-                RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
-            // Generate a new compliance project
-            Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.low, false);
-
-            project.setPublishedAt(getCurrentTick());
-            project.setAcquiredAt(getCurrentTick()); // Immediately acquired: Frontend will show it as "acquired"
-            project.addParty(player); // Add the player as involved party (also important for frontend)
-            project.setDeadline(0);
-            // Select a name from a list of predefined names
-            project.setName(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size())));
-            projects.add(project);
-
-            // Add to project-employee map
-            projectEmployeesMap.put(project, new ArrayList<>());
-
-            // Immediately assign the project to all players
-            GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
-            newProjectEvent.setPayload(project);
-            logger.debug("New compliance project spawned for all players: {}", project.getName());
-            messagingService.broadcastToAllPlayers(GSON.toJson(newProjectEvent));
-        }
-    }
-
-    private void createProblemsInProjectsPerTick() {
-        // In all running projects...
-        for (Project project : projects) {
-            // If it's not running, don't create problems
-            if (project.getStartedAt() == 0 || project.isCompleted()) {
-                continue;
-            }
-
-            // For now, with a fixed chance for a problem to occur,
-            // (can be adjusted later depending on project volume, risk level, etc.)
-            double problemSpawnProbability = 0.01;
-            int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
-
-            // but not more than a certain number problems per project
-            if (RANDOM.nextFloat() <= problemSpawnProbability
-                    && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
-                // Take all problems of the project
-                List<Problem> occurredProblems = project.getProblems();
-
-                // Create a problem that has not occurred in the project before (independent of resolution state)
-                Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
-                if (problem == null) { // All problems have occurred
-                    continue;
-                }
-
-                // Add the problem to the project
-                problem.setOccurredAt(currentTick);
-                project.addProblem(problem);
-
-                // Inform all involved players about the new problem
-                logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
-
-                project.getInvolvedPlayers().forEach(player -> {
-                    GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                    projectUpdatedEvent.setPayload(project);
-                    messagingService.sendMessageToPlayer(player, GSON.toJson(projectUpdatedEvent));
-                });
-            }
-        }
-    }
-
-    private void startStaleProjectsPerTick() {
-        // Don't do that in level 1
-        if (getLevel() == 1) {
-            return;
-        }
-
-        // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
-        for (Project project : projects) {
-            if (project.getType() == ProjectType.COMPLIANCE) {
-                continue;
-            }
-
-            // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
-            if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
-                int daysPassed = currentTick - project.getAcquiredAt();
-                if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
-                    // Start the project and inform involved players
-                    startProject(project, currentTick - 1);
-                    notifyInvolvedPlayers(project);
-                    logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
-                }
-            }
-        }
-    }
-
-    private void notifyInvolvedPlayers(Project project) {
-        GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
-        HashMap<String, Integer> payload = new HashMap<>();
-        payload.put("projectId", project.getId());
-        payload.put("startedAt", project.getStartedAt());
-        projectStartedEvent.setPayload(payload);
-
-        // Notify involved players about forced start
-        project.getInvolvedPlayers().forEach(player -> messagingService.sendMessageToPlayer(player, GSON.toJson(projectStartedEvent)));
-    }
-
-    private void removeStaleTendersPerTick() {
-        // Dont remove tenders in level 1
-        if (getLevel() == 1) {
-            return;
-        }
-
-        // Remove tenders that have been on the market for a long time and store them in a separate array
-        List<Project> staleTenders = new ArrayList<>();
-        for (Iterator<Project> iterator = projects.iterator(); iterator.hasNext();) {
-            Project project = iterator.next();
-            if (project.getEarnedValue() == 0 &&
-                    project.getInvolvedPlayers().isEmpty() &&
-                    project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < this.currentTick) {
-                // Add the tender to the list of stale tenders
-                staleTenders.add(project);
-
-                // Remove the current element from the iterator and the list
-                iterator.remove();
-            }
-        }
-
-        // Send an update to the clients, if there are any stale tenders
-        if (staleTenders.isEmpty()) {
-            return;
-        }
-        GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
-        tendersRemovedEvent.setPayload(staleTenders);
-        messagingService.broadcastToAllPlayers(GSON.toJson(tendersRemovedEvent));
-    }
-
-    private void sendStoryElementsPerTick() {
+    private void sendStoryElements() {
         // Check if there's a story element for today
+        List<StoryElement> relevantStoryElements = getRelevantStoryElements();
+
+        if (relevantStoryElements.isEmpty()) {
+            return;
+        }
+
+        players.forEach((_, player) -> {
+            List<StoryElement> thisPlayersStoryElements = getPlayerStoryElements(relevantStoryElements, player);
+
+            if (!thisPlayersStoryElements.isEmpty()) {
+                // Send the compiled list to the player
+                GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
+                newStoryElementEvent.setPayload(thisPlayersStoryElements);
+                messagingService.sendMessageToPlayer(player, getGson().toJson(newStoryElementEvent));
+            }
+        });
+    }
+
+    private List<StoryElement> getRelevantStoryElements() {
         List<StoryElement> relevantStoryElements = new ArrayList<>();
         this.storyElements.forEach(element -> {
             // Relevant = Has not been sent AND (is scheduled earliest for this tick OR has an objective precondition)
@@ -535,41 +422,30 @@ public class Game {
                 relevantStoryElements.add(element);
             }
         });
-
-        if (relevantStoryElements.isEmpty()) {
-            return;
-        }
-
-        players.forEach((webSocket, player) -> {
-            GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
-            List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
-
-            // Compile a list of all relevant story elements
-            relevantStoryElements.forEach(storyElement -> {
-                // Check if there are any required objectives before sending
-                ArrayList<Objective> completedObjectives = (ArrayList<Objective>) player.getCompletedObjectives();
-                if (storyElement.getAfterObjective() != 0) {
-                    completedObjectives.forEach(objective -> {
-                        if (storyElement.getAfterObjective() == objective.getId()) {
-                            thisPlayersStoryElements.add(storyElement);
-                            storyElement.setSent(true);
-                        }
-                    });
-                } else {
-                    thisPlayersStoryElements.add(storyElement);
-                }
-            });
-
-            if (!thisPlayersStoryElements.isEmpty()) {
-                // Send the compiled list to the player
-                newStoryElementEvent.setPayload(thisPlayersStoryElements);
-                messagingService.sendMessageToPlayer(player, GSON.toJson(newStoryElementEvent));
-            }
-        });
+        return relevantStoryElements;
     }
 
-    private void simulateEmployeeLivesPerTick() {
-        players.forEach((webSocket, player) -> player.getEmployees().forEach(employee -> {
+    private List<StoryElement> getPlayerStoryElements(List<StoryElement> relevantStoryElements, Player player) {
+        List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
+        relevantStoryElements.forEach(storyElement -> {
+            // Check if there are any required objectives before sending
+            ArrayList<Objective> completedObjectives = (ArrayList<Objective>) player.getCompletedObjectives();
+            if (storyElement.getAfterObjective() != 0) {
+                completedObjectives.forEach(objective -> {
+                    if (storyElement.getAfterObjective() == objective.getId()) {
+                        thisPlayersStoryElements.add(storyElement);
+                        storyElement.setSent(true);
+                    }
+                });
+            } else {
+                thisPlayersStoryElements.add(storyElement);
+            }
+        });
+        return thisPlayersStoryElements;
+    }
+
+    private void simulateEmployeeLives() {
+        players.forEach((_, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(currentTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
 
@@ -585,62 +461,18 @@ public class Game {
             }
 
             // This could be refactored so that the "needsUpdate" logic can be used here as well
-            applyStatusEffectsForStressfulOnboarding(player, employee);
+            projectService.applyStatusEffectsForStressfulOnboarding(player, employee);
 
             // Send an employee update, if anything has changed
             if (needsUpdate) {
-                sendEmployeeUpdate(player, employee);
+                messagingService.sendEmployeeUpdate(player, employee);
             }
         }));
     }
 
-    public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
-        // If employee is assigned to a project, in which he/she has low experience, satisfaction decreases (status effect)
-        if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee))) {
-            projectEmployeesMap.forEach((project, employees) -> {
-                // Make sure project has started to prevent status effect from being applied
-                if (project.getStartedAt() == 0) {
-                    return;
-                }
-
-                // New project type decreases satisfaction by 30%
-                StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION,
-                        0.7f,
-                        FAMILIARIZATION_WITH_NEW_TYPE);
-
-                // New project domain decreases satisfaction by 15%
-                StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION,
-                        0.85f,
-                        FAMILIARIZATION_WITH_NEW_DOMAIN);
-
-                // Make sure it's only applied once
-                if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
-                    if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS) {
-                        employee.addStatusEffect(newProjectTypeEffect);
-                    }
-                }
-
-                if (employees.contains(employee) && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
-                    if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS) {
-                        employee.addStatusEffect(newProjectDomainEffect);
-                    }
-                }
-
-                // Notify frontend about status effect
-                sendEmployeeUpdate(player, employee);
-            });
-        }
-    }
-
-    public void sendEmployeeUpdate(Player player, Employee employee) {
-        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
-        employeeUpdateEvent.setPayload(employee);
-        messagingService.sendMessageToPlayer(player, GSON.toJson(employeeUpdateEvent));
-    }
-
-    private void checkObjectivesCriteriaAndSendRewardsPerTick() {
+    private void checkObjectivesCriteriaAndSendRewards() {
         ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
-        players.forEach((webSocket, player) -> objectiveChecker.checkObjectives(player));
+        players.forEach((_, player) -> objectiveChecker.checkObjectives(player));
     }
 
     @Nullable
@@ -660,7 +492,7 @@ public class Game {
 
 
 
-    void checkGameOverConditionsPerTick() {
+    void checkGameOverConditions() {
         players.forEach((webSocket, player) -> {
             if (player.isBankrupt() || player.completedAllObjectives()) {
                 stopGameTime();
@@ -698,14 +530,14 @@ public class Game {
         // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
-        messagingService.sendMessageToPlayer(player, GSON.toJson(gameOverEvent));
-        logger.debug("Sent GAME_OVER event to player: {}", GSON.toJson(gameOverEvent));
+        messagingService.sendMessageToPlayer(player, getGson().toJson(gameOverEvent));
+        logger.debug("Sent GAME_OVER event to player.");
 
         // Update player one last time in this level to make sure, client is up-to-date
         GameEvent<Player> playerUpdateEvent = new GameEvent<>();
         playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        webSocket.send(GSON.toJson(playerUpdateEvent));
+        webSocket.send(getGson().toJson(playerUpdateEvent));
 
         saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
         checkAndBroadcastHighScore(goStats);
@@ -720,7 +552,7 @@ public class Game {
     private GameOverStats createGameOverStats(Player player) {
         int deliveredProjects = 0;
         int projectsVolume = 0;
-        for (Project project : getProjects()) {
+        for (Project project : projectService.getProjects()) {
             if (project.isCompleted() && project.playerWasInvolved(player)) {
                 deliveredProjects++;
                 projectsVolume += project.getTotalValue();
@@ -774,8 +606,8 @@ public class Game {
 
     // Note: This method sends an OBJECTIVES_UPDATED event (i.e., it includes ALL objectives of this level),
 // because the frontend needs to show the completed objectives of other missions as well as the new objectives.
-    void sendNewObjectivesPerTick() {
-        players.forEach((webSocket, player) -> {
+    void sendNewObjectives() {
+        players.forEach((_, player) -> {
             boolean thereAreNewObjectives = !player.getNewObjectivesByTick(getCurrentTick()).isEmpty();
             if (thereAreNewObjectives) {
                 logger.debug("Sending {} new objectives to player.", player.getNewObjectivesByTick(getCurrentTick()).size());
@@ -785,7 +617,7 @@ public class Game {
                 // For the frontend, still include ALL objectives, even completed ones, in this event
                 List<Objective> allObjectives = player.getObjectivesUntilThisTick(getCurrentTick());
                 objectivesUpdatedEvent.setPayload(allObjectives);
-                messagingService.sendMessageToPlayer(player, GSON.toJson(objectivesUpdatedEvent));
+                messagingService.sendMessageToPlayer(player, getGson().toJson(objectivesUpdatedEvent));
             }
         });
     }
@@ -801,94 +633,14 @@ public class Game {
                 highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
-    private void randomlySpawnProjectTendersPerTick() {
-        // There is only one player in level 1
-        Player p = players.values().iterator().next();
-
-        // Don't spawn new projects in level 1 before the first mission is completed
-        if (getLevel() == 1 && p.getMissions().get(0).isNotCompleted()) {
-            return;
-        }
-
-        if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
-            // Generate a new project
-            Project project;
-
-            // For level 1, make sure that it's only easy and small projects
-            if (getLevel() == 1) {
-                // 25% chance for a perfect project
-                if (RANDOM.nextFloat() <= 0.75) {
-                    // Low-risk, small projects
-                    project = new Project(RiskLevel.low).initialize();
-
-                    // No tender process for level 1
-                    project.setTenderProcess(false);
-                } else {
-                    // Find the project type and domain where one employee has the most experience
-                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.
-                            comparing(Employee::getExperience)).orElse(null);
-                    if (bestEmployee == null) {
-                        logger.error("No employee found for player {}.", p.getId());
-                        return;
-                    }
-                    String domain = bestEmployee.getDomainOfExpertise();
-                    ProjectType type = ProjectType.getTypeByDomain(domain);
-
-                    project = new Project(type, domain, RiskLevel.low, false);
-                }
-            } else {
-                project = new Project().initialize();
-            }
-
-            project.setPublishedAt(getCurrentTick());
-            projects.add(project);
-
-            // Initialize project-employee map
-            projectEmployeesMap.put(project, new ArrayList<>(2));
-
-            // Inform players about the new tender
-            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
-            newTenderEvent.setPayload(project);
-
-            messagingService.broadcastToAllPlayers(GSON.toJson(newTenderEvent));
-        }
-    }
-
-    private void evaluateTenderProcessesPerTick() {
-        for (Project project : projects) {
-            // Don't evaluate acquired projects
-            if (project.getAcquiredAt() != 0) {
-                continue;
-            }
-
-            // Regular case: No tender process, assign project immediately
-            if (project.getTenderDeadlineInDays() == 0 || project.getTenderDeadlineInDays() == -1) {
-                // Set deadline to -1 to exclude it from further evaluations
-                project.setTenderDeadlineInDays(-1);
-
-                // Decide who gets the project
-                if (project.getInvolvedPlayers().size() == 1) {
-                    logger.debug("Project {} has no tender process. Assigning project to player {}.",
-                            project.getName(), project.getInvolvedPlayers().get(0).getId());
-
-                    // Inform winner with a confirmation message
-                    assignProjectToPlayer(project.getInvolvedPlayers().get(0), project);
-                }
-            } else {
-                // For tender processes, just decrease the time left for tender participation
-                project.decreaseTimeLeftForTender();
-            }
-        }
-    }
-
     static float calculateXP(Project project) {
         // Riskier and larger projects yield more XP
         float xp = project.getTotalValue() / 1000f;
         switch (project.getRiskLevel()) {
-            case low -> xp *= 0.75F;
-            case medium -> xp *= 1;
-            case high -> xp *= 2;
-            case extreme -> xp *= 4;
+            case LOW -> xp *= 0.75F;
+            case MEDIUM -> xp *= 1;
+            case HIGH -> xp *= 2;
+            case EXTREME -> xp *= 4;
         }
 
         // Compliance projects yield no XP
@@ -912,17 +664,8 @@ public class Game {
         return eventHandler;
     }
 
-    Player getPlayerByWebSocket(WebSocket websocket) {
+    public Player getPlayerByWebSocket(WebSocket websocket) {
         return players.get(websocket);
-    }
-
-    Project getProjectById(int projectId) {
-        for (Project project : projects) {
-            if (project.getId() == projectId) {
-                return project;
-            }
-        }
-        return null;
     }
 
     public void closeGameIfEmpty() {
@@ -974,30 +717,37 @@ public class Game {
     }
 
     public void assessProjectRiskForPlayer(int projectId, Player player) {
-        Project project = getProjectById(projectId);
+        Project project = projectService.getProjectById(projectId);
         if (project == null) {
             logger.error("Project with ID {} could not be found.", projectId);
             return;
         }
 
         // Deduct funds from player
-        int riskAssessmentCost = (int) Params.PROJECT_RISK_ASSESSMENT_COST;
-        accountingService.addEntry(new AccountingEntry(player, getCurrentTick(), riskAssessmentCost, AccountCategory.DEBIT_PROJECTS, TransactionType.DEBIT, "Project risk assessment"));
+        int riskAssessmentCost = (int) GameParameters.PROJECT_RISK_ASSESSMENT_COST;
+        accountingService.addEntry(new AccountingEntry(
+                player,
+                getCurrentTick(),
+                riskAssessmentCost,
+                AccountCategory.DEBIT_PROJECTS,
+                TransactionType.DEBIT,
+                "Project risk assessment")
+        );
         player.subtractFunds(riskAssessmentCost);
         messagingService.sendFundsUpdateToPlayer(player);
 
         // Send project update to player
         GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
         riskAssessedConfirmation.setPayload(project);
-        messagingService.sendMessageToPlayer(player, GSON.toJson(riskAssessedConfirmation));
+        messagingService.sendMessageToPlayer(player, getGson().toJson(riskAssessedConfirmation));
     }
 
     public void generateFirstEmployeesForPlayers() {
         // Remove any existing employees from the player
-        players.forEach((webSocket, player) -> player.getEmployees().clear());
+        players.forEach((_, player) -> player.getEmployees().clear());
 
         // Generate first employees for all players (necessary for Level 2)
-        players.forEach((webSocket, player) -> talentMarket.generateFirstEmployees().forEach(
+        players.forEach((_, player) -> talentMarket.generateFirstEmployees().forEach(
                 employee -> player.addEmployee(employee, 0)
         ));
     }
@@ -1008,27 +758,20 @@ public class Game {
         employee.removeAllStatusEffects();
         talentMarket.addTalent(employee);
 
-        // If there are projects...
-        if (projects != null) {
-            // Remove employee from all projects
-            for (Project project : projects) {
-                if (projectEmployeesMap.containsKey(project)) {
-                    ArrayList<Employee> employees = projectEmployeesMap.get(project);
-                    employees.remove(employee);
-                    projectEmployeesMap.put(project, employees);
-                }
-            }
+        // If there are projectService.getProjects()...
+        if (getProjectService().getProjects() != null) {
+            projectService.removeEmployeeFromAllProjects(employee);
         }
 
         // Send employee dismissal confirmation
         GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
         employeeDismissedEvent.setPayload(employee);
-        messagingService.sendMessageToPlayer(player, GSON.toJson(employeeDismissedEvent));
+        messagingService.sendMessageToPlayer(player, getGson().toJson(employeeDismissedEvent));
 
         // Send new employee to all players' TalentMarkets in the game
         GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
         employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
-        messagingService.broadcastToAllPlayers(GSON.toJson(employeeEvent));
+        messagingService.broadcastToAllPlayers(getGson().toJson(employeeEvent));
     }
 
     void initializeTalentMarket() {
@@ -1039,22 +782,6 @@ public class Game {
             talentMarket.addTalent(employee);
         }
         logger.debug("Talent market initialized with {} employees.", talentMarket.getTalents().size());
-    }
-
-    public void startProject(Project project, int startedAt) {
-        if (project == null) {
-            logger.error("Project not found.");
-            return;
-        }
-
-        project.setStartedAt(startedAt);
-    }
-
-    public void addProject(Project project) {
-        // Check if project id already exists, if not, add the project
-        if (getProjectById(project.getId()) == null) {
-            projects.add(project);
-        }
     }
 
     public boolean isRunning() {
@@ -1072,55 +799,7 @@ public class Game {
     public void conductOneToOneMeeting(Player player, Employee employee) {
         // Increase satisfaction of employee
         employee.haveOneToOneMeeting();
-        sendEmployeeUpdate(player, employee);
-    }
-
-    public void conductTeamEstimation(int projectId, Player player) {
-        Project project = getProjectById(projectId);
-        if (project == null) {
-            logger.error("Project with ID {} not found.", projectId);
-            return;
-        }
-
-        // Calculate remaining value of the project
-        int remainingValue = project.getTotalValue() - project.getEarnedValue();
-        // Remaining value and project volume affect estimation duration, but it's at least 2 days
-        int estimationDurationInDays = (int) Math.max(2, 3 * Math.log(remainingValue) - 30);
-        logger.debug("Estimation duration for remaining value {} € project {}: {} days", remainingValue, project.getName(), estimationDurationInDays);
-
-        // Add status effect with decreased productivity for all employees in the project
-        for (Employee employee : player.getEmployees()) {
-            if (projectEmployeesMap.containsKey(project) && projectEmployeesMap.get(project).contains(employee)) {
-                employee.addStatusEffect(new StatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 0.1f,
-                        "Estimating project", estimationDurationInDays));
-            }
-        }
-
-        // Calculate the estimation and add it to the project
-        project.estimateProgress(currentTick);
-
-        // Send project update to player
-        messagingService.sendProjectUpdateToPlayer(player, project);
-    }
-
-    public void assignProjectToPlayer(Player player, Project project) {
-        // Assign the project to the player
-        project.addParty(player);
-        project.setAcquiredAt(currentTick);
-
-        // Add the project to the project-employee map
-        projectEmployeesMap.put(project, new ArrayList<>());
-
-        // Send PROJECT_UPDATED to all players (-> important for tenders!)
-        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-        projectUpdatedEvent.setPayload(project);
-        messagingService.broadcastToAllPlayers(GSON.toJson(projectUpdatedEvent));
-
-        // Send PROJECT_RECEIVED event to the player
-        GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
-        projectReceivedEvent.setPayload(project);
-        messagingService.sendMessageToPlayer(player, GSON.toJson(projectReceivedEvent));
+        messagingService.sendEmployeeUpdate(player, employee);
     }
 
     public void addPropertyChangeListener(PropertyChangeListener pcl) {

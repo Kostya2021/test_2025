@@ -1,9 +1,10 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.entities.Mission;
-import de.andrenitze.softpro.entities.Objective;
-import de.andrenitze.softpro.entities.Objectives;
-import de.andrenitze.softpro.types.Decision;
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.objectives.Mission;
+import de.andrenitze.softpro.domains.objectives.Objective;
+import de.andrenitze.softpro.domains.objectives.Objectives;
+import de.andrenitze.softpro.domains.decisions.Decision;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,26 +16,30 @@ import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Player {
-    private static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>() {{
-        put(1, 18000f);
-        put(2, 35000f);
-        put(3, 75000f);
-        put(4, 150000f);
-        put(5, 150000f);
-        put(6, 150000f);
-        put(7, 150000f);
-    }};
-    private static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>() {{
-        put(1, -2500);
-        put(2, -25000);
-        put(3, -100000);
-        put(4, 0);
-        put(5, 0);
-        put(6, 0);
-        put(7, 0);
-    }};
+    static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
+    static {
+        INITIAL_FUNDS.put(1, 100000f);
+        INITIAL_FUNDS.put(2, 100000f);
+        INITIAL_FUNDS.put(3, 100000f);
+        INITIAL_FUNDS.put(4, 100000f);
+        INITIAL_FUNDS.put(5, 100000f);
+        INITIAL_FUNDS.put(6, 100000f);
+        INITIAL_FUNDS.put(7, 100000f);
+    }
+    static final HashMap<Integer, Integer> BANKRUPTCY_THRESHOLD = new HashMap<>();
+    static {
+        BANKRUPTCY_THRESHOLD.put(1, 0);
+        BANKRUPTCY_THRESHOLD.put(2, 0);
+        BANKRUPTCY_THRESHOLD.put(3, 0);
+        BANKRUPTCY_THRESHOLD.put(4, 0);
+        BANKRUPTCY_THRESHOLD.put(5, 0);
+        BANKRUPTCY_THRESHOLD.put(6, 0);
+        BANKRUPTCY_THRESHOLD.put(7, 0);
+    }
+
     @Getter
     private final UUID id;
+    @Getter
     private String name;
     @Getter @Setter
     private String firstName;
@@ -97,11 +102,6 @@ public class Player {
 
         this.company = company;
         this.id = UUID.randomUUID();
-        initializeObjectives();
-    }
-
-    String getName() {
-        return name;
     }
 
     public void setName(String name) {
@@ -136,7 +136,7 @@ public class Player {
         return salaries.get();
     }
 
-    Employee getEmployeeById(int id) {
+    public Employee getEmployeeById(int id) {
         for (Employee employee : employees) {
             if (employee.getId() == id) {
                 return employee;
@@ -148,52 +148,61 @@ public class Player {
     public List<Objective> getNewObjectivesByTick(int tick) {
         List<Objective> newObjectives = new ArrayList<>();
         for (Mission mission : this.missions) {
-            if (mission.isNotCompleted() && (mission.getEarliestOccurrence() == tick || (mission.getEarliestOccurrence() == 0 && !mission.isProcessed()))) {
-                boolean canAddObjectives = true;
-                for (Mission m : this.missions) {
-                    if (m.getOrder() < mission.getOrder() && m.isNotCompleted()) {
-                        canAddObjectives = false;
-                        break;
-                    }
-                }
-                if (canAddObjectives) {
-                    for (Objective objective : mission.getObjectives()) {
-                        if (!objective.isCompleted()) {
-                            objective.setMission(mission.getTitle()); // Helper attribute for the frontend
-                            newObjectives.add(objective);
-                        }
-                    }
-                    mission.setProcessed(true);
-                }
+            if (shouldProcessMission(mission, tick) && canAddObjectives(mission)) {
+                addObjectivesFromMission(newObjectives, mission);
+                mission.setProcessed(true);
             }
         }
         return newObjectives;
     }
 
-    // Returns objectives until the given tick, but depending on order.
-    public List<Objective> getObjectivesUntilThisTick(int tick) {
-    List<Objective> allActiveObjectives = new ArrayList<>();
-    for (Mission mission : this.missions) {
-        if (mission.getEarliestOccurrence() == 0 || mission.getEarliestOccurrence() <= tick) {
-            boolean canAddObjectives = true;
-            for (Mission m : this.missions) {
-                // Order: Objectives in a mission with "order == 2" will only be shown
-                // if all objectives in a mission with "order == 1" are completed.
-                if (m.getOrder() < mission.getOrder() && m.isNotCompleted()) {
-                    canAddObjectives = false;
-                    break;
-                }
+    private boolean shouldProcessMission(Mission mission, int tick) {
+        return mission.isNotCompleted() &&
+                (mission.getEarliestOccurrence() == tick ||
+                        (mission.getEarliestOccurrence() == 0 && !mission.isProcessed()));
+    }
+
+    private boolean canAddObjectives(Mission mission) {
+        for (Mission m : this.missions) {
+            if (m.getOrder() < mission.getOrder() && m.isNotCompleted()) {
+                return false;
             }
-            if (canAddObjectives) {
-                for (Objective objective : mission.getObjectives()) {
-                    objective.setMission(mission.getTitle()); // Only for the frontend
-                    allActiveObjectives.add(objective);
-                }
+        }
+        return true;
+    }
+
+    private void addObjectivesFromMission(List<Objective> newObjectives, Mission mission) {
+        for (Objective objective : mission.getObjectives()) {
+            if (!objective.isCompleted()) {
+                objective.setMission(mission.getTitle()); // Helper attribute for the frontend
+                newObjectives.add(objective);
             }
         }
     }
-    return allActiveObjectives;
-}
+
+    // Returns objectives until the given tick, but depending on order.
+    public List<Objective> getObjectivesUntilThisTick(int tick) {
+        List<Objective> allActiveObjectives = new ArrayList<>();
+        for (Mission mission : this.missions) {
+            if (isMissionEligible(mission, tick)) {
+                addObjectivesIfEligible(allActiveObjectives, mission);
+            }
+        }
+        return allActiveObjectives;
+    }
+
+    private boolean isMissionEligible(Mission mission, int tick) {
+        return mission.getEarliestOccurrence() == 0 || mission.getEarliestOccurrence() <= tick;
+    }
+
+    private void addObjectivesIfEligible(List<Objective> allActiveObjectives, Mission mission) {
+        if (canAddObjectives(mission)) {
+            for (Objective objective : mission.getObjectives()) {
+                objective.setMission(mission.getTitle()); // Only for the frontend
+                allActiveObjectives.add(objective);
+            }
+        }
+    }
 
     public List<Objective> getCompletedObjectives() {
         List<Objective> completedObjectives = new ArrayList<>();
