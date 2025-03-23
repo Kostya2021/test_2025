@@ -34,7 +34,7 @@ public class ProjectService {
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
     private final Game game;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final SkillsManager skillsManager;
+    private final SkillService skillService;
     @Getter
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private final AccountingService accountingService;
@@ -48,9 +48,10 @@ public class ProjectService {
 
     public ProjectService(Game game) {
         this.game = game;
-        this.skillsManager = game.getSkillsManager();
+        this.skillService = game.getSkillService();
         this.projectEmployeesMap = new ConcurrentHashMap<>();
         this.accountingService = game.getAccountingService();
+        logger.debug("ProjectService initialized.");
     }
 
     public void conductWorkOnAllProjects(LocalDate currentDate, ConcurrentMap<Project,
@@ -370,7 +371,7 @@ public class ProjectService {
         // If only one player is working on the project
         if (players.size() == 1) {
             Player player = players.getFirst();
-            if (skillsManager.playerHasSkill(player, "pmo")) {
+            if (skillService.playerHasSkill(player, "pmo")) {
                 return 1.05f;
             }
         }

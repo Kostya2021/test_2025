@@ -149,7 +149,7 @@ public class GameEventHandler {
         String skillId = skillUnlockedEvent.getPayload().get("skillId");
         int unlockSkillPoints = Integer.parseInt(skillUnlockedEvent.getPayload().get("unlockSkillPoints"));
 
-        game.getSkillsManager().unlockSkill(player, skillId, unlockSkillPoints);
+        game.getSkillService().unlockSkill(player, skillId, unlockSkillPoints);
     }
 
     private void handleHireTalentEvent(WebSocket websocket, String message) {
@@ -169,8 +169,8 @@ public class GameEventHandler {
         logger.debug("Player {} hired employee {} - {}", player.getName(), employee.getId(), employee.getName());
         logger.debug("Talent market has the following employees left: {}", game.getTalentMarket().getTalents().size());
 
-        SkillsManager skillsManager = game.getSkillsManager();
-        if (skillsManager.playerHasSkill(player, TEAM_SPIRIT)) {
+        SkillService skillService = game.getSkillService();
+        if (skillService.playerHasSkill(player, TEAM_SPIRIT)) {
             employee.addComplexStatusEffect(TEAM_SPIRIT);
         }
 

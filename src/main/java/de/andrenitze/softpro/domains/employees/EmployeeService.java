@@ -3,16 +3,21 @@ package de.andrenitze.softpro.domains.employees;
 import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.MessagingService;
 import de.andrenitze.softpro.ProjectService;
+import lombok.Setter;
+
+import static de.andrenitze.softpro.Main.logger;
 
 public class EmployeeService {
     private final Game game;
     private final ProjectService projectService;
-    private final MessagingService messagingService;
+    @Setter
+    private MessagingService messagingService;
 
-    public EmployeeService(Game game, ProjectService projectService, MessagingService messagingService) {
+    public EmployeeService(Game game, ProjectService projectService) {
         this.game = game;
         this.projectService = projectService;
-        this.messagingService = messagingService;
+        this.messagingService = null;
+        logger.debug("EmployeeService initialized.");
     }
 
     public void simulateEmployeeLives() {
@@ -40,4 +45,5 @@ public class EmployeeService {
             }
         }));
     }
+
 }

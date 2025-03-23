@@ -28,7 +28,7 @@ public class ObjectiveChecker {
     public void checkObjectives(Player player) {
         List<Project> projects = game.getProjectService().getProjects();
         Map<Project, ArrayList<Employee>> projectEmployeesMap = game.getProjectService().getProjectEmployeesMap();
-        SkillsManager skillsManager = game.getSkillsManager();
+        SkillService skillService = game.getSkillService();
 
         boolean objectivesUpdated = false;
 
@@ -37,7 +37,7 @@ public class ObjectiveChecker {
                 continue;
             }
 
-            boolean wasUpdated = checkObjective(objective, player, projects, projectEmployeesMap, skillsManager);
+            boolean wasUpdated = checkObjective(objective, player, projects, projectEmployeesMap, skillService);
             if (wasUpdated) {
                 objectivesUpdated = true;
             }
@@ -50,21 +50,21 @@ public class ObjectiveChecker {
 
     private boolean checkObjective(Objective objective, Player player, List<Project> projects,
                                    Map<Project, ArrayList<Employee>> projectEmployeesMap,
-                                   SkillsManager skillsManager) {
+                                   SkillService skillService) {
         ObjectiveId objectiveId = ObjectiveId.fromId(objective.getId());
         return switch (objectiveId) {
             case OBJECTIVE_11 -> checkObjective11(player, projects, objective);
             case OBJECTIVE_12 -> checkObjective12(player, projectEmployeesMap, objective);
             case OBJECTIVE_13 -> checkObjective13(player, projectEmployeesMap, objective);
             case OBJECTIVE_14, OBJECTIVE_15 -> checkObjective14And15(player, objective);
-            case OBJECTIVE_16 -> checkObjective16(player, skillsManager, objective);
+            case OBJECTIVE_16 -> checkObjective16(player, skillService, objective);
             case OBJECTIVE_17 -> checkObjective17(player, projects, objective);
-            case OBJECTIVE_210 -> checkObjective210(player, skillsManager, objective);
-            case OBJECTIVE_220 -> checkObjective220(player, skillsManager, objective);
+            case OBJECTIVE_210 -> checkObjective210(player, skillService, objective);
+            case OBJECTIVE_220 -> checkObjective220(player, skillService, objective);
             case OBJECTIVE_222 -> checkObjective222(player, objective);
             case OBJECTIVE_223 -> checkObjective223(player, objective);
             case OBJECTIVE_230 -> checkObjective230(player, objective);
-            case OBJECTIVE_231 -> checkObjective231(player, skillsManager, objective);
+            case OBJECTIVE_231 -> checkObjective231(player, skillService, objective);
             case OBJECTIVE_31 -> checkObjective31(player, projects, objective);
             default -> false;
         };
@@ -109,8 +109,8 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective16(Player player, SkillsManager skillsManager, Objective objective) {
-        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+    private boolean checkObjective16(Player player, SkillService skillService, Objective objective) {
+        Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 16 completed.");
@@ -144,8 +144,8 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective210(Player player, SkillsManager skillsManager, Objective objective) {
-        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+    private boolean checkObjective210(Player player, SkillService skillService, Objective objective) {
+        Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if ((skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked()) ||
                 (skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked())) {
             objective.setCompleted(currentTick);
@@ -155,8 +155,8 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective220(Player player, SkillsManager skillsManager, Objective objective) {
-        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+    private boolean checkObjective220(Player player, SkillService skillService, Objective objective) {
+        Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 220 completed.");
@@ -214,8 +214,8 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective231(Player player, SkillsManager skillsManager, Objective objective) {
-        Map<String, Skill> skills = skillsManager.getSkillsByPlayer(player);
+    private boolean checkObjective231(Player player, SkillService skillService, Objective objective) {
+        Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("team-lead") && skills.get("team-lead").isUnlocked()) {
             objective.setCompleted(currentTick);
             logger.debug("Objective 231 completed.");

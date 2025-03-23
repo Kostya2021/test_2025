@@ -235,7 +235,7 @@ public class Player {
 
     public void addXp(int newXP) {
         // Check if the new XP level exceeds an XP_LEVEL_THRESHOLD and increase the xpLevel if necessary
-        int xpToLevelUp = SkillsManager.XP_LEVEL_THRESHOLDS[this.xpLevel];
+        int xpToLevelUp = SkillService.XP_LEVEL_THRESHOLDS[this.xpLevel];
 
         if (this.xp + newXP >= xpToLevelUp) {
             this.xp += newXP; // Add the new XP

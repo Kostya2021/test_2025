@@ -66,12 +66,11 @@ public class Game {
     private final GameServer gameServer;
     @Getter
     private int currentTick = 0;
-    private LocalDate currentDate;
     private ScheduledExecutorService gameLoop;
     private final GameEventHandler eventHandler;
     private ArrayList<StoryElement> storyElements; // Level-specific
     @Getter
-    private final SkillsManager skillsManager;
+    private final SkillService skillService;
     @Getter
     private final TalentMarket talentMarket;
     @Getter
@@ -103,19 +102,18 @@ public class Game {
         talentMarket = new TalentMarket(employeeIdGenerator);
         talentMarket.clear();
 
-        skillsManager = new SkillsManager();
+        skillService = new SkillService();
         accountingService = new AccountingService(this);
         projectService = new ProjectService(this);
-        messagingService = new MessagingService(this);
-        employeeService = new EmployeeService(this, projectService, messagingService);
+        employeeService = new EmployeeService(this, projectService);
         playerService = new PlayerService(this, talentMarket, projectService);
+        messagingService = new MessagingService(this);
+        employeeService.setMessagingService(messagingService);
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
             talentMarket.initialize();
         }
-
-        currentDate = now();
     }
 
     public void start() {
@@ -200,7 +198,7 @@ public class Game {
         // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
         getPlayerService().getPlayers().forEach((_, player) -> {
             logger.debug("Checking for permanent status effects for player {}", player.getId());
-            if (skillsManager.playerHasSkill(player, TEAM_SPIRIT)) {
+            if (skillService.playerHasSkill(player, TEAM_SPIRIT)) {
                 logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
                 player.getEmployees().forEach(employee -> {
                     logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
@@ -313,6 +311,7 @@ public class Game {
     }
 
     private void progressGameTime() {
+        LocalDate currentDate;
         if (isPaused) {
             return;
         }

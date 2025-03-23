@@ -29,6 +29,7 @@ public class PlayerService {
         this.players = new ConcurrentHashMap<>();
         this.talentMarket = talentMarket;
         this.projectService = projectService;
+        logger.debug("PlayerService initialized.");
     }
 
     public void addPlayerToGame(WebSocket key, Player value) {

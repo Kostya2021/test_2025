@@ -19,6 +19,7 @@ public class AccountingService {
 
     public AccountingService(Game game) {
         this.game = game;
+        logger.debug("AccountingService initialized.");
     }
 
     // Adds a new entry to the in-memory list

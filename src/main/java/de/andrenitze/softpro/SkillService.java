@@ -16,14 +16,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.Main.logger;
 
-public class SkillsManager {
+public class SkillService {
     public static final String JSON = ".json";
     private final ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
 
     protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
 
-    public SkillsManager() {
+    public SkillService() {
         playersSkills = new ConcurrentHashMap<>();
         logger.debug("SkillsManager initialized.");
 
@@ -114,7 +114,7 @@ public class SkillsManager {
             return;
         }
 
-        File[] files = directory.listFiles((dir, name) -> name.endsWith(JSON));
+        File[] files = directory.listFiles((_, name) -> name.endsWith(JSON));
         if (files == null) {
             return;
         }

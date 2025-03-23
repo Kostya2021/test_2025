@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.players.PlayerService;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
@@ -11,12 +12,13 @@ import java.beans.PropertyChangeListener;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
+import static de.andrenitze.softpro.Main.logger;
 
 public class MessagingService implements PropertyChangeListener {
     private Map<WebSocket, Player> players;
 
     public MessagingService(Game game) {
-        this.players = game.getPlayerService().getPlayers();
+        logger.debug("MessagingService initialized.");
         game.addPropertyChangeListener(this);
     }
 

@@ -240,7 +240,7 @@ public class GameServer extends WebSocketServer {
         game.loadStory(player.getLevel());
 
         // Make sure the skills are initialized
-        game.getSkillsManager().addPlayer(player);
+        game.getSkillService().addPlayer(player);
 
         // Load problems for the next level
         game.getProjectService().loadProblems();
@@ -368,7 +368,7 @@ public class GameServer extends WebSocketServer {
 
         String newName = sanitizePlayerName(updatedPlayer.getName());
         if (newName.length() >= 2) {
-            Player player = this.lobby.get(webSocket);
+            Player player = lobby.get(webSocket);
             String oldName = player.getName();
             player.setName(newName);
 
