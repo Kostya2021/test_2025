@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 /**

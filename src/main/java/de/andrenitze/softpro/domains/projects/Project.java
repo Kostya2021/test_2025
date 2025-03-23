@@ -9,7 +9,7 @@ import lombok.Setter;
 
 import java.util.*;
 
-import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Project {

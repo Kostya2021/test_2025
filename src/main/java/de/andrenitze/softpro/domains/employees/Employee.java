@@ -9,7 +9,7 @@ import java.util.*;
 
 import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
-import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Employee {
@@ -247,7 +247,7 @@ public class Employee {
 
         // Remove the oldest entry if the list is too long
         if (salaryHistory.size() > 100) { // Keep the last 100 entries
-            salaryHistory.remove(0);
+            salaryHistory.removeFirst();
         }
 
         calculateSatisfaction();

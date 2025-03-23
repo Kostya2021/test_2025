@@ -13,7 +13,7 @@ import lombok.Setter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Player {

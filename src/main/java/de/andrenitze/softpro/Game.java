@@ -1,7 +1,6 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.*;
-import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
@@ -17,7 +16,6 @@ import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.GameEventHandler;
-import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
@@ -27,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.sql.DataSource;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.net.ConnectException;
@@ -35,16 +32,15 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static de.andrenitze.softpro.services.impl.GameServerImpl.*;
+import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
-import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
 @Component
 public class Game {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private GameServerImpl gameServer;
     @Getter private SkillServiceImpl skillService;
     @Getter private AccountingServiceImpl accountingService;
     @Getter private MessagingServiceImpl messagingService;
@@ -76,16 +72,13 @@ public class Game {
     private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
-     * Creates a new Game with the provided Players within the GameServer. The game starts immediately.
+     * Creates a new Game instance.
      * <p>
      * A ThreadPool with a single Thread is used to run the game logic in a loop.
      * Changes in the game's state can be sent to the players as GameEvents.
-     *
-     * @param gameServer The GameServer that this game is running in
      */
     @Autowired
-    public Game(GameServerImpl gameServer,
-                SkillServiceImpl skillService,
+    public Game(SkillServiceImpl skillService,
                 AccountingServiceImpl accountingService,
                 MessagingServiceImpl messagingService,
                 PlayerServiceImpl playerService,
@@ -93,10 +86,9 @@ public class Game {
                 ProjectServiceImpl projectService,
                 EmployeeServiceImpl employeeService,
                 GameEventHandler eventHandler) {
-        this.gameServer = gameServer;
 
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
-        this.talentMarket = new TalentMarket(employeeIdGenerator); // TODO
+        this.talentMarket = new TalentMarket(employeeIdGenerator);
         this.talentMarket.clear();
 
         this.skillService = skillService;
@@ -114,10 +106,7 @@ public class Game {
     }
 
     public Game() {
-        logger.debug("Game instance created with default constructor");
-        isRunning = false;
-        currentTick = 0;
-        level = 1;
+        // Default constructor for Spring
     }
 
     public void start() {
@@ -350,7 +339,7 @@ public class Game {
         sendStoryElements();
         projectService.startStaleProjects();
         projectService.createProblemsInProjects();
-        sendNewAccountingEntries();
+        accountingService.sendNewAccountingEntries();
         checkGameOverConditions();
 
         long endTime = System.nanoTime();
@@ -359,21 +348,6 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
-    }
-
-    private void sendNewAccountingEntries() {
-        // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
-        getPlayerService().getPlayers().forEach((_, player) -> {
-            List<AccountingEntry> newEntries = accountingService.getAllEntriesByPlayer(player.getId()).stream()
-                    .filter(entry -> entry.getDay() == currentTick)
-                    .toList();
-
-            if (!newEntries.isEmpty()) {
-                GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
-                newAccountingEntriesEvent.setPayload(newEntries);
-                messagingService.sendMessageToPlayer(player, getGson().toJson(newAccountingEntriesEvent));
-            }
-        });
     }
 
     private void sendStoryElements() {
@@ -447,8 +421,6 @@ public class Game {
         return mission;
     }
 
-
-
     void checkGameOverConditions() {
         getPlayerService().getPlayers().forEach((webSocket, player) -> {
             if (player.isBankrupt() || player.completedAllObjectives()) {
@@ -487,24 +459,21 @@ public class Game {
         // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
-        messagingService.sendMessageToPlayer(player, getGson().toJson(gameOverEvent));
-        logger.debug("Sent GAME_OVER event to player.");
+        messagingService.sendEventToPlayer(player, gameOverEvent);
 
         // Update player one last time in this level to make sure, client is up-to-date
-        GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-        playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+        GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        webSocket.send(getGson().toJson(playerUpdateEvent));
+        messagingService.sendEventToPlayer(player, playerUpdateEvent);
 
-        saveGameOverStats(webSocket, player, goStats); // This could be handled outside the game loop (DB access takes time...)
-        checkAndBroadcastHighScore(goStats);
+        // Fire game over event for GameServer to handle
+        support.firePropertyChange("gameOver", null, new GameOverData(webSocket, player, goStats));
 
-        // Move player back to lobby in any case. The frontend will send the player to the
-        // lobby or briefing screen depending on the report (win/fail).
-        // This means, that each level will have a new game instance.
-        gameServer.movePlayerToLobby(webSocket, player);
+        // Let the Game class handle player removal
         removePlayerFromGame(webSocket);
     }
+
+    public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats) {}
 
     private GameOverStats createGameOverStats(Player player) {
         int deliveredProjects = 0;
@@ -533,43 +502,6 @@ public class Game {
         goStats.setCommunityVotes(distributions);
 
         return goStats;
-    }
-
-    private void saveGameOverStats(WebSocket webSocket, Player player, GameOverStats goStats) {
-        DataSource dataSource = DatabaseConfig.getDataSource();
-        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
-
-        // Complete the infos for the database
-        goStats.setPlayerName(player.getName());
-        goStats.setFinishedAt(new Date());
-        goStats.setGameId(String.valueOf(this.hashCode()));
-        goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
-
-        // Save high-score in a separate thread
-        if (gameOverStatsDAO.saveGameOverStats(goStats)) {
-            logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
-        } else {
-            logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
-        }
-    }
-
-    private void checkAndBroadcastHighScore(GameOverStats goStats) {
-        // Check if there's a new high-score and broadcast updates in lobby
-        if (isNewHighScore(goStats)) {
-            gameServer.setNewHighScore(goStats);
-            gameServer.broadcastLobbyState();
-        }
-    }
-
-    private boolean isNewHighScore(GameOverStats highScoreCandidate) {
-        List<GameOverStats> highScores;
-
-        // Check database to see if this is a new high-score
-        highScores = gameServer.getCurrentHighScores();
-        if (highScores == null) return false;
-
-        return highScores.stream().anyMatch(highScore ->
-                highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
     public static float calculateXP(Project project) {
@@ -606,8 +538,8 @@ public class Game {
             // Stop the game loop asynchronously (no guarantees)
             shutdownAndAwaitTermination(gameLoop);
 
-            // Remove the game from the server
-            gameServer.removeGame(this);
+            // Fire event for GameServer to handle
+            support.firePropertyChange("gameEmpty", null, this);
         }
     }
 

@@ -1,6 +1,5 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.services.impl.GameServerImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,7 @@ public class Main {
             // Accept first external argument for port or use 80
             int port = args.length > 0 ? Integer.parseInt(args[0]) : 80;
 
-            GameServerImpl server = new GameServerImpl(hostAddress, port);
+            GameServer server = new GameServer(hostAddress, port);
             server.setConnectionLostTimeout(5);
 
             final Properties properties = new Properties();

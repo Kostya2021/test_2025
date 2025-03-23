@@ -1,6 +1,6 @@
 package de.andrenitze.softpro.domains.employees;
 
-import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 
 public class NameGenerator {
     public static final String FEMALE = "female";

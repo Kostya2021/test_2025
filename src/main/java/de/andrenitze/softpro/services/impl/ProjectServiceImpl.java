@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.*;
-import static de.andrenitze.softpro.services.impl.GameServerImpl.*;
+import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
 import static java.lang.Math.*;
@@ -53,7 +53,6 @@ public class ProjectServiceImpl implements ProjectService {
         this.skillService = game.getSkillService();
         this.projectEmployeesMap = new ConcurrentHashMap<>();
         this.accountingService = game.getAccountingService();
-        logger.debug("ProjectService initialized.");
     }
 
     public void conductWorkOnAllProjects(LocalDate currentDate, ConcurrentMap<Project,

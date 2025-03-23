@@ -65,9 +65,4 @@ public class GameConfig {
     public GameEventHandler eventHandler(Game game) {
         return new GameEventHandler(game);
     }
-
-    @Bean
-    public GameServerImpl gameServer() {
-        return new GameServerImpl();
-    }
 }

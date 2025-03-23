@@ -1,6 +1,7 @@
 package de.andrenitze.softpro.services.impl;
 
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.SkillService;
@@ -27,7 +28,6 @@ public class SkillServiceImpl implements SkillService {
 
     public SkillServiceImpl() {
         playersSkills = new ConcurrentHashMap<>();
-        logger.debug("SkillsManager initialized.");
 
         try {
             loadAllSkills();
@@ -83,7 +83,7 @@ public class SkillServiceImpl implements SkillService {
                 throw new IllegalStateException("Failed to create directory: " + directory.getAbsolutePath());
             }
             FileWriter writer = new FileWriter(SKILLS_DIRECTORY + player.getId() + JSON);
-            GameServerImpl.getGson().toJson(playersSkills.get(player), writer);
+            GameServer.getGson().toJson(playersSkills.get(player), writer);
             writer.close();
             logger.debug("Skills for player {} saved to {}", player.getName(), SKILLS_DIRECTORY + player.getId() + JSON);
         } catch (IOException e) {
@@ -97,7 +97,7 @@ public class SkillServiceImpl implements SkillService {
             if (file.exists()) {
                 FileReader reader = new FileReader(file);
                 Type type = new TypeToken<HashMap<String, Skill>>() {}.getType();
-                HashMap<String, Skill> skills = GameServerImpl.getGson().fromJson(reader, type);
+                HashMap<String, Skill> skills = GameServer.getGson().fromJson(reader, type);
                 playersSkills.put(player, skills);
                 reader.close();
                 logger.debug("Skills for player {} loaded from {}", player.getName(), SKILLS_DIRECTORY + player.getId() + JSON);
@@ -152,7 +152,7 @@ public class SkillServiceImpl implements SkillService {
     private void loadSkillsFromFile(File file) {
         try (FileReader reader = new FileReader(file)) {
             Type type = new TypeToken<HashMap<String, Skill>>() {}.getType();
-            HashMap<String, Skill> skills = GameServerImpl.getGson().fromJson(reader, type);
+            HashMap<String, Skill> skills = GameServer.getGson().fromJson(reader, type);
             String playerId = file.getName().replace(JSON, "");
             Player player = findPlayerById(playerId);
             if (player != null) {

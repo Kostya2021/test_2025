@@ -1,9 +1,7 @@
-package de.andrenitze.softpro.services.impl;
+package de.andrenitze.softpro;
 
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.Game;
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
@@ -13,7 +11,6 @@ import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.services.GameServerService;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
@@ -37,7 +34,7 @@ import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class GameServerImpl extends WebSocketServer implements GameServerService {
+public class GameServer extends WebSocketServer {
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
@@ -68,7 +65,7 @@ public class GameServerImpl extends WebSocketServer implements GameServerService
      * @param hostname String  Host name (IP for clients to connect to)
      * @param port int          Port number
      */
-    public GameServerImpl(String hostname, int port) {
+    public GameServer(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
         // Fetch high-score in a separate thread
@@ -77,10 +74,6 @@ public class GameServerImpl extends WebSocketServer implements GameServerService
         // Graceful shutdown hook
         Thread printingHook = new Thread(this::gracefulShutdown);
         Runtime.getRuntime().addShutdownHook(printingHook);
-    }
-
-    public GameServerImpl() {
-        this("localhost", 80); // TODO correct?
     }
 
     private void gracefulShutdown() {
@@ -174,7 +167,6 @@ public class GameServerImpl extends WebSocketServer implements GameServerService
             return;
         }
 
-
         // When a new WebSocket connection is opened, it's a player joining the lobby
         logger.info("Client {} connected", webSocket.getRemoteSocketAddress());
 
@@ -220,7 +212,7 @@ public class GameServerImpl extends WebSocketServer implements GameServerService
         // Prepare both, player and game, for the next level
         preparePlayerAndGameForNextLevel(player, game);
 
-        games.add(game);
+        addGame(game);
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
 
         // Send updated player state to the client
@@ -556,5 +548,57 @@ public class GameServerImpl extends WebSocketServer implements GameServerService
 
     public void removeGame(Game game) {
         games.remove(game);
+    }
+
+    // Add to GameServer class
+    public void saveGameOverStats(WebSocket webSocket, Player player, GameOverStats goStats) {
+        DataSource dataSource = DatabaseConfig.getDataSource();
+        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
+
+        // Complete the infos for the database
+        goStats.setPlayerName(player.getName());
+        goStats.setFinishedAt(new Date());
+        goStats.setGameId(String.valueOf(this.hashCode()));
+        goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
+
+        // Save high-score in a separate thread
+        if (gameOverStatsDAO.saveGameOverStats(goStats)) {
+            logger.info("Game stats of player in game {} saved successfully.", goStats.getGameId());
+        } else {
+            logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
+        }
+    }
+
+    public void checkAndBroadcastHighScore(GameOverStats goStats) {
+        // Check if there's a new high-score and broadcast updates in lobby
+        if (isNewHighScore(goStats)) {
+            setNewHighScore(goStats);
+            broadcastLobbyState();
+        }
+    }
+
+    public boolean isNewHighScore(GameOverStats highScoreCandidate) {
+        List<GameOverStats> highScores = getCurrentHighScores();
+        if (highScores == null) return false;
+
+        return highScores.stream().anyMatch(highScore ->
+                highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
+    }
+
+    public void addGame(Game game) {
+        games.add(game);
+
+        // Add listeners for game events
+        game.addPropertyChangeListener(evt -> {
+            if ("gameEmpty".equals(evt.getPropertyName())) {
+                Game emptyGame = (Game)evt.getNewValue();
+                removeGame(emptyGame);
+            } else if ("gameOver".equals(evt.getPropertyName())) {
+                Game.GameOverData data = (Game.GameOverData)evt.getNewValue();
+                saveGameOverStats(data.webSocket(), data.player(), data.stats());
+                checkAndBroadcastHighScore(data.stats());
+                movePlayerToLobby(data.webSocket(), data.player());
+            }
+        });
     }
 }

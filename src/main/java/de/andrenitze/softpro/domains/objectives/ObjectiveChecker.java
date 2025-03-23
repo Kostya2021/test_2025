@@ -9,7 +9,7 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.SalaryHistoryEntry;
 import de.andrenitze.softpro.domains.skills.Skill;
-import de.andrenitze.softpro.services.impl.GameServerImpl;
+import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.services.impl.SkillServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -257,6 +257,6 @@ public class ObjectiveChecker {
         List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
         GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
         objectivesUpdatedEvent.setPayload(allActiveObjectives);
-        game.getMessagingService().sendMessageToPlayer(player, GameServerImpl.getGson().toJson(objectivesUpdatedEvent));
+        game.getMessagingService().sendMessageToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
     }
 }

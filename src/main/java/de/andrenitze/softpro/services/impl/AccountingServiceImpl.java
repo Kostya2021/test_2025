@@ -5,6 +5,8 @@ import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.AccountingService;
 import org.java_websocket.WebSocket;
 
@@ -23,7 +25,6 @@ public class AccountingServiceImpl implements AccountingService {
 
     public AccountingServiceImpl(Game game) {
         this.game = game;
-        logger.debug("AccountingService initialized.");
     }
 
     // Adds a new entry to the in-memory list
@@ -74,5 +75,20 @@ public class AccountingServiceImpl implements AccountingService {
                 game.getMessagingService().sendFundsUpdateToPlayer(player);
             });
         }
+    }
+
+    public void sendNewAccountingEntries() {
+        // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
+        game.getPlayerService().getPlayers().forEach((_, player) -> {
+            List<AccountingEntry> newEntries = getAllEntriesByPlayer(player.getId()).stream()
+                    .filter(entry -> entry.getDay() == game.getCurrentTick())
+                    .toList();
+
+            if (!newEntries.isEmpty()) {
+                GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
+                newAccountingEntriesEvent.setPayload(newEntries);
+                game.getMessagingService().sendEventToPlayer(player, newAccountingEntriesEvent);
+            }
+        });
     }
 }

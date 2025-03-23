@@ -6,7 +6,9 @@ import static org.mockito.Mockito.mock;
 import de.andrenitze.softpro.*;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.services.impl.GameServerImpl;
+import de.andrenitze.softpro.GameServer;
+import de.andrenitze.softpro.events.GameEventHandler;
+import de.andrenitze.softpro.services.impl.*;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,8 +21,16 @@ class GameTest {
 
     @BeforeEach
     void setUp() {
-        GameServerImpl gameServer = new GameServerImpl("TestGameServer", 8070);
-        game = new Game();
+        game = new Game(
+                mock(SkillServiceImpl.class),
+                mock(AccountingServiceImpl.class),
+                mock(MessagingServiceImpl.class),
+                mock(PlayerServiceImpl.class),
+                mock(TalentMarket.class),
+                mock(ProjectServiceImpl.class),
+                mock(EmployeeServiceImpl.class),
+                mock(GameEventHandler.class)
+        );
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();
 

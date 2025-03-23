@@ -29,7 +29,6 @@ public class PlayerServiceImpl implements PlayerService {
         this.players = new ConcurrentHashMap<>();
         this.talentMarket = talentMarket;
         this.projectService = projectService;
-        logger.debug("PlayerService initialized.");
     }
 
     public void addPlayerToGame(WebSocket key, Player value) {
@@ -42,7 +41,6 @@ public class PlayerServiceImpl implements PlayerService {
 
     public void removePlayerFromGame(WebSocket key) {
         players.remove(key);
-        game.closeGameIfEmpty();
     }
 
     public boolean hasWebSocket(WebSocket conn) {

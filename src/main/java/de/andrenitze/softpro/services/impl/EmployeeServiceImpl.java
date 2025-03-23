@@ -5,8 +5,6 @@ import de.andrenitze.softpro.services.EmployeeService;
 import de.andrenitze.softpro.services.MessagingService;
 import lombok.Setter;
 
-import static de.andrenitze.softpro.Main.logger;
-
 public class EmployeeServiceImpl implements EmployeeService {
     private final Game game;
     private final ProjectServiceImpl projectService;
@@ -17,7 +15,6 @@ public class EmployeeServiceImpl implements EmployeeService {
         this.game = game;
         this.projectService = projectService;
         this.messagingService = null;
-        logger.debug("EmployeeService initialized.");
     }
 
     public void simulateEmployeeLives() {
