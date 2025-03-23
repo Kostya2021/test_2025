@@ -76,4 +76,24 @@ public class MessagingService implements PropertyChangeListener {
             sendMessageToPlayer(player, GameServer.getGson().toJson(initialPlayerEvent));
         });
     }
+
+    /**
+     * Broadcasts an event of specified type (without payload) to all players.
+     * @param eventType The type of the event to broadcast.
+     */
+    public void broadcastEvent(EventType eventType) {
+        GameEvent<Void> event = new GameEvent<>(eventType);
+        broadcastToAllPlayers(gson.toJson(event));
+    }
+
+    /**
+     * Broadcasts an event of specified type with the current tick as payload to all players.
+     * @param eventType The type of the event to broadcast.
+     * @param currentTick The current tick of the game.
+     */
+    public void broadcastEvent(EventType eventType, int currentTick) {
+        GameEvent<Integer> event = new GameEvent<>(eventType);
+        event.setPayload(currentTick);
+        broadcastToAllPlayers(gson.toJson(event));
+    }
 }

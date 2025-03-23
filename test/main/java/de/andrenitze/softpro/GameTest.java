@@ -35,7 +35,7 @@ class GameTest {
         game.assessProjectRiskForPlayer(project.getId(), player);
 
         // Move to Level 3
-        game.generateFirstEmployeesForPlayers();
+        game.getPlayerService().generateFirstEmployeesForPlayers();
 
         // Check the consequences in Level 3
         assertFalse(player.getEmployees().isEmpty(), "Player should have employees in Level 3");
@@ -50,7 +50,7 @@ class GameTest {
 
         game.addPlayerToGame(mockWebSocket, testPlayer);
 
-        assertTrue(game.getPlayers().containsKey(mockWebSocket), "Player should be added to the game");
-        assertEquals(testPlayer, game.getPlayers().get(mockWebSocket), "The correct player should be associated with the WebSocket");
+        assertTrue(game.getPlayerService().getPlayers().containsKey(mockWebSocket), "Player should be added to the game");
+        assertEquals(testPlayer, game.getPlayerService().getPlayers().get(mockWebSocket), "The correct player should be associated with the WebSocket");
     }
 }

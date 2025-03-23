@@ -282,10 +282,10 @@ public class GameServer extends WebSocketServer {
 
         if (player.getLevel() == 2) {
             // For level 2, populate the talent market with employees
-            game.initializeTalentMarket();
+            game.getTalentMarket().initialize();
 
             // ...and generate first employees for the player
-            game.generateFirstEmployeesForPlayers();
+            game.getPlayerService().generateFirstEmployeesForPlayers();
         }
     }
 

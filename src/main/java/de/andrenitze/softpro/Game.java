@@ -45,7 +45,6 @@ import static java.time.LocalDate.now;
 
 public class Game {
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
-    private static final String EVENT_TYPE = "type";
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -102,17 +101,17 @@ public class Game {
         // Fill talent market with candidates, use global IDs for employees (unique across all games)
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         talentMarket = new TalentMarket(employeeIdGenerator);
-        talentMarket.clearTalentMarket();
+        talentMarket.clear();
 
         skillsManager = new SkillsManager();
         accountingService = new AccountingService(this);
         projectService = new ProjectService(this);
         messagingService = new MessagingService(this);
-        playerService = new PlayerService(this);
+        playerService = new PlayerService(this, talentMarket);
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
-            initializeTalentMarket();
+            talentMarket.initialize();
         }
 
         currentDate = now();
@@ -127,11 +126,7 @@ public class Game {
 
         // Start the round for all players
         isRunning = true;
-        GameEvent<Object> startEvent = new GameEvent<>();
-        startEvent.setType(EventType.ROUND_STARTED);
-        messagingService.broadcastToAllPlayers(getGson().toJson(startEvent));
-
-        // Send initial state to all players
+        messagingService.broadcastEvent(EventType.ROUND_STARTED);
         messagingService.sendInitialStateToAllPlayers();
 
         // Start running the game time
@@ -142,8 +137,7 @@ public class Game {
             }
 
             // Notify all clients of current time
-            messagingService.broadcastToAllPlayers("{ \""+EVENT_TYPE+"\": \""+EventType.T+
-                    "\", \"payload\": " + getCurrentTick() + "}");
+            messagingService.broadcastEvent(EventType.T, getCurrentTick());
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
@@ -719,16 +713,6 @@ public class Game {
         messagingService.sendMessageToPlayer(player, getGson().toJson(riskAssessedConfirmation));
     }
 
-    public void generateFirstEmployeesForPlayers() {
-        // Remove any existing employees from the player
-        getPlayerService().getPlayers().forEach((_, player) -> player.getEmployees().clear());
-
-        // Generate first employees for all players (necessary for Level 2)
-        getPlayerService().getPlayers().forEach((_, player) -> talentMarket.generateFirstEmployees().forEach(
-                employee -> player.addEmployee(employee, 0)
-        ));
-    }
-
     // Move Employee from Player back to TalentMarket
     public void dismissEmployee(Player player, Employee employee) {
         player.removeEmployee(employee);
@@ -749,16 +733,6 @@ public class Game {
         GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
         employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
         messagingService.broadcastToAllPlayers(getGson().toJson(employeeEvent));
-    }
-
-    void initializeTalentMarket() {
-        talentMarket.clearTalentMarket();
-
-        for (int i = 0; i < 30; i++) {
-            Employee employee = new Employee(talentMarket.generateNewEmployeeId());
-            talentMarket.addTalent(employee);
-        }
-        logger.debug("Talent market initialized with {} employees.", talentMarket.getTalents().size());
     }
 
     public boolean isRunning() {

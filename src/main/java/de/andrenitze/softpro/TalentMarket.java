@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.Main.logger;
 
 /**
  * The TalentMarket class is a singleton class that holds all the available talents in a running game instance
@@ -21,6 +22,16 @@ public class TalentMarket {
 
     public TalentMarket(EmployeeIdGenerator employeeIdGenerator) {
         this.employeeIdGenerator = employeeIdGenerator;
+    }
+
+    void initialize() {
+        clear();
+
+        for (int i = 0; i < 30; i++) {
+            Employee employee = new Employee(generateNewEmployeeId());
+            addTalent(employee);
+        }
+        logger.debug("Talent market initialized with {} employees.", getTalents().size());
     }
 
     public synchronized List<Employee> generateFirstEmployees() {
@@ -37,16 +48,16 @@ public class TalentMarket {
         return employees;
     }
 
-    public synchronized  void addTalent(Employee employee) {
+    public synchronized void addTalent(Employee employee) {
         employee.setHiredAt(-1);
         talents.put(employee.getId(), employee);
     }
 
-    public synchronized  void removeTalent(Employee employee) {
+    public synchronized void removeTalent(Employee employee) {
         talents.remove(employee.getId());
     }
 
-    public synchronized  void clearTalentMarket() {
+    public synchronized void clear() {
         talents.clear();
     }
 
