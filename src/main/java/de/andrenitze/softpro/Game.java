@@ -7,6 +7,7 @@ import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
+import de.andrenitze.softpro.domains.employees.EmployeeService;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
@@ -77,6 +78,8 @@ public class Game {
     private int level = 1;
     @Getter
     private final ProjectService projectService;
+    @Getter
+    private final EmployeeService employeeService;
     private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
@@ -104,6 +107,7 @@ public class Game {
         accountingService = new AccountingService(this);
         projectService = new ProjectService(this);
         messagingService = new MessagingService(this);
+        employeeService = new EmployeeService(this, projectService, messagingService);
         playerService = new PlayerService(this, talentMarket, projectService);
 
         // Don't initialize the talent market for level 1
@@ -330,16 +334,16 @@ public class Game {
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectService.conductWorkOnAllProjects(currentTick, currentDate, projectService.getProjectEmployeesMap());
-        projectService.cancelOverdueProjects(currentTick);
-        accountingService.processMonthlyPayments(currentDate, playerService.getPlayers(), currentTick);
+        projectService.conductWorkOnAllProjects(currentDate, projectService.getProjectEmployeesMap());
+        projectService.cancelOverdueProjects();
+        accountingService.processMonthlyPayments(currentDate, playerService.getPlayers());
         projectService.randomlySpawnProjectTenders();
         projectService.randomlySpawnComplianceProjects();
         projectService.removeStaleTenders();
         projectService.evaluateTenderProcesses();
-        sendNewObjectives();
+        playerService.sendNewObjectives();
         checkObjectivesCriteriaAndSendRewards();
-        simulateEmployeeLives();
+        employeeService.simulateEmployeeLives();
         sendStoryElements();
         projectService.startStaleProjects();
         projectService.createProblemsInProjects();
@@ -418,32 +422,6 @@ public class Game {
             }
         });
         return thisPlayersStoryElements;
-    }
-
-    private void simulateEmployeeLives() {
-        getPlayerService().getPlayers().forEach((_, player) -> player.getEmployees().forEach(employee -> {
-            employee.liveLife(currentTick);
-            boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(currentTick) || employee.removeExpiredStatusEffects();
-
-            // Annual events that affect employees
-            if (currentTick % 365 == 0) {
-                employee.initializeSickDays();
-            }
-
-            // Monthly events that affect employees
-            if (currentTick % 30 == 0) {
-                // Send at least one update per month for metrics (i.e., utilization, sick days, satisfaction)
-                needsUpdate = true;
-            }
-
-            // This could be refactored so that the "needsUpdate" logic can be used here as well
-            projectService.applyStatusEffectsForStressfulOnboarding(player, employee);
-
-            // Send an employee update, if anything has changed
-            if (needsUpdate) {
-                messagingService.sendEmployeeUpdate(player, employee);
-            }
-        }));
     }
 
     private void checkObjectivesCriteriaAndSendRewards() {
@@ -578,24 +556,6 @@ public class Game {
             gameServer.setNewHighScore(goStats);
             gameServer.broadcastLobbyState();
         }
-    }
-
-    // Note: This method sends an OBJECTIVES_UPDATED event (i.e., it includes ALL objectives of this level),
-// because the frontend needs to show the completed objectives of other missions as well as the new objectives.
-    void sendNewObjectives() {
-        getPlayerService().getPlayers().forEach((_, player) -> {
-            boolean thereAreNewObjectives = !player.getNewObjectivesByTick(getCurrentTick()).isEmpty();
-            if (thereAreNewObjectives) {
-                logger.debug("Sending {} new objectives to player.", player.getNewObjectivesByTick(getCurrentTick()).size());
-
-                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-
-                // For the frontend, still include ALL objectives, even completed ones, in this event
-                List<Objective> allObjectives = player.getObjectivesUntilThisTick(getCurrentTick());
-                objectivesUpdatedEvent.setPayload(allObjectives);
-                messagingService.sendMessageToPlayer(player, getGson().toJson(objectivesUpdatedEvent));
-            }
-        });
     }
 
     private boolean isNewHighScore(GameOverStats highScoreCandidate) {

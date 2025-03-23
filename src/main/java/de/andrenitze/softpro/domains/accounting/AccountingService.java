@@ -45,22 +45,22 @@ public class AccountingService {
                 .collect(Collectors.toList());
     }
 
-    public void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players, int currentTick) {
+    public void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players) {
         if (d.getDayOfMonth() == 1) {
-            players.forEach((webSocket, player) -> {
+            players.forEach((_, player) -> {
                 // Calculate and subtract salaries
                 int salaries = player.calculateAndSubtractSalaries();
-                addEntry(new AccountingEntry(player, currentTick, salaries, AccountCategory.SALARIES,
+                addEntry(new AccountingEntry(player, game.getCurrentTick(), salaries, AccountCategory.SALARIES,
                         TransactionType.DEBIT, "Monthly salaries"));
 
                 // Office rent (fixed costs, rises with level)
                 int rent = 500 * (game.getLevel()-1);
-                addEntry(new AccountingEntry(player, currentTick, rent, AccountCategory.OVERHEAD,
+                addEntry(new AccountingEntry(player, game.getCurrentTick(), rent, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Office rent"));
 
                 // Insurance (fixed costs, rises with level)
                 int insurance = 150 * game.getLevel();
-                addEntry(new AccountingEntry(player, currentTick, insurance, AccountCategory.OVERHEAD,
+                addEntry(new AccountingEntry(player, game.getCurrentTick(), insurance, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Insurance"));
 
                 // Subtract rent and insurance from funds (not handled by accounting service)

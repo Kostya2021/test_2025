@@ -5,6 +5,7 @@ import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.ProjectService;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import lombok.Getter;
@@ -13,6 +14,8 @@ import org.java_websocket.WebSocket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static de.andrenitze.softpro.Main.logger;
 
 public class PlayerService {
     @Getter
@@ -74,5 +77,21 @@ public class PlayerService {
         GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
         employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
         game.getMessagingService().broadcastEvent(employeeEvent);
+    }
+
+    public void sendNewObjectives() {
+        int currentTick = game.getCurrentTick();
+        getPlayers().forEach((_, player) -> {
+            boolean thereAreNewObjectives = !player.getNewObjectivesByTick(currentTick).isEmpty();
+            if (thereAreNewObjectives) {
+                logger.debug("Sending {} new objectives to player.", player.getNewObjectivesByTick(currentTick).size());
+
+                // For the frontend, still include ALL objectives, even completed ones, in this event
+                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
+                List<Objective> allObjectives = player.getObjectivesUntilThisTick(currentTick);
+                objectivesUpdatedEvent.setPayload(allObjectives);
+                game.getMessagingService().sendEventToPlayer(player, objectivesUpdatedEvent);
+            }
+        });
     }
 }

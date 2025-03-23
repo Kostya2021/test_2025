@@ -53,12 +53,14 @@ public class ProjectService {
         this.accountingService = game.getAccountingService();
     }
 
-    public void conductWorkOnAllProjects(int currentTick, LocalDate currentDate,
-                                         ConcurrentMap<Project, ArrayList<Employee>> projectEmployeesMap) {
+    public void conductWorkOnAllProjects(LocalDate currentDate, ConcurrentMap<Project,
+            ArrayList<Employee>> projectEmployeesMap) {
         // No work on weekends
         if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
             return;
         }
+
+        int currentTick = game.getCurrentTick();
 
         // For all projects that are started AND have employees assigned
         Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator();
@@ -548,13 +550,13 @@ public class ProjectService {
         logger.debug("Project {} cancelled by player {}", project.getName(), player.getId());
     }
 
-    public void cancelOverdueProjects(int currentTick) {
+    public void cancelOverdueProjects() {
         List<Project> projectsToCancel = new ArrayList<>();
 
         // Identify projects that meet the cancellation criteria
         for (Project project : getProjects()) {
             // Check if project should be automatically cancelled
-            if (shouldAutomaticallyCancel(project, currentTick)) {
+            if (shouldAutomaticallyCancel(project, game.getCurrentTick())) {
                 projectsToCancel.add(project);
             }
         }
