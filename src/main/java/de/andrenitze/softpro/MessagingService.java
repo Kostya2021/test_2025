@@ -11,12 +11,13 @@ import java.beans.PropertyChangeListener;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
+import static de.andrenitze.softpro.Main.logger;
 
 public class MessagingService implements PropertyChangeListener {
     private Map<WebSocket, Player> players;
 
     public MessagingService(Game game) {
-        this.players = game.getPlayers();
+        this.players = game.getPlayerService().getPlayers();
         game.addPropertyChangeListener(this);
     }
 
@@ -58,12 +59,21 @@ public class MessagingService implements PropertyChangeListener {
 
     public void broadcastToAllPlayers(String message) {
         // Send the message to all players
-        players.forEach((webSocket, player) -> webSocket.send(message));
+        players.forEach((webSocket, _) -> webSocket.send(message));
     }
 
     public void sendEmployeeUpdate(Player player, Employee employee) {
         GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
         employeeUpdateEvent.setPayload(employee);
         sendMessageToPlayer(player, GameServer.getGson().toJson(employeeUpdateEvent));
+    }
+
+    public void sendInitialStateToAllPlayers() {
+        players.forEach((_, player) -> {
+            logger.debug("Sending initial state to players");
+            GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.STATE_UPDATED);
+            initialPlayerEvent.setPayload(player);
+            sendMessageToPlayer(player, GameServer.getGson().toJson(initialPlayerEvent));
+        });
     }
 }

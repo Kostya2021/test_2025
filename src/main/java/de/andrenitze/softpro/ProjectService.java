@@ -647,7 +647,7 @@ public class ProjectService {
             return;
         }
 
-        Player player = game.getPlayers().values().iterator().next();
+        Player player = game.getPlayerService().getPlayers().values().iterator().next();
 
         // Only have one compliance project at a time
         if (getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
@@ -676,7 +676,7 @@ public class ProjectService {
 
     public void randomlySpawnProjectTenders() {
         // There is only one player in level 1
-        Player p = game.getPlayers().values().iterator().next();
+        Player p = game.getPlayerService().getPlayers().values().iterator().next();
 
         // Don't spawn new projects in level 1 before the first mission is completed
         if (game.getLevel() == 1 && p.getMissions().getFirst().isNotCompleted()) {

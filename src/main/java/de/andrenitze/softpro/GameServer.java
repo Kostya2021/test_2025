@@ -83,7 +83,7 @@ public class GameServer extends WebSocketServer {
 
         // ...and for running games
         for (Game game : games) {
-            for (WebSocket client : game.getPlayers().keySet()) {
+            for (WebSocket client : game.getPlayerService().getPlayers().keySet()) {
                 client.close();
             }
         }
@@ -307,13 +307,11 @@ public class GameServer extends WebSocketServer {
 
         // Remove disconnected client from running game
         for (Game game : games) {
-            if (game.hasWebSocket(webSocket)) {
+            if (game.getPlayerService().hasWebSocket(webSocket)) {
                 game.removePlayerFromGame(webSocket);
 
-                int numberOfPlayers = game.getPlayers().size();
+                int numberOfPlayers = game.getPlayerService().getPlayers().size();
                 logger.debug("A player left the game - {} player(s) left in the game", numberOfPlayers);
-
-                game.closeGameIfEmpty();
 
                 // Don't search any further
                 break;
@@ -348,7 +346,7 @@ public class GameServer extends WebSocketServer {
             Player player = lobby.get(webSocket);
 
             for (Game game : games) {
-                if (game.hasWebSocket(webSocket)) {
+                if (game.getPlayerService().hasWebSocket(webSocket)) {
                     game.getEventHandler().handleEvent(webSocket, message);
                 }
             }
@@ -402,7 +400,7 @@ public class GameServer extends WebSocketServer {
 
     private void forwardEventToGame(WebSocket webSocket, String message) {
         for (Game game : games) {
-            if (game.hasWebSocket(webSocket)) {
+            if (game.getPlayerService().hasWebSocket(webSocket)) {
                 game.getEventHandler().handleEvent(webSocket, message);
             }
         }
@@ -414,7 +412,7 @@ public class GameServer extends WebSocketServer {
                 lobby.remove(player.getKey());
 
                 Game game = games.stream()
-                        .filter(g -> g.hasWebSocket(player.getKey()))
+                        .filter(g -> g.getPlayerService().hasWebSocket(player.getKey()))
                         .findFirst()
                         .orElse(null);
 

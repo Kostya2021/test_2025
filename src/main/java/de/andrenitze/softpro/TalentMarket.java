@@ -6,6 +6,7 @@ import de.andrenitze.softpro.domains.projects.ProjectType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
@@ -22,7 +23,7 @@ public class TalentMarket {
         this.employeeIdGenerator = employeeIdGenerator;
     }
 
-    public synchronized ArrayList<Employee> generateFirstEmployees() {
+    public synchronized List<Employee> generateFirstEmployees() {
         ArrayList<Employee> employees = new ArrayList<>();
 
         // The first two employees have a moderate amount of XP in one random project domain
@@ -64,7 +65,7 @@ public class TalentMarket {
         return employeeIdGenerator.generateId();
     }
 
-    public ArrayList<Employee> getTalents() {
+    public List<Employee> getTalents() {
         return new ArrayList<>(talents.values());
     }
 }

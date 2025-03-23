@@ -80,7 +80,7 @@ public class GameEventHandler {
         try {
             for (Project project : game.getProjectService().getProjects()) {
                 if (project.getId() == joinTenderEvent.getPayload()) {
-                    Player player = game.getPlayerByWebSocket(websocket);
+                    Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
                     project.addParty(player);
 
                     if (project.hasNoTenderProcess()) {
@@ -112,7 +112,7 @@ public class GameEventHandler {
     }
 
     private void handlePlayerReadyEvent(WebSocket websocket, String message) {
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
         Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
         GameEvent<LevelDecisions> playerReadyEvent = GameServer.getGson().fromJson(message, payloadType);
 
@@ -142,7 +142,7 @@ public class GameEventHandler {
     }
 
     private void handleSkillUnlockedEvent(WebSocket websocket, String message) {
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
 
         Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
         GameEvent<HashMap<String, String>> skillUnlockedEvent = GameServer.getGson().fromJson(message, payloadType);
@@ -156,7 +156,7 @@ public class GameEventHandler {
         Type payloadType = new TypeToken<GameEvent<Integer>>() {}.getType();
         GameEvent<Integer> hireTalentEvent = GameServer.getGson().fromJson(message, payloadType);
 
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
         int employeeId = hireTalentEvent.getPayload();
 
         Employee employee = game.getTalentMarket().hireTalent(player, employeeId, game.getCurrentTick());
@@ -190,7 +190,7 @@ public class GameEventHandler {
         GameEvent<HashMap<String, Integer>> riskAssessmentEvent = GameServer.getGson().fromJson(message, payloadType);
 
         int projectId = riskAssessmentEvent.getPayload().get(PROJECT_ID);
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
 
         game.assessProjectRiskForPlayer(projectId, player);
     }
@@ -200,7 +200,7 @@ public class GameEventHandler {
         GameEvent<HashMap<String, Integer>> dismissEmployeeEvent = GameServer.getGson().fromJson(message, payloadType);
         int employeeId = dismissEmployeeEvent.getPayload().get(EMPLOYEE_ID);
 
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
         Employee employee = player.getEmployeeById(employeeId);
 
         if (employee == null) {
@@ -224,7 +224,7 @@ public class GameEventHandler {
     }
 
     private void handleEmployeeSalaryUpdatedEvent(WebSocket websocket, String message) {
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
 
         Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
         GameEvent<HashMap<String, Integer>> employeeUpdatedEvent = GameServer.getGson().fromJson(message, payloadType);
@@ -259,19 +259,19 @@ public class GameEventHandler {
 
             for (Employee employee : game.getProjectService().getProjectEmployeesMap().get(project)) {
                 employee.addComplexStatusEffect(effect);
-                game.getMessagingService().sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
+                game.getMessagingService().sendEmployeeUpdate(game.getPlayerService().getPlayerByWebSocket(websocket), employee);
             }
 
             int crunchModeCooldown = 20;
             scheduler.schedule(() -> {
                 GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
                 effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE));
-                game.getMessagingService().sendMessageToPlayer(game.getPlayerByWebSocket(websocket), GameServer.getGson().toJson(effectDisabledEvent));
+                game.getMessagingService().sendMessageToPlayer(game.getPlayerService().getPlayerByWebSocket(websocket), GameServer.getGson().toJson(effectDisabledEvent));
             }, GAME_SPEED_IN_MILLISECONDS * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
         } else if (effect.equals(TEAM_SPIRIT)) {
-            for (Employee employee : game.getPlayerByWebSocket(websocket).getEmployees()) {
+            for (Employee employee : game.getPlayerService().getPlayerByWebSocket(websocket).getEmployees()) {
                 employee.addComplexStatusEffect(effect);
-                game.getMessagingService().sendEmployeeUpdate(game.getPlayerByWebSocket(websocket), employee);
+                game.getMessagingService().sendEmployeeUpdate(game.getPlayerService().getPlayerByWebSocket(websocket), employee);
             }
         }
     }
@@ -307,7 +307,7 @@ public class GameEventHandler {
         int employeeId = parseIdByKey(message, EMPLOYEE_ID);
         if (employeeId == 0) return;
 
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
         Employee employee = player.getEmployeeById(employeeId);
 
         game.conductOneToOneMeeting(player, employee);
@@ -315,14 +315,14 @@ public class GameEventHandler {
 
     private void handleTeamEstimateRequestedEvent(WebSocket websocket, String message) {
         int projectId = parseIdByKey(message, PROJECT_ID);
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
         game.getProjectService().conductTeamEstimation(projectId, player);
     }
 
     private void handleProjectCancelRequestedEvent(WebSocket websocket, String message) {
         int projectId = parseIdByKey(message, PROJECT_ID);
         Project project = game.getProjectService().getProjectById(projectId);
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
 
         if (project != null) {
             logger.debug("Cancelling project '{}'...", projectId);
@@ -345,7 +345,7 @@ public class GameEventHandler {
     }
 
     private void changeEmployeeAssignment(WebSocket websocket, int employeeId, int projectId, boolean isAssignOperation) {
-        Player player = game.getPlayerByWebSocket(websocket);
+        Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
         Employee employee = player.getEmployeeById(employeeId);
         Project project = game.getProjectService().getProjectById(projectId);
 
