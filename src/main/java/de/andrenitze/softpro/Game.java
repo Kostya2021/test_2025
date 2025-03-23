@@ -1,11 +1,8 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.*;
-import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.AccountingService;
-import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
@@ -107,7 +104,7 @@ public class Game {
         accountingService = new AccountingService(this);
         projectService = new ProjectService(this);
         messagingService = new MessagingService(this);
-        playerService = new PlayerService(this, talentMarket);
+        playerService = new PlayerService(this, talentMarket, projectService);
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -127,7 +124,7 @@ public class Game {
         // Start the round for all players
         isRunning = true;
         messagingService.broadcastEvent(EventType.ROUND_STARTED);
-        messagingService.sendInitialStateToAllPlayers();
+        messagingService.broadcastInitialState();
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -685,54 +682,6 @@ public class Game {
     public void addPlayerToGame(WebSocket key, Player value) {
         getPlayerService().addPlayerToGame(key, value);
         support.firePropertyChange("players", null, getPlayerService().getPlayers());
-    }
-
-    public void assessProjectRiskForPlayer(int projectId, Player player) {
-        Project project = projectService.getProjectById(projectId);
-        if (project == null) {
-            logger.error("Project with ID {} could not be found.", projectId);
-            return;
-        }
-
-        // Deduct funds from player
-        int riskAssessmentCost = (int) GameParameters.PROJECT_RISK_ASSESSMENT_COST;
-        accountingService.addEntry(new AccountingEntry(
-                player,
-                getCurrentTick(),
-                riskAssessmentCost,
-                AccountCategory.DEBIT_PROJECTS,
-                TransactionType.DEBIT,
-                "Project risk assessment")
-        );
-        player.subtractFunds(riskAssessmentCost);
-        messagingService.sendFundsUpdateToPlayer(player);
-
-        // Send project update to player
-        GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
-        riskAssessedConfirmation.setPayload(project);
-        messagingService.sendMessageToPlayer(player, getGson().toJson(riskAssessedConfirmation));
-    }
-
-    // Move Employee from Player back to TalentMarket
-    public void dismissEmployee(Player player, Employee employee) {
-        player.removeEmployee(employee);
-        employee.removeAllStatusEffects();
-        talentMarket.addTalent(employee);
-
-        // If there are projectService.getProjects()...
-        if (getProjectService().getProjects() != null) {
-            projectService.removeEmployeeFromAllProjects(employee);
-        }
-
-        // Send employee dismissal confirmation
-        GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
-        employeeDismissedEvent.setPayload(employee);
-        messagingService.sendMessageToPlayer(player, getGson().toJson(employeeDismissedEvent));
-
-        // Send new employee to all players' TalentMarkets in the game
-        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-        employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
-        messagingService.broadcastToAllPlayers(getGson().toJson(employeeEvent));
     }
 
     public boolean isRunning() {

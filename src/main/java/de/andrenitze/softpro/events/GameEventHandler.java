@@ -192,7 +192,7 @@ public class GameEventHandler {
         int projectId = riskAssessmentEvent.getPayload().get(PROJECT_ID);
         Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
 
-        game.assessProjectRiskForPlayer(projectId, player);
+        game.getProjectService().assessProjectRiskForPlayer(projectId, player);
     }
 
     private void handleEmployeeDismissedEvent(WebSocket websocket, String message) {
@@ -209,7 +209,7 @@ public class GameEventHandler {
         }
 
         employee.removeAllStatusEffects();
-        game.dismissEmployee(player, employee);
+        game.getPlayerService().dismissEmployee(player, employee);
     }
 
     private void handleProjectStartedEvent(String message) {

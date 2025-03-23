@@ -11,7 +11,6 @@ import java.beans.PropertyChangeListener;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
-import static de.andrenitze.softpro.Main.logger;
 
 public class MessagingService implements PropertyChangeListener {
     private Map<WebSocket, Player> players;
@@ -68,15 +67,6 @@ public class MessagingService implements PropertyChangeListener {
         sendMessageToPlayer(player, GameServer.getGson().toJson(employeeUpdateEvent));
     }
 
-    public void sendInitialStateToAllPlayers() {
-        players.forEach((_, player) -> {
-            logger.debug("Sending initial state to players");
-            GameEvent<Player> initialPlayerEvent = new GameEvent<>(EventType.STATE_UPDATED);
-            initialPlayerEvent.setPayload(player);
-            sendMessageToPlayer(player, GameServer.getGson().toJson(initialPlayerEvent));
-        });
-    }
-
     /**
      * Broadcasts an event of specified type (without payload) to all players.
      * @param eventType The type of the event to broadcast.
@@ -95,5 +85,24 @@ public class MessagingService implements PropertyChangeListener {
         GameEvent<Integer> event = new GameEvent<>(eventType);
         event.setPayload(currentTick);
         broadcastToAllPlayers(gson.toJson(event));
+    }
+
+    public void broadcastEvent(GameEvent<?> gameEvent) {
+        broadcastToAllPlayers(gson.toJson(gameEvent));
+    }
+
+    public void sendEventToPlayer(Player player, GameEvent<?> gameEvent) {
+        sendMessageToPlayer(player, gson.toJson(gameEvent));
+    }
+
+    /**
+     * Broadcasts the initial state of the game to all players.
+     */
+    public void broadcastInitialState() {
+        players.forEach((_, player) -> {
+            GameEvent<Player> event = new GameEvent<>(EventType.STATE_UPDATED);
+            event.setPayload(player);
+            sendEventToPlayer(player, event);
+        });
     }
 }

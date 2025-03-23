@@ -674,84 +674,6 @@ public class ProjectService {
         }
     }
 
-    public void randomlySpawnProjectTenders() {
-        // There is only one player in level 1
-        Player p = game.getPlayerService().getPlayers().values().iterator().next();
-
-        // Don't spawn new projects in level 1 before the first mission is completed
-        if (game.getLevel() == 1 && p.getMissions().getFirst().isNotCompleted()) {
-            return;
-        }
-
-        if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
-            // Generate a new project
-            Project project;
-
-            // For level 1, make sure that it's only easy and small projects
-            if (game.getLevel() == 1) {
-                // 25% chance for a perfect project
-                if (RANDOM.nextFloat() <= 0.75) {
-                    // Low-risk, small projects
-                    project = new Project(RiskLevel.LOW).initialize();
-
-                    // No tender process for level 1
-                    project.setTenderProcess(false);
-                } else {
-                    // Find the project type and domain where one employee has the most experience
-                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.
-                            comparing(Employee::getExperience)).orElse(null);
-                    if (bestEmployee == null) {
-                        logger.error("No employee found for player {}.", p.getId());
-                        return;
-                    }
-                    String domain = bestEmployee.getDomainOfExpertise();
-                    ProjectType type = ProjectType.getTypeByDomain(domain);
-
-                    project = new Project(type, domain, RiskLevel.LOW, false);
-                }
-            } else {
-                project = new Project().initialize();
-            }
-
-            project.setPublishedAt(game.getCurrentTick());
-            addProject(project);
-
-            // Initialize project-employee map
-            projectEmployeesMap.put(project, new ArrayList<>(2));
-
-            // Inform players about the new tender
-            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
-            newTenderEvent.setPayload(project);
-
-            game.getMessagingService().broadcastToAllPlayers(getGson().toJson(newTenderEvent));
-        }
-    }
-
-    public void startStaleProjects() {
-        // Don't do that in level 1
-        if (game.getLevel() == 1) {
-            return;
-        }
-
-        // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
-        for (Project project : getProjects()) {
-            if (project.getType() == ProjectType.COMPLIANCE) {
-                continue;
-            }
-
-            // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
-            if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
-                int daysPassed = game.getCurrentTick() - project.getAcquiredAt();
-                if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
-                    // Start the project and inform involved players
-                    startProject(project, game.getCurrentTick() - 1);
-                    notifyInvolvedPlayers(project);
-                    logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
-                }
-            }
-        }
-    }
-
     private void notifyInvolvedPlayers(Project project) {
         GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
         HashMap<String, Integer> payload = new HashMap<>();
@@ -946,7 +868,110 @@ public class ProjectService {
         }
     }
 
+    public void startStaleProjects() {
+        // Don't do that in level 1
+        if (game.getLevel() == 1) {
+            return;
+        }
+
+        // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
+        for (Project project : getProjects()) {
+            if (project.getType() == ProjectType.COMPLIANCE) {
+                continue;
+            }
+
+            // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
+            if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
+                int daysPassed = game.getCurrentTick() - project.getAcquiredAt();
+                if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
+                    // Start the project and inform involved players
+                    startProject(project, game.getCurrentTick() - 1);
+                    notifyInvolvedPlayers(project);
+                    logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
+                }
+            }
+        }
+    }
+
+    public void randomlySpawnProjectTenders() {
+        // There is only one player in level 1
+        Player p = game.getPlayerService().getPlayers().values().iterator().next();
+
+        // Don't spawn new projects in level 1 before the first mission is completed
+        if (game.getLevel() == 1 && p.getMissions().getFirst().isNotCompleted()) {
+            return;
+        }
+
+        if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
+            // Generate a new project
+            Project project;
+
+            // For level 1, make sure that it's only easy and small projects
+            if (game.getLevel() == 1) {
+                // 25% chance for a perfect project
+                if (RANDOM.nextFloat() <= 0.75) {
+                    // Low-risk, small projects
+                    project = new Project(RiskLevel.LOW).initialize();
+
+                    // No tender process for level 1
+                    project.setTenderProcess(false);
+                } else {
+                    // Find the project type and domain where one employee has the most experience
+                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.
+                            comparing(Employee::getExperience)).orElse(null);
+                    if (bestEmployee == null) {
+                        logger.error("No employee found for player {}.", p.getId());
+                        return;
+                    }
+                    String domain = bestEmployee.getDomainOfExpertise();
+                    ProjectType type = ProjectType.getTypeByDomain(domain);
+
+                    project = new Project(type, domain, RiskLevel.LOW, false);
+                }
+            } else {
+                project = new Project().initialize();
+            }
+
+            project.setPublishedAt(game.getCurrentTick());
+            addProject(project);
+
+            // Initialize project-employee map
+            projectEmployeesMap.put(project, new ArrayList<>(2));
+
+            // Inform players about the new tender
+            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
+            newTenderEvent.setPayload(project);
+
+            game.getMessagingService().broadcastToAllPlayers(getGson().toJson(newTenderEvent));
+        }
+    }
+
     public void loadProblems() {
         problemGenerator.loadProblemsByLevel(game.getLevel());
+    }
+
+    public void assessProjectRiskForPlayer(int projectId, Player player) {
+        Project project = getProjectById(projectId);
+        if (project == null) {
+            logger.error("Project with ID {} could not be found.", projectId);
+            return;
+        }
+
+        // Deduct funds from player
+        int riskAssessmentCost = (int) GameParameters.PROJECT_RISK_ASSESSMENT_COST;
+        game.getAccountingService().addEntry(new AccountingEntry(
+                player,
+                game.getCurrentTick(),
+                riskAssessmentCost,
+                AccountCategory.DEBIT_PROJECTS,
+                TransactionType.DEBIT,
+                "Project risk assessment")
+        );
+        player.subtractFunds(riskAssessmentCost);
+        game.getMessagingService().sendFundsUpdateToPlayer(player);
+
+        GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
+        riskAssessedConfirmation.setPayload(project);
+        game.getMessagingService().sendEventToPlayer(player, riskAssessedConfirmation);
     }
 }
