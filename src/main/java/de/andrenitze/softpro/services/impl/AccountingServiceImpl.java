@@ -1,7 +1,11 @@
-package de.andrenitze.softpro.domains.accounting;
+package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.accounting.AccountCategory;
+import de.andrenitze.softpro.domains.accounting.AccountingEntry;
+import de.andrenitze.softpro.domains.accounting.TransactionType;
+import de.andrenitze.softpro.services.AccountingService;
 import org.java_websocket.WebSocket;
 
 import java.time.LocalDate;
@@ -13,11 +17,11 @@ import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.Main.logger;
 
-public class AccountingService {
+public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();
     private final Game game;
 
-    public AccountingService(Game game) {
+    public AccountingServiceImpl(Game game) {
         this.game = game;
         logger.debug("AccountingService initialized.");
     }

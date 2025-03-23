@@ -2,7 +2,7 @@ package de.andrenitze.softpro.domains.projects;
 
 import java.util.List;
 
-import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
 
 public enum ProjectType {
     INTRODUCTION, CUSTOMIZATION, CONSULTING, DEVELOPMENT, MAINTENANCE, COMPLIANCE;

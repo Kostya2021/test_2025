@@ -1,8 +1,7 @@
 package de.andrenitze.softpro.domains.projects;
 
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.GameServer;
+import de.andrenitze.softpro.services.impl.GameServerImpl;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,7 +13,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 @Setter
@@ -41,7 +40,7 @@ public class ProblemGenerator {
             }
             InputStreamReader reader = new InputStreamReader(inputStream);
             Type problemListType = new TypeToken<List<Problem>>() {}.getType();
-            this.problems = GameServer.getGson().fromJson(convertYamlToJson(reader), problemListType);
+            this.problems = GameServerImpl.getGson().fromJson(convertYamlToJson(reader), problemListType);
             logger.debug("Loaded {} problems from file: {}", problems.size(), filePath);
             return true;
         } catch (IOException e) {
@@ -55,7 +54,7 @@ public class ProblemGenerator {
         try {
             Yaml yaml = new Yaml();
             Object data = yaml.load(reader);
-            return GameServer.getGson().toJson(data);
+            return GameServerImpl.getGson().toJson(data);
         } catch (Exception e) {
             throw new IOException("Failed to open YAML file", e);
         }

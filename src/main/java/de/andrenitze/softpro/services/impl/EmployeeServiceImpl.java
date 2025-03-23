@@ -1,19 +1,19 @@
-package de.andrenitze.softpro.domains.employees;
+package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.Game;
-import de.andrenitze.softpro.MessagingService;
-import de.andrenitze.softpro.ProjectService;
+import de.andrenitze.softpro.services.EmployeeService;
+import de.andrenitze.softpro.services.MessagingService;
 import lombok.Setter;
 
 import static de.andrenitze.softpro.Main.logger;
 
-public class EmployeeService {
+public class EmployeeServiceImpl implements EmployeeService {
     private final Game game;
-    private final ProjectService projectService;
+    private final ProjectServiceImpl projectService;
     @Setter
     private MessagingService messagingService;
 
-    public EmployeeService(Game game, ProjectService projectService) {
+    public EmployeeServiceImpl(Game game, ProjectServiceImpl projectService) {
         this.game = game;
         this.projectService = projectService;
         this.messagingService = null;

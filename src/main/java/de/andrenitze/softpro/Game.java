@@ -2,17 +2,15 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.*;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
-import de.andrenitze.softpro.domains.accounting.AccountingService;
+import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
-import de.andrenitze.softpro.domains.employees.EmployeeService;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
-import de.andrenitze.softpro.domains.players.PlayerService;
 import de.andrenitze.softpro.domains.projects.*;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
@@ -26,6 +24,8 @@ import org.java_websocket.WebSocket;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.beans.PropertyChangeListener;
@@ -35,13 +35,26 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static de.andrenitze.softpro.GameServer.*;
+import static de.andrenitze.softpro.services.impl.GameServerImpl.*;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
-import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
 import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
+@Component
 public class Game {
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private GameServerImpl gameServer;
+    @Getter private SkillServiceImpl skillService;
+    @Getter private AccountingServiceImpl accountingService;
+    @Getter private MessagingServiceImpl messagingService;
+    @Getter private PlayerServiceImpl playerService;
+    @Getter private TalentMarket talentMarket;
+    @Getter private ProjectServiceImpl projectService;
+    @Getter private EmployeeServiceImpl employeeService;
+    @Getter
+    private GameEventHandler eventHandler;
+
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
@@ -54,31 +67,12 @@ public class Game {
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final String RESTORE_LOST_DATA = "Restore lost data";
     public static final int BACKUP_BLUES_LEVEL = 2;
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    @Getter
-    private final AccountingService accountingService;
-    @Getter
-    private final MessagingService messagingService;
-    @Getter
-    private final PlayerService playerService;
     private boolean isRunning; // Game instance is active
     private boolean isPaused = false; // Game instance is active, but paused (e.g., for briefing and tutorials)
-    private final GameServer gameServer;
-    @Getter
-    private int currentTick = 0;
+    @Getter private int currentTick = 0;
+    @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
-    private final GameEventHandler eventHandler;
     private ArrayList<StoryElement> storyElements; // Level-specific
-    @Getter
-    private final SkillService skillService;
-    @Getter
-    private final TalentMarket talentMarket;
-    @Getter
-    private int level = 1;
-    @Getter
-    private final ProjectService projectService;
-    @Getter
-    private final EmployeeService employeeService;
     private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
@@ -89,31 +83,41 @@ public class Game {
      *
      * @param gameServer The GameServer that this game is running in
      */
-    public Game(GameServer gameServer) {
-        logger.debug("Creating a new game instance.");
+    @Autowired
+    public Game(GameServerImpl gameServer,
+                SkillServiceImpl skillService,
+                AccountingServiceImpl accountingService,
+                MessagingServiceImpl messagingService,
+                PlayerServiceImpl playerService,
+                TalentMarket talentMarket,
+                ProjectServiceImpl projectService,
+                EmployeeServiceImpl employeeService,
+                GameEventHandler eventHandler) {
         this.gameServer = gameServer;
 
-        // The event handler of each game will receive events from the frontend
-        // and decide how to change the game's state based on these events.
-        this.eventHandler = new GameEventHandler(this);
-
-        // Fill talent market with candidates, use global IDs for employees (unique across all games)
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
-        talentMarket = new TalentMarket(employeeIdGenerator);
-        talentMarket.clear();
+        this.talentMarket = new TalentMarket(employeeIdGenerator); // TODO
+        this.talentMarket.clear();
 
-        skillService = new SkillService();
-        accountingService = new AccountingService(this);
-        projectService = new ProjectService(this);
-        employeeService = new EmployeeService(this, projectService);
-        playerService = new PlayerService(this, talentMarket, projectService);
-        messagingService = new MessagingService(this);
-        employeeService.setMessagingService(messagingService);
+        this.skillService = skillService;
+        this.accountingService = accountingService;
+        this.messagingService = messagingService;
+        this.playerService = playerService;
+        this.projectService = projectService;
+        this.employeeService = employeeService;
+        this.eventHandler = eventHandler;
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
             talentMarket.initialize();
         }
+    }
+
+    public Game() {
+        logger.debug("Game instance created with default constructor");
+        isRunning = false;
+        currentTick = 0;
+        level = 1;
     }
 
     public void start() {
@@ -306,7 +310,7 @@ public class Game {
         projectService.loadProblems();
     }
 
-    void loadStory(int level) {
+    public void loadStory(int level) {
         this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(level);
     }
 
@@ -568,7 +572,7 @@ public class Game {
                 highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
-    static float calculateXP(Project project) {
+    public static float calculateXP(Project project) {
         // Riskier and larger projects yield more XP
         float xp = project.getTotalValue() / 1000f;
         switch (project.getRiskLevel()) {
@@ -585,14 +589,10 @@ public class Game {
         return xp;
     }
 
-    void removePlayerFromGame(WebSocket key) {
+    public void removePlayerFromGame(WebSocket key) {
         getPlayerService().removePlayerFromGame(key);
         support.firePropertyChange("players", null, getPlayerService().getPlayers());
         closeGameIfEmpty();
-    }
-
-    GameEventHandler getEventHandler() {
-        return eventHandler;
     }
 
     public void closeGameIfEmpty() {

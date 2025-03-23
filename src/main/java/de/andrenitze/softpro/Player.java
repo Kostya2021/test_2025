@@ -5,6 +5,7 @@ import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.Objectives;
 import de.andrenitze.softpro.domains.decisions.Decision;
+import de.andrenitze.softpro.services.impl.SkillServiceImpl;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +13,7 @@ import lombok.Setter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.services.impl.GameServerImpl.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
 public class Player {
@@ -74,7 +75,7 @@ public class Player {
     @EqualsAndHashCode.Exclude
     private final Map<Integer, List<Decision>> decisions = new HashMap<>();
 
-    Player() {
+    public Player() {
         this(generatePlayerName(), generateCompanyName());
     }
 
@@ -235,7 +236,7 @@ public class Player {
 
     public void addXp(int newXP) {
         // Check if the new XP level exceeds an XP_LEVEL_THRESHOLD and increase the xpLevel if necessary
-        int xpToLevelUp = SkillService.XP_LEVEL_THRESHOLDS[this.xpLevel];
+        int xpToLevelUp = SkillServiceImpl.XP_LEVEL_THRESHOLDS[this.xpLevel];
 
         if (this.xp + newXP >= xpToLevelUp) {
             this.xp += newXP; // Add the new XP

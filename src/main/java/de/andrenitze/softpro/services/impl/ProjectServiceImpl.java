@@ -1,9 +1,10 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.services.impl;
 
+import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
-import de.andrenitze.softpro.domains.accounting.AccountingService;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.*;
@@ -11,6 +12,7 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.services.ProjectService;
 import lombok.Getter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -24,20 +26,20 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.*;
-import static de.andrenitze.softpro.GameServer.*;
+import static de.andrenitze.softpro.services.impl.GameServerImpl.*;
 import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
 import static java.lang.Math.*;
 
-public class ProjectService {
+public class ProjectServiceImpl implements ProjectService {
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
     private final Game game;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final SkillService skillService;
+    private final SkillServiceImpl skillService;
     @Getter
     private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
-    private final AccountingService accountingService;
+    private final AccountingServiceImpl accountingService;
     @Getter
     private ArrayList<Project> projects = new ArrayList<>();
     private static final String EVENT_TYPE = "type";
@@ -46,7 +48,7 @@ public class ProjectService {
     @Getter
     private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
-    public ProjectService(Game game) {
+    public ProjectServiceImpl(Game game) {
         this.game = game;
         this.skillService = game.getSkillService();
         this.projectEmployeesMap = new ConcurrentHashMap<>();
@@ -250,7 +252,7 @@ public class ProjectService {
         return 1.0f; // No onboarding required (safe period or no new employees)
     }
 
-    private int calculateEmployeeEarnedValue(Employee employee, Project project, int currentTick, float onboardingFactor) {
+    public int calculateEmployeeEarnedValue(Employee employee, Project project, int currentTick, float onboardingFactor) {
         // Base productivity
         int earnedValue = BASE_PRODUCTIVITY_VALUE;
 
@@ -777,7 +779,7 @@ public class ProjectService {
         game.getMessagingService().sendMessageToPlayer(player, getGson().toJson(projectReceivedEvent));
     }
 
-    void evaluateTenderProcesses() {
+    public void evaluateTenderProcesses() {
         for (Project project : getProjects()) {
             // Don't evaluate acquired projects
             if (project.getAcquiredAt() != 0) {
@@ -804,7 +806,7 @@ public class ProjectService {
         }
     }
 
-    protected void removeStaleTenders() {
+    public void removeStaleTenders() {
         // Dont remove tenders in level 1
         if (game.getLevel() == 1) {
             return;
@@ -834,7 +836,7 @@ public class ProjectService {
         game.getMessagingService().broadcastToAllPlayers(getGson().toJson(tendersRemovedEvent));
     }
 
-    protected void createProblemsInProjects() {
+    public void createProblemsInProjects() {
         // In all running projectService.getProjects()...
         for (Project project : getProjects()) {
             // If it's not running or completed, skip to the next project

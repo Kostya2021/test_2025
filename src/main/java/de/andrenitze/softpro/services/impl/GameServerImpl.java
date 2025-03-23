@@ -1,7 +1,10 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.services.impl;
 
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.config.GameConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.projects.Project;
@@ -10,6 +13,7 @@ import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.services.GameServerService;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
@@ -22,6 +26,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -32,7 +37,7 @@ import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class GameServer extends WebSocketServer {
+public class GameServerImpl extends WebSocketServer implements GameServerService {
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
@@ -49,7 +54,7 @@ public class GameServer extends WebSocketServer {
         }
     };
     @Getter
-    protected static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+    public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
     @Getter
     private GameOverStats dailyHighScore;
     public static final SecureRandom RANDOM = new SecureRandom();
@@ -63,7 +68,7 @@ public class GameServer extends WebSocketServer {
      * @param hostname String  Host name (IP for clients to connect to)
      * @param port int          Port number
      */
-    public GameServer(String hostname, int port) {
+    public GameServerImpl(String hostname, int port) {
         super(new InetSocketAddress(hostname, port));
 
         // Fetch high-score in a separate thread
@@ -72,6 +77,10 @@ public class GameServer extends WebSocketServer {
         // Graceful shutdown hook
         Thread printingHook = new Thread(this::gracefulShutdown);
         Runtime.getRuntime().addShutdownHook(printingHook);
+    }
+
+    public GameServerImpl() {
+        this("localhost", 80); // TODO correct?
     }
 
     private void gracefulShutdown() {
@@ -203,7 +212,9 @@ public class GameServer extends WebSocketServer {
      * @param player Player         The player to be added to the game
      */
     private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
-        Game game = new Game(this);
+        // Create a new game instance bean from application context
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(GameConfig.class);
+        Game game = context.getBean(Game.class);
         game.addPlayerToGame(webSocket, player);
 
         // Prepare both, player and game, for the next level
@@ -430,7 +441,7 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    protected void broadcastLobbyState() {
+    public void broadcastLobbyState() {
         JSONArray playersList = new JSONArray();
         for (Map.Entry<WebSocket, Player> entry : lobby.entrySet()) {
             Player readyPlayer = entry.getValue();
@@ -517,7 +528,7 @@ public class GameServer extends WebSocketServer {
         logger.info("Server started successfully");
     }
 
-    void movePlayerToLobby(WebSocket webSocket, Player player) {
+    public void movePlayerToLobby(WebSocket webSocket, Player player) {
         logger.debug("Moving player {} back to lobby", player.getName());
         lobby.put(webSocket, player);
 
@@ -530,7 +541,7 @@ public class GameServer extends WebSocketServer {
         this.dailyHighScore = gameOverStats;
     }
 
-    List<GameOverStats> getCurrentHighScores() {
+    public List<GameOverStats> getCurrentHighScores() {
         DataSource dataSource = DatabaseConfig.getDataSource();
         GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
 

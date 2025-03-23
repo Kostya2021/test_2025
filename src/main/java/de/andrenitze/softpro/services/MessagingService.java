@@ -1,0 +1,25 @@
+package de.andrenitze.softpro.services;
+
+import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
+
+import java.beans.PropertyChangeListener;
+
+/**
+ * Service for communication with players over WebSocket.
+ */
+public interface MessagingService extends PropertyChangeListener {
+    void sendMessageToPlayer(Player player, String message);
+    void broadcastToAllPlayers(String message);
+    void sendFundsUpdateToPlayer(Player player);
+    void sendProjectUpdateToPlayer(Player player, Project project);
+    void sendEmployeeUpdate(Player player, Employee employee);
+    void broadcastEvent(EventType eventType);
+    void broadcastEvent(EventType eventType, int currentTick);
+    void broadcastEvent(GameEvent<?> gameEvent);
+    void sendEventToPlayer(Player player, GameEvent<?> gameEvent);
+    void broadcastInitialState();
+}

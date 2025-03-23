@@ -1,13 +1,13 @@
-package de.andrenitze.softpro.domains.players;
+package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
-import de.andrenitze.softpro.ProjectService;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.services.PlayerService;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
 
@@ -17,14 +17,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static de.andrenitze.softpro.Main.logger;
 
-public class PlayerService {
+public class PlayerServiceImpl implements PlayerService {
     @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;
     private final Game game;
     private final TalentMarket talentMarket;
-    private final ProjectService projectService;
+    private final ProjectServiceImpl projectService;
 
-    public PlayerService(Game game, TalentMarket talentMarket, ProjectService projectService) {
+    public PlayerServiceImpl(Game game, TalentMarket talentMarket, ProjectServiceImpl projectService) {
         this.game = game;
         this.players = new ConcurrentHashMap<>();
         this.talentMarket = talentMarket;

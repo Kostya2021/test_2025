@@ -1,23 +1,25 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.services.impl;
 
+import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.players.PlayerService;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.services.MessagingService;
 import org.java_websocket.WebSocket;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Map;
 
-import static de.andrenitze.softpro.GameServer.gson;
+import static de.andrenitze.softpro.services.impl.GameServerImpl.gson;
 import static de.andrenitze.softpro.Main.logger;
 
-public class MessagingService implements PropertyChangeListener {
+public class MessagingServiceImpl implements MessagingService, PropertyChangeListener {
     private Map<WebSocket, Player> players;
 
-    public MessagingService(Game game) {
+    public MessagingServiceImpl(Game game) {
         logger.debug("MessagingService initialized.");
         game.addPropertyChangeListener(this);
     }
@@ -35,7 +37,7 @@ public class MessagingService implements PropertyChangeListener {
         sendMessageToPlayer(player, gson.toJson(newFundsEvent));
     }
 
-    void sendProjectUpdateToPlayer(Player player, Project project) {
+    public void sendProjectUpdateToPlayer(Player player, Project project) {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdateEvent.setPayload(project);
         sendMessageToPlayer(player, gson.toJson(projectUpdateEvent));
@@ -66,7 +68,7 @@ public class MessagingService implements PropertyChangeListener {
     public void sendEmployeeUpdate(Player player, Employee employee) {
         GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
         employeeUpdateEvent.setPayload(employee);
-        sendMessageToPlayer(player, GameServer.getGson().toJson(employeeUpdateEvent));
+        sendMessageToPlayer(player, GameServerImpl.getGson().toJson(employeeUpdateEvent));
     }
 
     /**

@@ -9,6 +9,8 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.SalaryHistoryEntry;
 import de.andrenitze.softpro.domains.skills.Skill;
+import de.andrenitze.softpro.services.impl.GameServerImpl;
+import de.andrenitze.softpro.services.impl.SkillServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +30,7 @@ public class ObjectiveChecker {
     public void checkObjectives(Player player) {
         List<Project> projects = game.getProjectService().getProjects();
         Map<Project, ArrayList<Employee>> projectEmployeesMap = game.getProjectService().getProjectEmployeesMap();
-        SkillService skillService = game.getSkillService();
+        SkillServiceImpl skillService = game.getSkillService();
 
         boolean objectivesUpdated = false;
 
@@ -50,7 +52,7 @@ public class ObjectiveChecker {
 
     private boolean checkObjective(Objective objective, Player player, List<Project> projects,
                                    Map<Project, ArrayList<Employee>> projectEmployeesMap,
-                                   SkillService skillService) {
+                                   SkillServiceImpl skillService) {
         ObjectiveId objectiveId = ObjectiveId.fromId(objective.getId());
         return switch (objectiveId) {
             case OBJECTIVE_11 -> checkObjective11(player, projects, objective);
@@ -109,7 +111,7 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective16(Player player, SkillService skillService, Objective objective) {
+    private boolean checkObjective16(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
             objective.setCompleted(currentTick);
@@ -144,7 +146,7 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective210(Player player, SkillService skillService, Objective objective) {
+    private boolean checkObjective210(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if ((skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked()) ||
                 (skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked())) {
@@ -155,7 +157,7 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective220(Player player, SkillService skillService, Objective objective) {
+    private boolean checkObjective220(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
             objective.setCompleted(currentTick);
@@ -214,7 +216,7 @@ public class ObjectiveChecker {
         return false;
     }
 
-    private boolean checkObjective231(Player player, SkillService skillService, Objective objective) {
+    private boolean checkObjective231(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("team-lead") && skills.get("team-lead").isUnlocked()) {
             objective.setCompleted(currentTick);
@@ -255,6 +257,6 @@ public class ObjectiveChecker {
         List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(currentTick);
         GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
         objectivesUpdatedEvent.setPayload(allActiveObjectives);
-        game.getMessagingService().sendMessageToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
+        game.getMessagingService().sendMessageToPlayer(player, GameServerImpl.getGson().toJson(objectivesUpdatedEvent));
     }
 }
