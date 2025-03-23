@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.domains.projects;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.employees.Employee;
@@ -11,6 +10,7 @@ import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
+import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.BASE_PRODUCTIVITY_VALUE;
 
 public class Project {
     // One Full Time Equivalent (FTE) can generate this amount of "value units" per day
@@ -176,7 +176,7 @@ public class Project {
         };
 
         // Generate random deadline, loosely based on project volume
-        return (int) (((float) getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE) * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
+        return (int) (((float) getTotalValue() / BASE_PRODUCTIVITY_VALUE) * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
     }
 
     private static String generateDomain(ProjectType type) {

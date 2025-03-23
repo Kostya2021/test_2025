@@ -34,6 +34,11 @@ import static java.lang.Math.*;
 public class ProjectServiceImpl implements ProjectService {
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
+    public static final int BASE_PRODUCTIVITY_VALUE = 1000; // How much value one person (FTE) can produce in one day
+    public static final double PROFIT_MARGIN = 0.3;
+    public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
+    public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
+    public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
     private final Game game;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final SkillServiceImpl skillService;
@@ -114,7 +119,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     private void handleProjectCompletion(Project project, ArrayList<Employee> employees, int currentTick, JSONObject projectObject) {
         for (Player player : project.getInvolvedPlayers()) {
-            int profit = (int) round(project.getTotalValue() * Game.PROFIT_MARGIN);
+            int profit = (int) round(project.getTotalValue() * ProjectServiceImpl.PROFIT_MARGIN);
 
             float overduePenaltyMultiplier = 1;
             int daysLeft = project.getDeadline() - (currentTick - project.getStartedAt());

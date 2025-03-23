@@ -48,19 +48,11 @@ public class Game {
     @Getter private TalentMarket talentMarket;
     @Getter private ProjectServiceImpl projectService;
     @Getter private EmployeeServiceImpl employeeService;
-    @Getter
-    private GameEventHandler eventHandler;
+    @Getter private GameEventHandler eventHandler;
 
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
-    public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
-    public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
-
-    // Base productivity value = How much value one person (FTE) can produce in one day
-    public static final int BASE_PRODUCTIVITY_VALUE = 1000;
-    public static final double PROFIT_MARGIN = 0.3;
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
-    public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final String RESTORE_LOST_DATA = "Restore lost data";
     public static final int BACKUP_BLUES_LEVEL = 2;
     private boolean isRunning; // Game instance is active
