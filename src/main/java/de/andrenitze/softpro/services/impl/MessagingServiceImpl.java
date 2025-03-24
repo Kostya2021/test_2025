@@ -15,6 +15,7 @@ import java.beans.PropertyChangeListener;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
+import static de.andrenitze.softpro.Main.logger;
 
 public class MessagingServiceImpl implements MessagingService, PropertyChangeListener {
     private Map<WebSocket, Player> players;
@@ -25,6 +26,7 @@ public class MessagingServiceImpl implements MessagingService, PropertyChangeLis
 
     @Override
     public void propertyChange(PropertyChangeEvent evt) {
+        logger.debug("Property '{}' changed", evt.getPropertyName());
         if ("players".equals(evt.getPropertyName())) {
             this.players = (Map<WebSocket, Player>) evt.getNewValue();
         }

@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import de.andrenitze.softpro.*;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.services.impl.*;
 import org.java_websocket.WebSocket;
@@ -35,7 +34,7 @@ class GameTest {
         project = new Project().initialize();
 
         WebSocket mockWebSocket = mock(WebSocket.class);
-        game.addPlayerToGame(mockWebSocket, player);
+        game.addPlayer(mockWebSocket, player);
 
         game.getProjectService().addProject(project);
     }
@@ -55,11 +54,11 @@ class GameTest {
     }
 
     @Test
-    void testAddPlayerToGame() {
+    void testAddPlayer() {
         WebSocket mockWebSocket = mock(WebSocket.class);
         Player testPlayer = new Player("TestPlayer", "TestCompany");
 
-        game.addPlayerToGame(mockWebSocket, testPlayer);
+        game.addPlayer(mockWebSocket, testPlayer);
 
         assertTrue(game.getPlayerService().getPlayers().containsKey(mockWebSocket), "Player should be added to the game");
         assertEquals(testPlayer, game.getPlayerService().getPlayers().get(mockWebSocket), "The correct player should be associated with the WebSocket");

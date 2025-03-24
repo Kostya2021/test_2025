@@ -10,6 +10,7 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.PlayerService;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static de.andrenitze.softpro.Main.logger;
 
+@Service
 public class PlayerServiceImpl implements PlayerService {
     @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;

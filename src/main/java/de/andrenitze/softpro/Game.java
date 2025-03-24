@@ -18,6 +18,7 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
+import lombok.Setter;
 import org.java_websocket.WebSocket;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -41,14 +42,14 @@ import static java.time.LocalDate.now;
 @Component
 public class Game {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    @Getter private SkillServiceImpl skillService;
-    @Getter private AccountingServiceImpl accountingService;
-    @Getter private MessagingServiceImpl messagingService;
-    @Getter private PlayerServiceImpl playerService;
-    @Getter private TalentMarket talentMarket;
-    @Getter private ProjectServiceImpl projectService;
-    @Getter private EmployeeServiceImpl employeeService;
-    @Getter private GameEventHandler eventHandler;
+    @Getter @Setter private SkillServiceImpl skillService;
+    @Getter @Setter private AccountingServiceImpl accountingService;
+    @Getter @Setter private MessagingServiceImpl messagingService;
+    @Getter @Setter private PlayerServiceImpl playerService;
+    @Getter @Setter private TalentMarket talentMarket;
+    @Getter @Setter private ProjectServiceImpl projectService;
+    @Getter @Setter private EmployeeServiceImpl employeeService;
+    @Getter @Setter private GameEventHandler eventHandler;
 
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -98,7 +99,7 @@ public class Game {
     }
 
     public Game() {
-        // Default constructor for Spring
+        // Empty constructor for Spring
     }
 
     public void start() {
@@ -562,7 +563,7 @@ public class Game {
         isRunning = false;
     }
 
-    public void addPlayerToGame(WebSocket key, Player value) {
+    public void addPlayer(WebSocket key, Player value) {
         getPlayerService().addPlayerToGame(key, value);
         support.firePropertyChange("players", null, getPlayerService().getPlayers());
     }

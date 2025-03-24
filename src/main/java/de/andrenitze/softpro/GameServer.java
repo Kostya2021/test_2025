@@ -183,13 +183,13 @@ public class GameServer extends WebSocketServer {
 
         // Generate a new player
         Player newPlayer = new Player();
+        logger.debug("New player: {}", newPlayer.getName());
 
         // Player is in the lobby and in a game at the same time because the game
         // needs to be initialized for the level briefing.
         // This is ok, because for multiplayer, players have to wait in the briefing room.
         lobby.put(webSocket, newPlayer);
-        createNewGameWithPlayer(webSocket, newPlayer);
-
+        createGame(webSocket, newPlayer);
         broadcastLobbyState();
 
         logger.info("New player '{}' added. New number of players in lobby: {}",
@@ -203,13 +203,12 @@ public class GameServer extends WebSocketServer {
      * @param webSocket WebSocket   The WebSocket connection to the client
      * @param player Player         The player to be added to the game
      */
-    private void createNewGameWithPlayer(WebSocket webSocket, Player player) {
+    private void createGame(WebSocket webSocket, Player player) {
         // Create a new game instance bean from application context
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(GameConfig.class);
         Game game = context.getBean(Game.class);
-        game.addPlayerToGame(webSocket, player);
-
-        // Prepare both, player and game, for the next level
+        logger.debug("Creating game for player {}", player.getName());
+        game.addPlayer(webSocket, player);
         preparePlayerAndGameForNextLevel(player, game);
 
         addGame(game);
@@ -237,16 +236,16 @@ public class GameServer extends WebSocketServer {
         player.initializeFunds();
         player.setXp(0);
 
-        // Load story elements for the next level
-        // game.getLevel() is "1", because game has not been completely initialized
-        // player.getLevel() is "2" already, because completed all objectives
-        game.loadStory(player.getLevel());
-
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);
 
         // Load problems for the next level
         game.getProjectService().loadProblems();
+
+        // Load story elements for the next level
+        // game.getLevel() is "1", because game has not been completely initialized
+        // player.getLevel() is "2" already, because player has completed all objectives
+        game.loadStory(player.getLevel());
 
         logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
 
@@ -266,6 +265,7 @@ public class GameServer extends WebSocketServer {
                 type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
             } while (type == ProjectType.COMPLIANCE);
             String domain = type.getRandomDomain();
+
             employee.addXp(type, domain, 400);
             player.addEmployee(employee, 0);
 
@@ -354,9 +354,7 @@ public class GameServer extends WebSocketServer {
                 }
             }
 
-            logger.debug("Player has level {}.", player.getLevel());
             player.setReady(true);
-
             broadcastLobbyState();
         } catch (Exception e) {
             logger.debug(e.getMessage());
@@ -424,7 +422,7 @@ public class GameServer extends WebSocketServer {
                     return;
                 }
 
-                game.addPlayerToGame(player.getKey(), player.getValue());
+                game.addPlayer(player.getKey(), player.getValue());
                 game.start();
 
                 logger.info("Players in the lobby: {} | Running games: {}", lobby.size(), games.size());
@@ -524,7 +522,7 @@ public class GameServer extends WebSocketServer {
         logger.debug("Moving player {} back to lobby", player.getName());
         lobby.put(webSocket, player);
 
-        createNewGameWithPlayer(webSocket, player);
+        createGame(webSocket, player);
 
         broadcastLobbyState();
     }

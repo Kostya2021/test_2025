@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 public class GameConfig {
     @Bean
     public Game game() {
-        return new Game();  // Create a new Game instance
+        return new Game();  // Use no-args constructor
     }
 
     @Bean
@@ -21,48 +21,62 @@ public class GameConfig {
     }
 
     @Bean
-    public TalentMarket talentMarket(EmployeeIdGenerator employeeIdGenerator) {
+    public TalentMarket talentMarket(EmployeeIdGenerator employeeIdGenerator, Game game) {
         TalentMarket market = new TalentMarket(employeeIdGenerator);
         market.clear();
+        game.setTalentMarket(market);
         return market;
     }
 
     @Bean
-    public SkillServiceImpl skillService() {
-        return new SkillServiceImpl();
+    public SkillServiceImpl skillService(Game game) {
+        SkillServiceImpl service = new SkillServiceImpl();
+        game.setSkillService(service);
+        return service;
     }
 
     @Bean
     public AccountingServiceImpl accountingService(Game game) {
-        return new AccountingServiceImpl(game);
+        AccountingServiceImpl service = new AccountingServiceImpl(game);
+        game.setAccountingService(service);
+        return service;
     }
 
     @Bean
     public ProjectServiceImpl projectService(Game game) {
-        return new ProjectServiceImpl(game);
+        ProjectServiceImpl service = new ProjectServiceImpl(game);
+        game.setProjectService(service);
+        return service;
     }
 
     @Bean
-    public EmployeeServiceImpl employeeService(Game game, ProjectServiceImpl projectService,
-                                               MessagingServiceImpl messagingServiceImpl) {
-        EmployeeServiceImpl service = new EmployeeServiceImpl(game, projectService);
-        service.setMessagingService(messagingServiceImpl);
+    public MessagingServiceImpl messagingService(Game game) {
+        MessagingServiceImpl service = new MessagingServiceImpl(game);
+        game.setMessagingService(service);
         return service;
     }
 
     @Bean
     public PlayerServiceImpl playerService(Game game, TalentMarket talentMarket,
                                            ProjectServiceImpl projectService) {
-        return new PlayerServiceImpl(game, talentMarket, projectService);
+        PlayerServiceImpl service = new PlayerServiceImpl(game, talentMarket, projectService);
+        game.setPlayerService(service);
+        return service;
     }
 
     @Bean
-    public MessagingServiceImpl messagingService(Game game) {
-        return new MessagingServiceImpl(game);
+    public EmployeeServiceImpl employeeService(Game game, ProjectServiceImpl projectService,
+                                               MessagingServiceImpl messagingService) {
+        EmployeeServiceImpl service = new EmployeeServiceImpl(game, projectService);
+        service.setMessagingService(messagingService);
+        game.setEmployeeService(service);
+        return service;
     }
 
     @Bean
     public GameEventHandler eventHandler(Game game) {
-        return new GameEventHandler(game);
+        GameEventHandler handler = new GameEventHandler(game);
+        game.setEventHandler(handler);
+        return handler;
     }
 }
