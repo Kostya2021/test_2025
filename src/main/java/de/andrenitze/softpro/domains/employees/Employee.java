@@ -15,7 +15,8 @@ import static de.andrenitze.softpro.Main.logger;
 public class Employee {
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;
-    private transient float sickDayProbability = 0.02f;
+    public static final int JOB_SATISFACTION = 50;
+    private float sickDayProbability = 0.02f;
     @Getter
     private final Integer id;
     @Getter
@@ -29,7 +30,7 @@ public class Employee {
     @Setter
     private String lastName;
     @Getter
-    private final transient HashMap<Project, Integer> projectExperience;
+    private final HashMap<Project, Integer> projectExperience;
     @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     @Getter
@@ -38,7 +39,7 @@ public class Employee {
     private float satisfaction;
     private int remainingAnnualSickDays;
     @Getter
-    private final int minimumSickDays = 4;
+    private static final int MINIMUM_SICK_DAYS = 4;
     private int maximumSickDays = 20;
     @Getter
     private boolean isSick = false;
@@ -62,7 +63,7 @@ public class Employee {
     @Getter @Setter
     private int utilization = 0;
     @Getter @Setter
-    private transient int xpInDaysBeforeHiring = 0;
+    private int xpInDaysBeforeHiring = 0;
 
     public Employee(Integer id) {
         this.id = id;
@@ -123,10 +124,8 @@ public class Employee {
 
         if (newExperienceInDays > 0) {
             // Project-specific XP (= lower onboarding productivity)
-            Integer rampUpDays = 0;
-            if (this.projectExperience.containsKey(project)) {
-                rampUpDays = this.projectExperience.get(project);
-            }
+            int rampUpDays;
+            rampUpDays = this.projectExperience.computeIfAbsent(project, _ -> 0);
             this.projectExperience.put(project, ++rampUpDays);
 
             addXp(project.getType(), project.getDomain(), newExperienceInDays);
@@ -188,10 +187,7 @@ public class Employee {
 
         // Calculate utilization (0-100%)
         // 1) Calculate the number of days worked in projects
-        int daysWorkedInProjects = 0;
-        for (Project project : projectExperience.keySet()) {
-            daysWorkedInProjects += projectExperience.get(project);
-        }
+        int daysWorkedInProjects = projectExperience.keySet().stream().mapToInt(projectExperience::get).sum();
 
         // 2) Subtract experience days before hiring
         daysWorkedInProjects -= xpInDaysBeforeHiring;
@@ -203,7 +199,7 @@ public class Employee {
     // This happens every year
     public void initializeSickDays() {
         // Randomize the number of sick days an employee can have in a year
-        this.remainingAnnualSickDays = minimumSickDays + RANDOM.nextInt(maximumSickDays - minimumSickDays);
+        this.remainingAnnualSickDays = MINIMUM_SICK_DAYS + RANDOM.nextInt(maximumSickDays - MINIMUM_SICK_DAYS);
 
         // Reset the number of sick days this year
         this.thisYearsSickDays = 0;
@@ -276,20 +272,20 @@ public class Employee {
             }
         }
 
-        this.satisfaction = (int) Math.min(Math.max(this.satisfaction, 1), 100); // Clamp to [1, 100]
+        this.satisfaction = Math.clamp(this.satisfaction, 1, 100); // Clamp to [1, 100]
     }
 
     // Intrinsic satisfaction of an employee
     private double calculateBaseSatisfaction() {
         // Value between 5 and 20, depending on age
-        return Math.min(20, Math.max(5, 20 - (age - MINIMUM_AGE)));
+        return Math.clamp(20L - (age - MINIMUM_AGE), 5, 20);
     }
 
     // Job satisfaction factors not related to salary
     private int calculateOtherSatisfactionFactors() {
         // Dummy value, refine later (work environment, career opportunities, mentoring etc.)
         // Satisfaction 0-100
-        return 50;
+        return JOB_SATISFACTION;
     }
 
     public String getName() {

@@ -7,4 +7,7 @@ public final class GameParameters {
     public static final int ASSIGNMENT_TIME_IN_DAYS = 5;
     public static final float MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE = 0.15f;
     public static final float PROJECT_RISK_ASSESSMENT_COST = 1500;
+
+    private GameParameters() {
+    }
 }
