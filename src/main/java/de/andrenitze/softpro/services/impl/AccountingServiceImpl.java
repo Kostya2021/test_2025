@@ -8,6 +8,7 @@ import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.AccountingService;
+import lombok.Setter;
 import org.java_websocket.WebSocket;
 
 import java.time.LocalDate;
@@ -21,11 +22,9 @@ import static de.andrenitze.softpro.Main.logger;
 
 public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();
-    private final Game game;
+    @Setter private Game game;
 
-    public AccountingServiceImpl(Game game) {
-        this.game = game;
-    }
+    public AccountingServiceImpl() {}
 
     // Adds a new entry to the in-memory list
     public synchronized void addEntry(AccountingEntry entry) {

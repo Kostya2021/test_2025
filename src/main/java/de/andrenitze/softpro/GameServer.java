@@ -47,7 +47,7 @@ import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
 @Component
 public class GameServer extends WebSocketServer {
     private final ApplicationContext parentContext; // Global context
-    @Getter @Setter private Map<Integer, AnnotationConfigApplicationContext> gameContexts = new ConcurrentHashMap<>();
+    @Getter @Setter private Map<Game, AnnotationConfigApplicationContext> gameContexts = new ConcurrentHashMap<>();
 
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
@@ -97,11 +97,11 @@ public class GameServer extends WebSocketServer {
         Thread printingHook = new Thread(this::gracefulShutdown);
         Runtime.getRuntime().addShutdownHook(printingHook);
 
-        String hostAddress = null;
+        String hostAddress = "";
         try {
             hostAddress = InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
+            logger.error("Could not get host address", e);
         }
         int port = getPort();
         String serverAddress = String.format("ws://%s:%d", hostAddress, port);
@@ -228,7 +228,7 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    public Game createGameInstance(int hashCode) {
+    public Game createGameInstance() {
         AnnotationConfigApplicationContext gameContext = new AnnotationConfigApplicationContext();
         gameContext.setParent(parentContext); // Inherit global context
         gameContext.register(GameConfig.class); // Game-specific Beans
@@ -241,7 +241,7 @@ public class GameServer extends WebSocketServer {
 
         gameContext.refresh();
         Game game = gameContext.getBean(Game.class);
-        gameContexts.put(game.hashCode(), gameContext);
+        gameContexts.put(game, gameContext);
         return game;
     }
 
@@ -255,7 +255,7 @@ public class GameServer extends WebSocketServer {
     private void createGame(WebSocket webSocket, Player player) {
         // Create a new game instance with isolated context
         logger.debug("Creating new game instance for player {}", player.getId());
-        Game game = createGameInstance(webSocket.hashCode());
+        Game game = createGameInstance();
         game.addPlayer(webSocket, player);
         addGame(game);
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
@@ -462,11 +462,10 @@ public class GameServer extends WebSocketServer {
                         .orElse(null);
 
                 if (game == null) {
-                    logger.error("Could not find game instance for player {}", player.getValue().getName());
+                    logger.error("Could not find game instance for player {}", player.getValue().getId());
                     return;
                 }
 
-                game.addPlayer(player.getKey(), player.getValue());
                 game.start();
             }
         }
@@ -560,7 +559,6 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    // TODO Make this work! Only first round is working!
     public void movePlayerToLobby(WebSocket webSocket, Player player) {
         logger.debug("Moving player {} to lobby", player.getId());
         lobby.put(webSocket, player);
@@ -594,7 +592,15 @@ public class GameServer extends WebSocketServer {
     }
 
     public void removeGame(Game game) {
-        games.remove(game);
+        boolean removed = games.remove(game);
+        if (removed) {
+            logger.debug("Game {} removed successfully.", game.hashCode());
+            // Close the game context if it was removed
+            AnnotationConfigApplicationContext ctx = gameContexts.remove(game);
+            if (ctx != null) {
+                ctx.close();
+            }
+        }
     }
 
     // Add to GameServer class
@@ -650,21 +656,9 @@ public class GameServer extends WebSocketServer {
     public void handleEmptyGameEvent(GlobalGameEmptyEvent event) {
         logger.info("🚨 Global listener received GameEmptyEvent from game.");
         Game game = event.getGame();
-        logger.debug("Running games: {}", games.stream().filter(Game::isRunning).count());
-        logger.debug("Game contexts: {}", gameContexts.size());
+        logger.debug("Running games: {} | Game contexts: {}", games.stream().filter(Game::isRunning).count(), gameContexts.size());
         logger.debug("Game {} is empty. Removing...", game.hashCode());
-
-        // Remove the game from the games set
-        boolean removed = games.remove(game);
-        if (removed) {
-            // Close the game context if it was removed
-            AnnotationConfigApplicationContext ctx = gameContexts.remove(game.hashCode());
-            if (ctx != null) {
-                ctx.close();
-            }
-        }
-
-        logger.debug("Running games: {}", games.stream().filter(Game::isRunning).count());
-        logger.debug("Game contexts: {}", gameContexts.size());
+        removeGame(game);
+        logger.debug("Running games: {} | Game contexts: {}", games.stream().filter(Game::isRunning).count(), gameContexts.size());
     }
 }

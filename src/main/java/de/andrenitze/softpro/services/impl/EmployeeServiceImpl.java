@@ -6,13 +6,12 @@ import de.andrenitze.softpro.services.MessagingService;
 import lombok.Setter;
 
 public class EmployeeServiceImpl implements EmployeeService {
-    private final Game game;
+    @Setter private Game game;
     private final ProjectServiceImpl projectService;
     @Setter
     private MessagingService messagingService;
 
-    public EmployeeServiceImpl(Game game, ProjectServiceImpl projectService) {
-        this.game = game;
+    public EmployeeServiceImpl(ProjectServiceImpl projectService) {
         this.projectService = projectService;
         this.messagingService = null;
     }

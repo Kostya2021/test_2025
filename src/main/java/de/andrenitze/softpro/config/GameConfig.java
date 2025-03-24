@@ -5,6 +5,7 @@ import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.events.GameEventHandler;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
 
@@ -20,10 +21,22 @@ public class GameConfig {
     }
 
     @Bean
-    public Game game(SkillServiceImpl skillService) {
+    @Scope("prototype")
+    public Game game(SkillServiceImpl skillService,
+                     AccountingServiceImpl accountingService,
+                     EmployeeServiceImpl employeeService,
+                     ProjectServiceImpl projectService,
+                     MessagingServiceImpl messagingService,
+                     PlayerServiceImpl playerService,
+                     GameEventHandler eventHandler) {
         Game game = new Game();
         game.setSkillService(skillService);
-        // weitere Setter
+        game.setAccountingService(accountingService);
+        game.setEmployeeService(employeeService);
+        game.setProjectService(projectService);
+        game.setMessagingService(messagingService);
+        game.setPlayerService(playerService);
+        game.setEventHandler(eventHandler);
         return game;
     }
 
@@ -33,10 +46,9 @@ public class GameConfig {
     }
 
     @Bean
-    public TalentMarket talentMarket(EmployeeIdGenerator employeeIdGenerator, Game game) {
+    public TalentMarket talentMarket(EmployeeIdGenerator employeeIdGenerator) {
         TalentMarket market = new TalentMarket(employeeIdGenerator);
         market.clear();
-        game.setTalentMarket(market);
         return market;
     }
 
@@ -46,55 +58,52 @@ public class GameConfig {
     }
 
     @Bean
-    public AccountingServiceImpl accountingService(Game game) {
-        AccountingServiceImpl service = new AccountingServiceImpl(game);
-        game.setAccountingService(service);
-        return service;
+    public AccountingServiceImpl accountingService() {
+        return new AccountingServiceImpl();
     }
 
     @Bean
-    public ProjectServiceImpl projectService(Game game) {
-        ProjectServiceImpl service = new ProjectServiceImpl(game);
-        game.setProjectService(service);
-        return service;
+    public ProjectServiceImpl projectService(SkillServiceImpl skillService, AccountingServiceImpl accountingService) {
+        // Pass the skillService directly instead of expecting to get it from game
+        return new ProjectServiceImpl(null, skillService, accountingService);
     }
 
     @Bean
-    public MessagingServiceImpl messagingService(Game game) {
-        MessagingServiceImpl service = new MessagingServiceImpl();
-        game.setMessagingService(service);
-        return service;
+    public MessagingServiceImpl messagingService() {
+        return new MessagingServiceImpl();
     }
 
     @Bean
-    public PlayerServiceImpl playerService(Game game, TalentMarket talentMarket,
-                                           ProjectServiceImpl projectService) {
-        PlayerServiceImpl service = new PlayerServiceImpl(game, talentMarket, projectService);
-        game.setPlayerService(service);
-        return service;
-    }
-
-    @Bean
-    public EmployeeServiceImpl employeeService(Game game, ProjectServiceImpl projectService,
-                                               MessagingServiceImpl messagingService) {
-        EmployeeServiceImpl service = new EmployeeServiceImpl(game, projectService);
+    public EmployeeServiceImpl employeeService(ProjectServiceImpl projectService, MessagingServiceImpl messagingService) {
+        EmployeeServiceImpl service = new EmployeeServiceImpl(projectService);
         service.setMessagingService(messagingService);
-        game.setEmployeeService(service);
         return service;
     }
 
-    /*
     @Bean
-    public GameEventPublisher gameEventPublisher() {
-        return new GameEventPublisher();
+    public GameEventHandler eventHandler() {
+        return new GameEventHandler(null); // Will be set after game creation
     }
 
-     */
-
     @Bean
-    public GameEventHandler eventHandler(Game game) {
-        GameEventHandler handler = new GameEventHandler(game);
-        game.setEventHandler(handler);
-        return handler;
+    public BeanPostProcessor gameWiringPostProcessor() {
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessAfterInitialization(Object bean, String beanName) {
+                if (bean instanceof Game game) {
+                    // Wire cyclic dependencies
+                    ProjectServiceImpl projectService = game.getProjectService();
+                    if (projectService != null) {
+                        projectService.setGame(game);
+                    }
+
+                    GameEventHandler eventHandler = game.getEventHandler();
+                    if (eventHandler != null) {
+                        eventHandler.setGame(game);
+                    }
+                }
+                return bean;
+            }
+        };
     }
 }

@@ -10,7 +10,6 @@ import java.util.Properties;
 
 public class Main {
     public static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
-    static final int DEFAULT_PORT = 80;
     private static final int CONNECTION_LOST_TIMEOUT = 5;
 
     public static void main(String[] args) {
@@ -30,10 +29,6 @@ public class Main {
         } finally {
             logger.error("Server stopped.");
         }
-    }
-
-    private static int getPort(String[] args) {
-        return args.length > 0 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
     }
 
     private static String loadVersion() throws IOException {

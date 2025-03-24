@@ -14,6 +14,7 @@ import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.services.impl.SkillServiceImpl;
+import lombok.Setter;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
@@ -33,7 +34,7 @@ public class GameEventHandler {
     public static final String PARTY_CLIENT = "client";
     public static final String EMPLOYEE_ID = "employeeId";
     public static final String PROJECT_ID = "projectId";
-    private final Game game;
+    @Setter private Game game;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     public GameEventHandler(Game game) {

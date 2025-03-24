@@ -9,6 +9,7 @@ import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.PlayerService;
 import lombok.Getter;
+import lombok.Setter;
 import org.java_websocket.WebSocket;
 import org.springframework.stereotype.Service;
 
@@ -22,12 +23,11 @@ import static de.andrenitze.softpro.Main.logger;
 public class PlayerServiceImpl implements PlayerService {
     @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;
-    private final Game game;
+    @Setter private Game game;
     private final TalentMarket talentMarket;
     private final ProjectServiceImpl projectService;
 
-    public PlayerServiceImpl(Game game, TalentMarket talentMarket, ProjectServiceImpl projectService) {
-        this.game = game;
+    public PlayerServiceImpl(TalentMarket talentMarket, ProjectServiceImpl projectService) {
         this.players = new ConcurrentHashMap<>();
         this.talentMarket = talentMarket;
         this.projectService = projectService;
@@ -94,5 +94,9 @@ public class PlayerServiceImpl implements PlayerService {
                 game.getMessagingService().sendEventToPlayer(player, objectivesUpdatedEvent);
             }
         });
+    }
+
+    public boolean isPlayerInAnyGame(Player player) {
+        return players.containsValue(player);
     }
 }

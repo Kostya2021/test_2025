@@ -40,7 +40,7 @@ import static java.time.LocalDate.now;
 @Component
 @Scope("prototype")
 public class Game {
-    @Autowired @Getter @Setter private GameEventPublisher eventPublisher;
+    public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     @Getter @Setter private SkillServiceImpl skillService;
     @Getter @Setter private AccountingServiceImpl accountingService;
@@ -50,6 +50,7 @@ public class Game {
     @Getter @Setter private ProjectServiceImpl projectService;
     @Getter @Setter private EmployeeServiceImpl employeeService;
     @Getter @Setter private GameEventHandler eventHandler;
+    @Getter @Setter private GameEventPublisher eventPublisher;
 
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -105,7 +106,7 @@ public class Game {
 
     public void start() {
         // CHeck if there is at least one player in this game instance
-        if (getPlayerService().getPlayers().isEmpty()) {
+        if (playerService.getPlayers().isEmpty()) {
             logger.error("No players in this game. Cannot start.");
             return;
         }
@@ -123,13 +124,17 @@ public class Game {
             }
 
             // Notify all clients of current time
-            messagingService.broadcastEvent(EventType.T, getCurrentTick());
+            GameEvent<Integer> timerEvent = new GameEvent<>(EventType.T);
+            timerEvent.setPayload(getCurrentTick());
+            messagingService.broadcastEvent(timerEvent);
+
+            logger.debug("Progressing game time...");
 
             // Progress game time and calculate the world's state for each tick
             progressGameTime();
         }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
 
-        logger.info("A new game has started with {} players in level {}", getPlayerService().getPlayers().size(), getLevel());
+        logger.info("A new game has started with {} players in level {}.", playerService.getPlayers().size(), getLevel());
     }
 
     /**
@@ -138,7 +143,7 @@ public class Game {
     public void prepareNextLevel() {
         // Get next level from getPlayersService().getPlayers(). Highest level wins, but all players in one instance should have the same level.
         int nextLevel = 0;
-        for (Player player : getPlayerService().getPlayers().values()) {
+        for (Player player : playerService.getPlayers().values()) {
             if (player.getLevel() > nextLevel) {
                 nextLevel = player.getLevel();
             }
@@ -178,12 +183,12 @@ public class Game {
             triggerLevel2Consequences();
         } else if (getLevel() == 3) {
             triggerLevel3Consequences();
-        } else if (getLevel() == 4) {
+        } else if (getLevel() == MAX_NUMBER_OF_PLAYERS_PER_GAME) {
             triggerLevel4Consequences();
         }
 
         // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
-        getPlayerService().getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             logger.debug("Checking for permanent status effects for player {}", player.getId());
             if (skillService.playerHasSkill(player, TEAM_SPIRIT)) {
                 logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
@@ -194,7 +199,7 @@ public class Game {
             }
         });
 
-        getPlayerService().getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             if (player.getDecisionsByLevel(getLevel()).isEmpty()) {
                 logger.warn("Player {} has no decisions for level {}", player.getId(), getLevel());
             }
@@ -202,7 +207,7 @@ public class Game {
     }
 
     private void triggerLevel1Consequences() {
-        getPlayerService().getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             // Decision "Fail to plan, plan to fail" (level 1, decision 1)
             int option = player.getDecisionsByLevel(1).getFirst().getOptionId();
 
@@ -230,7 +235,7 @@ public class Game {
 
     private void triggerLevel2Consequences() {
         // Adjust gameplay for each player according to decisions made in briefing
-        getPlayerService().getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             // "Backup decision" (level 2, decision 1)
             int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (option == 1) {
@@ -251,7 +256,7 @@ public class Game {
     }
 
     private void triggerLevel3Consequences() {
-        getPlayerService().getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             // "Backup decision" (level 2, decision 1)
             int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
@@ -269,7 +274,7 @@ public class Game {
     }
 
     private void triggerLevel4Consequences() {
-        getPlayerService().getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             // "Backup decision"
             int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
@@ -304,13 +309,6 @@ public class Game {
         }
 
         ++currentTick;
-
-        // Stop if the game is over
-        if (!isRunning) {
-            // Sure 'bout this?
-            gameLoop.shutdownNow();
-            return;
-        }
 
         // Progress calendar date
         currentDate = now();
@@ -353,7 +351,7 @@ public class Game {
             return;
         }
 
-        getPlayerService().getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             List<StoryElement> thisPlayersStoryElements = getPlayerStoryElements(relevantStoryElements, player);
 
             if (!thisPlayersStoryElements.isEmpty()) {
@@ -398,7 +396,7 @@ public class Game {
 
     private void checkObjectivesCriteriaAndSendRewards() {
         ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
-        getPlayerService().getPlayers().forEach((_, player) -> objectiveChecker.checkObjectives(player));
+        playerService.getPlayers().forEach((_, player) -> objectiveChecker.checkObjectives(player));
     }
 
     @Nullable
@@ -417,7 +415,7 @@ public class Game {
     }
 
     void checkGameOverConditions() {
-        getPlayerService().getPlayers().forEach((webSocket, player) -> {
+        playerService.getPlayers().forEach((webSocket, player) -> {
             if (player.isBankrupt() || player.completedAllObjectives()) {
                 handleGameOver(player, webSocket); // Decide what to do next
             }
@@ -469,8 +467,6 @@ public class Game {
     }
 
     private GameOverStats createGameOverStats(Game game, Player player) {
-        int currentTick = game.getCurrentTick();
-        int level = game.getLevel();
         int deliveredProjects = 0;
         int projectsVolume = 0;
         for (Project project : game.getProjectService().getProjects()) {
@@ -508,7 +504,7 @@ public class Game {
             case LOW -> xp *= 0.75F;
             case MEDIUM -> xp *= 1;
             case HIGH -> xp *= 2;
-            case EXTREME -> xp *= 4;
+            case EXTREME -> xp *= MAX_NUMBER_OF_PLAYERS_PER_GAME;
         }
 
         // Compliance projects yield no XP
@@ -519,9 +515,9 @@ public class Game {
     }
 
     public void removePlayer(WebSocket key) {
-        getPlayerService().removePlayer(key);
+        playerService.removePlayer(key);
 
-        PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, getPlayerService().getPlayers());
+        PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
         eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
     }
 
@@ -542,7 +538,8 @@ public class Game {
             // Stop the game loop asynchronously (no guarantees)
             shutdownAndAwaitTermination(gameLoop);
         } else {
-            logger.debug("No, game {} still has {} players left.", this.hashCode(), numberOfPlayers);
+            logger.debug("No, game {} still has {} player(s) left.", this.hashCode(), numberOfPlayers);
+            logger.debug("Players in game {} are: {}", this.hashCode(), event.getPlayers().keySet());
         }
     }
 
@@ -565,15 +562,23 @@ public class Game {
         }
     }
 
-    public void stopGameTime() {
-        isRunning = false;
-    }
-
     public void addPlayer(WebSocket key, Player value) {
         try {
-            getPlayerService().addPlayer(key, value);
+            if (playerService.hasWebSocket(key)) {
+                logger.warn("Player already exists in game. Ignoring request to add player.");
+                return;
+            } else if (playerService.getPlayers().size() >= MAX_NUMBER_OF_PLAYERS_PER_GAME) {
+                logger.warn("Game is full. Cannot add player.");
+                return;
+            } else if (playerService.isPlayerInAnyGame(value)) {
+                logger.warn("Player is already in another game. Cannot add player.");
+                return;
+            }
 
-            PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, getPlayerService().getPlayers());
+            logger.debug("Adding player {} to game via PlayerServiceImpl", value.getId());
+            playerService.addPlayer(key, value);
+
+            PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
             eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
         } catch (Exception e) {
             logger.error("Could not add player to game: {}", e.getMessage());

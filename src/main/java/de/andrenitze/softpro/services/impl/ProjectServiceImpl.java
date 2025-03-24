@@ -14,6 +14,7 @@ import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.services.ProjectService;
 import lombok.Getter;
+import lombok.Setter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +40,7 @@ public class ProjectServiceImpl implements ProjectService {
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
-    private final Game game;
+    @Setter private Game game;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final SkillServiceImpl skillService;
     @Getter
@@ -53,11 +54,11 @@ public class ProjectServiceImpl implements ProjectService {
     @Getter
     private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
-    public ProjectServiceImpl(Game game) {
+    public ProjectServiceImpl(Game game, SkillServiceImpl skillService, AccountingServiceImpl accountingService) {
         this.game = game;
-        this.skillService = game.getSkillService();
+        this.skillService = skillService;
+        this.accountingService = accountingService;
         this.projectEmployeesMap = new ConcurrentHashMap<>();
-        this.accountingService = game.getAccountingService();
     }
 
     public void conductWorkOnAllProjects(LocalDate currentDate, ConcurrentMap<Project,
@@ -983,4 +984,5 @@ public class ProjectServiceImpl implements ProjectService {
         riskAssessedConfirmation.setPayload(project);
         game.getMessagingService().sendEventToPlayer(player, riskAssessedConfirmation);
     }
+
 }
