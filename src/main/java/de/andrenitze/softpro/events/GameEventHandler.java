@@ -168,7 +168,7 @@ public class GameEventHandler {
             return;
         }
 
-        logger.debug("Player {} hired employee {} - {}", player.getName(), employee.getId(), employee.getName());
+        logger.debug("Player {} hired employee {} - {}", player.getId(), employee.getId(), employee.getName());
         logger.debug("Talent market has the following employees left: {}", game.getTalentMarket().getTalents().size());
 
         SkillServiceImpl skillService = game.getSkillService();

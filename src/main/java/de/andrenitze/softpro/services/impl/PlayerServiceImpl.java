@@ -33,7 +33,7 @@ public class PlayerServiceImpl implements PlayerService {
         this.projectService = projectService;
     }
 
-    public void addPlayerToGame(WebSocket key, Player value) {
+    public void addPlayer(WebSocket key, Player value) {
         players.put(key, value);
     }
 
@@ -41,7 +41,7 @@ public class PlayerServiceImpl implements PlayerService {
         return players.get(websocket);
     }
 
-    public void removePlayerFromGame(WebSocket key) {
+    public void removePlayer(WebSocket key) {
         players.remove(key);
     }
 

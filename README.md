@@ -2,7 +2,7 @@
 This is the central game server that can be deployed to and run in an infrastructure as a standard Java 11 application.
 
 ## Environment
-The game requires a MariaDB database. The connection details can be configured in ```.env```, but will be overridden by OS environment variables. Build-time configuration is configured in ```resources/project.properties```.
+The game requires a MariaDB database. The connection details can be configured in ```.env```, but will be overridden by OS environment variables. Build-time configuration is configured in ```resources/application.properties```.
 
 ## Run the Game Server
 To run the server:

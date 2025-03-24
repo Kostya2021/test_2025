@@ -492,7 +492,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         if (!project.getInvolvedPlayers().contains(player)) {
-            logger.error("Player {} is not involved in project {}.", player.getName(), project.getName());
+            logger.error("Player {} is not involved in project {}.", player.getId(), project.getName());
             return;
         }
 

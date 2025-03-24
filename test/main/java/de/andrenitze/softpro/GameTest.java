@@ -7,6 +7,7 @@ import de.andrenitze.softpro.*;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.GameEventHandler;
+import de.andrenitze.softpro.events.GameEventPublisher;
 import de.andrenitze.softpro.services.impl.*;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +29,8 @@ class GameTest {
                 mock(TalentMarket.class),
                 mock(ProjectServiceImpl.class),
                 mock(EmployeeServiceImpl.class),
-                mock(GameEventHandler.class)
+                mock(GameEventHandler.class),
+                mock(GameEventPublisher.class)
         );
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();

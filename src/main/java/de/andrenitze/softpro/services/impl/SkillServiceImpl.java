@@ -44,7 +44,7 @@ public class SkillServiceImpl implements SkillService {
         HashMap<String, Skill> skills = playersSkills.get(player);
         skills.putIfAbsent(skillId, skill);
         playersSkills.put(player, skills);
-        logger.debug("Player {} unlocked skill {}", player.getName(), skillId);
+        logger.debug("Player {} unlocked skill {}", player.getId(), skillId);
         saveSkills(player);
         addPermanentStatusEffectsToAllEmployees();
     }
@@ -52,7 +52,7 @@ public class SkillServiceImpl implements SkillService {
     public boolean playerHasSkill(Player player, String skillId) {
         HashMap<String, Skill> skills = playersSkills.get(player);
         if (skills == null) {
-            logger.debug("Player {} has no skills registered.", player.getName());
+            logger.debug("Player {} has no skills registered.", player.getId());
             return false;
         }
 
@@ -62,9 +62,9 @@ public class SkillServiceImpl implements SkillService {
 
     public void addPlayer(Player player) {
         if (playersSkills.containsKey(player)) {
-            logger.debug("Player {} already exists in the skillsManager. No override will occur.", player.getName());
+            logger.debug("Player {} already exists in the skillsManager. No override will occur.", player.getId());
         } else {
-            logger.debug("Adding new player {} to the skillsManager.", player.getName());
+            logger.debug("Adding new player {} to the skillsManager.", player.getId());
             loadSkills(player);
         }
         playersSkills.putIfAbsent(player, new HashMap<>());
@@ -83,7 +83,7 @@ public class SkillServiceImpl implements SkillService {
             FileWriter writer = new FileWriter(SKILLS_DIRECTORY + player.getId() + JSON);
             GameServer.getGson().toJson(playersSkills.get(player), writer);
             writer.close();
-            logger.debug("Skills for player {} saved to {}", player.getName(), SKILLS_DIRECTORY + player.getId() + JSON);
+            logger.debug("Skills for player saved to {}", SKILLS_DIRECTORY + player.getId() + JSON);
         } catch (IOException e) {
             logger.error("Failed to save skills for player {}: {}", player.getId(), e.getMessage());
         }
@@ -98,10 +98,9 @@ public class SkillServiceImpl implements SkillService {
                 HashMap<String, Skill> skills = GameServer.getGson().fromJson(reader, type);
                 playersSkills.put(player, skills);
                 reader.close();
-                logger.debug("Skills for player {} loaded from {}", player.getName(), SKILLS_DIRECTORY + player.getId() + JSON);
+                logger.debug("Skills for player {} loaded from {}", player.getId(), SKILLS_DIRECTORY + player.getId() + JSON);
             } else {
                 saveSkills(player); // Create a new file if it does not exist
-                logger.debug("No existing skills file for player {}. Created a new one.", player.getName());
             }
         } catch (IOException e) {
             logger.error("Failed to load skills for player {}: {}", player.getId(), e.getMessage());
@@ -155,7 +154,7 @@ public class SkillServiceImpl implements SkillService {
             Player player = findPlayerById(playerId);
             if (player != null) {
                 playersSkills.put(player, skills);
-                logger.debug("{} skills for player {} loaded from {}", skills.size(), player.getName(), file.getPath());
+                logger.debug("{} skills for player {} loaded from {}", skills.size(), player.getId(), file.getPath());
             }
         } catch (IOException e) {
             logger.error("Failed to load skills from file {}: {}", file.getPath(), e.getMessage());

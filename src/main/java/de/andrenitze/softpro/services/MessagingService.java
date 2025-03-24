@@ -6,12 +6,10 @@ import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 
-import java.beans.PropertyChangeListener;
-
 /**
  * Service for communication with players over WebSocket.
  */
-public interface MessagingService extends PropertyChangeListener {
+public interface MessagingService {
     void sendMessageToPlayer(Player player, String message);
     void broadcastToAllPlayers(String message);
     void sendFundsUpdateToPlayer(Player player);

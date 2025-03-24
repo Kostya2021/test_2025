@@ -1,35 +1,24 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.PlayersChangedEvent;
 import de.andrenitze.softpro.services.MessagingService;
 import org.java_websocket.WebSocket;
+import org.springframework.context.event.EventListener;
 
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
-import static de.andrenitze.softpro.Main.logger;
 
-public class MessagingServiceImpl implements MessagingService, PropertyChangeListener {
+public class MessagingServiceImpl implements MessagingService {
     private Map<WebSocket, Player> players;
 
-    public MessagingServiceImpl(Game game) {
-        game.addPropertyChangeListener(this);
-    }
-
-    @Override
-    public void propertyChange(PropertyChangeEvent evt) {
-        logger.debug("Property '{}' changed", evt.getPropertyName());
-        if ("players".equals(evt.getPropertyName())) {
-            this.players = (Map<WebSocket, Player>) evt.getNewValue();
-        }
+    public MessagingServiceImpl() {
     }
 
     public void sendFundsUpdateToPlayer(Player player) {
@@ -62,7 +51,6 @@ public class MessagingServiceImpl implements MessagingService, PropertyChangeLis
     }
 
     public void broadcastToAllPlayers(String message) {
-        // Send the message to all players
         players.forEach((webSocket, _) -> webSocket.send(message));
     }
 
@@ -109,5 +97,10 @@ public class MessagingServiceImpl implements MessagingService, PropertyChangeLis
             event.setPayload(player);
             sendEventToPlayer(player, event);
         });
+    }
+
+    @EventListener
+    public void onPlayersChanged(PlayersChangedEvent event) {
+        this.players = event.getPlayers();
     }
 }

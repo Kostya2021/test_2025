@@ -16,14 +16,14 @@ public class Config {
     }
 
     static {
-        try (InputStream input = Config.class.getClassLoader().getResourceAsStream("project.properties")) {
+        try (InputStream input = Config.class.getClassLoader().getResourceAsStream("application.properties")) {
             if (input != null) {
                 properties.load(input);
             } else {
-                logger.warn("project.properties not found in classpath");
+                logger.warn("application.properties not found in classpath");
             }
         } catch (IOException ex) {
-            logger.error("Error loading project.properties: {}", ex.getMessage());
+            logger.error("Error loading application.properties: {}", ex.getMessage());
         }
     }
 

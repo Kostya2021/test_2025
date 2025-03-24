@@ -5,14 +5,26 @@ import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.events.GameEventHandler;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.*;
 
+import static de.andrenitze.softpro.Main.logger;
+
+// TODO POSSIBLE CONCURRENCY PROBLEMS: Check for all beans if they are in the right (game-specific) context
+//  or can be moved to the global context (Skill file management, Messaging??? etc.)
 @Configuration
+@ComponentScan("de.andrenitze.softpro")
 public class GameConfig {
+    public GameConfig(ApplicationContext parentContext) {
+        logger.debug("GameConfig created.");
+    }
+
     @Bean
-    public Game game() {
-        return new Game();  // Use no-args constructor
+    public Game game(SkillServiceImpl skillService) {
+        Game game = new Game();
+        game.setSkillService(skillService);
+        // weitere Setter
+        return game;
     }
 
     @Bean
@@ -29,10 +41,8 @@ public class GameConfig {
     }
 
     @Bean
-    public SkillServiceImpl skillService(Game game) {
-        SkillServiceImpl service = new SkillServiceImpl();
-        game.setSkillService(service);
-        return service;
+    public SkillServiceImpl skillService() {
+        return new SkillServiceImpl();
     }
 
     @Bean
@@ -51,7 +61,7 @@ public class GameConfig {
 
     @Bean
     public MessagingServiceImpl messagingService(Game game) {
-        MessagingServiceImpl service = new MessagingServiceImpl(game);
+        MessagingServiceImpl service = new MessagingServiceImpl();
         game.setMessagingService(service);
         return service;
     }
@@ -72,6 +82,14 @@ public class GameConfig {
         game.setEmployeeService(service);
         return service;
     }
+
+    /*
+    @Bean
+    public GameEventPublisher gameEventPublisher() {
+        return new GameEventPublisher();
+    }
+
+     */
 
     @Bean
     public GameEventHandler eventHandler(Game game) {

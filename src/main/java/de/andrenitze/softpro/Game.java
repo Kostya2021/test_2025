@@ -1,6 +1,7 @@
 package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.*;
+import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
@@ -13,9 +14,6 @@ import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
 import de.andrenitze.softpro.domains.projects.*;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
-import de.andrenitze.softpro.events.EventType;
-import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,10 +22,10 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
 import java.net.ConnectException;
 import java.time.LocalDate;
 import java.util.*;
@@ -40,7 +38,9 @@ import static java.lang.Math.*;
 import static java.time.LocalDate.now;
 
 @Component
+@Scope("prototype")
 public class Game {
+    @Autowired @Getter @Setter private GameEventPublisher eventPublisher;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     @Getter @Setter private SkillServiceImpl skillService;
     @Getter @Setter private AccountingServiceImpl accountingService;
@@ -62,7 +62,6 @@ public class Game {
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
     private ArrayList<StoryElement> storyElements; // Level-specific
-    private final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
     /**
      * Creates a new Game instance.
@@ -78,7 +77,8 @@ public class Game {
                 TalentMarket talentMarket,
                 ProjectServiceImpl projectService,
                 EmployeeServiceImpl employeeService,
-                GameEventHandler eventHandler) {
+                GameEventHandler eventHandler,
+                GameEventPublisher eventPublisher) {
 
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         this.talentMarket = new TalentMarket(employeeIdGenerator);
@@ -91,6 +91,7 @@ public class Game {
         this.projectService = projectService;
         this.employeeService = employeeService;
         this.eventHandler = eventHandler;
+        this.eventPublisher = eventPublisher;
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -338,7 +339,8 @@ public class Game {
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
-        if (timeElapsedInMilliseconds >= 20) {
+        // If time elapsed is more than 20 ms and game is not currently shutting down
+        if (timeElapsedInMilliseconds >= 20 && isRunning) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
     }
@@ -417,7 +419,6 @@ public class Game {
     void checkGameOverConditions() {
         getPlayerService().getPlayers().forEach((webSocket, player) -> {
             if (player.isBankrupt() || player.completedAllObjectives()) {
-                stopGameTime();
                 handleGameOver(player, webSocket); // Decide what to do next
             }
         });
@@ -427,9 +428,8 @@ public class Game {
         logger.debug("Game over for player {}.", player.getId());
         boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt();
 
-        GameOverStats goStats = createGameOverStats(player);
+        GameOverStats goStats = createGameOverStats(this, player);
         goStats.setReport(playerHasWon ? "win" : "fail");
-        logger.debug("Result: {}", playerHasWon ? "win" : "fail");
 
         if (playerHasWon) {
             // Keep the player in the game and prepare for the next level
@@ -459,19 +459,21 @@ public class Game {
         playerUpdateEvent.setPayload(player);
         messagingService.sendEventToPlayer(player, playerUpdateEvent);
 
-        // Fire game over event for GameServer to handle
-        support.firePropertyChange("gameOver", null, new GameOverData(webSocket, player, goStats));
+        // Fire game over event for GameServer to handle (save high-score etc.)
+        GameOverData gameOverData = new GameOverData(webSocket, player, goStats);
+        GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
+        eventPublisher.publishGameOverEvent(internalGameOverEvent);
 
         // Let the Game class handle player removal
-        removePlayerFromGame(webSocket);
+        removePlayer(webSocket);
     }
 
-    public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats) {}
-
-    private GameOverStats createGameOverStats(Player player) {
+    private GameOverStats createGameOverStats(Game game, Player player) {
+        int currentTick = game.getCurrentTick();
+        int level = game.getLevel();
         int deliveredProjects = 0;
         int projectsVolume = 0;
-        for (Project project : projectService.getProjects()) {
+        for (Project project : game.getProjectService().getProjects()) {
             if (project.isCompleted() && project.playerWasInvolved(player)) {
                 deliveredProjects++;
                 projectsVolume += project.getTotalValue();
@@ -481,9 +483,9 @@ public class Game {
         GameOverStats goStats = new GameOverStats();
         goStats.setDeliveredProjects(deliveredProjects);
         goStats.setProjectsVolume(projectsVolume);
-        goStats.setSurvivedDays(getCurrentTick());
-        goStats.setPlayedSeconds(getCurrentTick() * GAME_SPEED_IN_MILLISECONDS / 1000);
-        goStats.setLevel(getLevel());
+        goStats.setSurvivedDays(currentTick);
+        goStats.setPlayedSeconds(currentTick * GAME_SPEED_IN_MILLISECONDS / 1000);
+        goStats.setLevel(level);
 
         DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
         Map<Integer, List<OptionVoteDistribution>> distributions = null;
@@ -496,6 +498,8 @@ public class Game {
 
         return goStats;
     }
+
+    public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats) {}
 
     public static float calculateXP(Project project) {
         // Riskier and larger projects yield more XP
@@ -514,47 +518,49 @@ public class Game {
         return xp;
     }
 
-    public void removePlayerFromGame(WebSocket key) {
-        getPlayerService().removePlayerFromGame(key);
-        support.firePropertyChange("players", null, getPlayerService().getPlayers());
-        closeGameIfEmpty();
+    public void removePlayer(WebSocket key) {
+        getPlayerService().removePlayer(key);
+
+        PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, getPlayerService().getPlayers());
+        eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
     }
 
-    public void closeGameIfEmpty() {
-        int numberOfPlayers = getPlayerService().getPlayers().size();
+    @EventListener
+    public void closeGameIfNoPlayersLeft(PlayersChangedEvent event) {
+        logger.debug("Players in game {} have changed: Checking if empty...", this.hashCode());
+        int numberOfPlayers = event.getPlayers().size();
 
         // Close game session if this was the last player
         if (numberOfPlayers == 0) {
             // Stop the game loop to make sure the thread can be interrupted
-            logger.debug("Game {} has no players left. Stopping game loop and closing game.", this.hashCode());
+            logger.debug("Yup, game {} has no players left. Stopping game loop and closing game.", this.hashCode());
+
+            // Fire event for GameServer to handle
+            GlobalGameEmptyEvent globalGameEmptyEvent = new GlobalGameEmptyEvent(this, this);
+            eventPublisher.publishGameEmptyEvent(globalGameEmptyEvent);
 
             // Stop the game loop asynchronously (no guarantees)
             shutdownAndAwaitTermination(gameLoop);
-
-            // Fire event for GameServer to handle
-            support.firePropertyChange("gameEmpty", null, this);
+        } else {
+            logger.debug("No, game {} still has {} players left.", this.hashCode(), numberOfPlayers);
         }
     }
 
     void shutdownAndAwaitTermination(ExecutorService pool) {
-        // Make sure, pool isn't null
         if (pool == null) {
             return;
         }
 
-        pool.shutdown(); // Disable new tasks from being submitted
+        pool.shutdown();
         try {
-            // Wait a while for existing tasks to terminate
             if (!pool.awaitTermination(2, TimeUnit.SECONDS)) {
-                pool.shutdownNow(); // Cancel currently executing tasks
-                // Wait a while for tasks to respond to being cancelled
-                if (!pool.awaitTermination(2, TimeUnit.SECONDS))
+                pool.shutdownNow();
+                if (!pool.awaitTermination(2, TimeUnit.SECONDS)) {
                     logger.error("Pool did not terminate");
+                }
             }
         } catch (InterruptedException ie) {
-            // (Re-)Cancel if current thread also interrupted
             pool.shutdownNow();
-            // Preserve interrupt status
             Thread.currentThread().interrupt();
         }
     }
@@ -564,8 +570,14 @@ public class Game {
     }
 
     public void addPlayer(WebSocket key, Player value) {
-        getPlayerService().addPlayerToGame(key, value);
-        support.firePropertyChange("players", null, getPlayerService().getPlayers());
+        try {
+            getPlayerService().addPlayer(key, value);
+
+            PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, getPlayerService().getPlayers());
+            eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
+        } catch (Exception e) {
+            logger.error("Could not add player to game: {}", e.getMessage());
+        }
     }
 
     public boolean isRunning() {
@@ -584,9 +596,5 @@ public class Game {
         // Increase satisfaction of employee
         employee.haveOneToOneMeeting();
         messagingService.sendEmployeeUpdate(player, employee);
-    }
-
-    public void addPropertyChangeListener(PropertyChangeListener pcl) {
-        support.addPropertyChangeListener(pcl);
     }
 }

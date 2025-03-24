@@ -8,7 +8,7 @@ import org.java_websocket.WebSocket;
  * Service für die Verwaltung von Spielern.
  */
 public interface PlayerService {
-    void addPlayerToGame(WebSocket key, Player value);
+    void addPlayer(WebSocket key, Player value);
     Player getPlayerByWebSocket(WebSocket websocket);
     boolean hasWebSocket(WebSocket conn);
     void generateFirstEmployeesForPlayers();

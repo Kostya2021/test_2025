@@ -8,12 +8,12 @@ import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.projects.RiskLevel;
-import de.andrenitze.softpro.events.EventType;
-import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.types.*;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import lombok.Getter;
+import lombok.Setter;
 import net.bytebuddy.build.ToStringPlugin;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
@@ -23,18 +23,32 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
+
+@Component
 public class GameServer extends WebSocketServer {
+    private final ApplicationContext parentContext; // Global context
+    @Getter @Setter private Map<Integer, AnnotationConfigApplicationContext> gameContexts = new ConcurrentHashMap<>();
+
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
     private final Set<Game> games = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
@@ -50,10 +64,8 @@ public class GameServer extends WebSocketServer {
             return field.getAnnotation(ToStringPlugin.Exclude.class) != null;
         }
     };
-    @Getter
-    public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
-    @Getter
-    private GameOverStats dailyHighScore;
+    @Getter public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+    @Getter private GameOverStats dailyHighScore;
     public static final SecureRandom RANDOM = new SecureRandom();
     private List<GameOverStats> dailyHighScores;
     private List<GameOverStats> monthlyHighScores;
@@ -62,18 +74,38 @@ public class GameServer extends WebSocketServer {
     /**
      * Creates a GameServer instance to manage games and players
      *
-     * @param hostname String  Host name (IP for clients to connect to)
-     * @param port int          Port number
+     * @param port int   Port number
      */
-    public GameServer(String hostname, int port) {
-        super(new InetSocketAddress(hostname, port));
+    @Autowired
+    public GameServer(ApplicationContext parentContext,
+                      @Value("${server.port}") int port) {
+        super(new InetSocketAddress(port));
+        this.parentContext = parentContext;
+    }
 
+    @Override
+    public void onStart() {
+        init();
+        logger.info("Server started successfully");
+    }
+
+    public void init() {
         // Fetch high-score in a separate thread
         new Thread(this::fetchHighScore).start();
 
         // Graceful shutdown hook
         Thread printingHook = new Thread(this::gracefulShutdown);
         Runtime.getRuntime().addShutdownHook(printingHook);
+
+        String hostAddress = null;
+        try {
+            hostAddress = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+        int port = getPort();
+        String serverAddress = String.format("ws://%s:%d", hostAddress, port);
+        logger.info("Starting server at {}", serverAddress);
     }
 
     private void gracefulShutdown() {
@@ -170,55 +202,70 @@ public class GameServer extends WebSocketServer {
         // When a new WebSocket connection is opened, it's a player joining the lobby
         logger.info("Client {} connected", webSocket.getRemoteSocketAddress());
 
-        // Send version number and game speed to frontend
-        final Properties properties = new Properties();
-        try {
-            properties.load(getClass().getClassLoader().getResourceAsStream("project.properties"));
-            String version = properties.getProperty("version");
-            webSocket.send(String.format("{\"type\": \"%s\", \"payload\": {\"version\": \"%s\", \"gameSpeed\": %d}}",
-                    EventType.VERSION, version, Game.GAME_SPEED_IN_MILLISECONDS));
-        } catch (IOException e) {
-            logger.error("Could not load project.properties file");
-        }
+        sendVersionAndGameSpeed(webSocket);
 
         // Generate a new player
         Player newPlayer = new Player();
-        logger.debug("New player: {}", newPlayer.getName());
+        logger.debug("New player: {}", newPlayer.getId());
 
-        // Player is in the lobby and in a game at the same time because the game
-        // needs to be initialized for the level briefing.
-        // This is ok, because for multiplayer, players have to wait in the briefing room.
-        lobby.put(webSocket, newPlayer);
-        createGame(webSocket, newPlayer);
-        broadcastLobbyState();
+        // Move player to lobby and create a game instance
+        movePlayerToLobby(webSocket, newPlayer);
+    }
 
-        logger.info("New player '{}' added. New number of players in lobby: {}",
-                newPlayer.getName(),
-                lobby.size());
+    private void sendVersionAndGameSpeed(WebSocket webSocket) {
+        final Properties properties = new Properties();
+        try {
+            properties.load(getClass().getClassLoader().getResourceAsStream("application.properties"));
+            String version = properties.getProperty("version");
+            GameEvent<Map<String, Object>> versionEvent = new GameEvent<>(EventType.VERSION);
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("version", version);
+            payload.put("gameSpeed", GAME_SPEED_IN_MILLISECONDS);
+            versionEvent.setPayload(payload);
+            webSocket.send(GameServer.getGson().toJson(versionEvent));
+        } catch (IOException e) {
+            logger.error("Could not load application.properties file");
+        }
+    }
+
+    public Game createGameInstance(int hashCode) {
+        AnnotationConfigApplicationContext gameContext = new AnnotationConfigApplicationContext();
+        gameContext.setParent(parentContext); // Inherit global context
+        gameContext.register(GameConfig.class); // Game-specific Beans
+
+        // Explicitly register the parent context as a resolvable dependency so that the
+        // game context can access the parent context's beans (e.g., to forward GameOverEvent and GameEmptyEvent
+        // to GameServer context).
+        gameContext.getBeanFactory().registerResolvableDependency(
+                ApplicationEventPublisher.class, parentContext);
+
+        gameContext.refresh();
+        Game game = gameContext.getBean(Game.class);
+        gameContexts.put(game.hashCode(), gameContext);
+        return game;
     }
 
     /**
      * Creates a new game instance for a player and adds her to it.
+     * A new instance is created for each new level a player reaches.
      *
      * @param webSocket WebSocket   The WebSocket connection to the client
      * @param player Player         The player to be added to the game
      */
     private void createGame(WebSocket webSocket, Player player) {
-        // Create a new game instance bean from application context
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(GameConfig.class);
-        Game game = context.getBean(Game.class);
-        logger.debug("Creating game for player {}", player.getName());
+        // Create a new game instance with isolated context
+        logger.debug("Creating new game instance for player {}", player.getId());
+        Game game = createGameInstance(webSocket.hashCode());
         game.addPlayer(webSocket, player);
-        preparePlayerAndGameForNextLevel(player, game);
-
         addGame(game);
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
 
+        preparePlayerAndGameForNextLevel(player, game);
+
         // Send updated player state to the client
-        GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-        playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+        GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        webSocket.send(gson.toJson(playerUpdateEvent));
+        game.getMessagingService().sendEventToPlayer(player, playerUpdateEvent);
     }
 
     /**
@@ -311,10 +358,7 @@ public class GameServer extends WebSocketServer {
         // Remove disconnected client from running game
         for (Game game : games) {
             if (game.getPlayerService().hasWebSocket(webSocket)) {
-                game.removePlayerFromGame(webSocket);
-
-                int numberOfPlayers = game.getPlayerService().getPlayers().size();
-                logger.debug("A player left the game - {} player(s) left in the game", numberOfPlayers);
+                game.removePlayer(webSocket);
 
                 // Don't search any further
                 break;
@@ -424,9 +468,6 @@ public class GameServer extends WebSocketServer {
 
                 game.addPlayer(player.getKey(), player.getValue());
                 game.start();
-
-                logger.info("Players in the lobby: {} | Running games: {}", lobby.size(), games.size());
-                broadcastLobbyState();
             }
         }
     }
@@ -456,6 +497,12 @@ public class GameServer extends WebSocketServer {
                 ", \"dailyHighScores\": " + gson.toJson(anonymizedDailyHighScores) +
                 ", \"monthlyHighScores\": " + gson.toJson(anonymizedMonthlyHighScores) +
                 ", \"quarterlyHighScores\": " + gson.toJson(anonymizedQuarterlyHighScores) + "}}");
+        logLobbyState();
+    }
+
+    private void logLobbyState() {
+        logger.debug("Players in lobby/briefing: {} | Players in running games: {}",
+                lobby.size(), games.stream().filter(Game::isRunning).count());
     }
 
     private List<GameOverStats> getAnonymizedHighScores(List<GameOverStats> highScores) {
@@ -513,17 +560,19 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    @Override
-    public void onStart() {
-        logger.info("Server started successfully");
-    }
-
+    // TODO Make this work! Only first round is working!
     public void movePlayerToLobby(WebSocket webSocket, Player player) {
-        logger.debug("Moving player {} back to lobby", player.getName());
+        logger.debug("Moving player {} to lobby", player.getId());
         lobby.put(webSocket, player);
 
-        createGame(webSocket, player);
+        try {
+            // Create a new game instance for the player
+            createGame(webSocket, player);
+        } catch (Exception e) {
+            logger.error("Could not create game for player. Message: {}", e.getMessage());
+        }
 
+        // Broadcast updated lobby state
         broadcastLobbyState();
     }
 
@@ -585,18 +634,37 @@ public class GameServer extends WebSocketServer {
 
     public void addGame(Game game) {
         games.add(game);
+    }
 
-        // Add listeners for game events
-        game.addPropertyChangeListener(evt -> {
-            if ("gameEmpty".equals(evt.getPropertyName())) {
-                Game emptyGame = (Game)evt.getNewValue();
-                removeGame(emptyGame);
-            } else if ("gameOver".equals(evt.getPropertyName())) {
-                Game.GameOverData data = (Game.GameOverData)evt.getNewValue();
-                saveGameOverStats(data.webSocket(), data.player(), data.stats());
-                checkAndBroadcastHighScore(data.stats());
-                movePlayerToLobby(data.webSocket(), data.player());
+    @EventListener
+    public void handleGameOverEvent(GlobalGameOverEvent event) {
+        logger.info("🚨 Global listener received GameOverEvent from game.");
+        logger.debug("Saving high-score and moving player back to lobby...");
+        Game.GameOverData data = event.getGameOverData();
+        movePlayerToLobby(data.webSocket(), data.player());
+        saveGameOverStats(data.webSocket(), data.player(), data.stats());
+        checkAndBroadcastHighScore(data.stats());
+    }
+
+    @EventListener
+    public void handleEmptyGameEvent(GlobalGameEmptyEvent event) {
+        logger.info("🚨 Global listener received GameEmptyEvent from game.");
+        Game game = event.getGame();
+        logger.debug("Running games: {}", games.stream().filter(Game::isRunning).count());
+        logger.debug("Game contexts: {}", gameContexts.size());
+        logger.debug("Game {} is empty. Removing...", game.hashCode());
+
+        // Remove the game from the games set
+        boolean removed = games.remove(game);
+        if (removed) {
+            // Close the game context if it was removed
+            AnnotationConfigApplicationContext ctx = gameContexts.remove(game.hashCode());
+            if (ctx != null) {
+                ctx.close();
             }
-        });
+        }
+
+        logger.debug("Running games: {}", games.stream().filter(Game::isRunning).count());
+        logger.debug("Game contexts: {}", gameContexts.size());
     }
 }
