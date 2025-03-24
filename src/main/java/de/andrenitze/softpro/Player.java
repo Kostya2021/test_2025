@@ -5,7 +5,6 @@ import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.Objectives;
 import de.andrenitze.softpro.domains.decisions.Decision;
-import de.andrenitze.softpro.services.impl.SkillServiceImpl;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,6 +36,7 @@ public class Player {
         BANKRUPTCY_THRESHOLD.put(6, 0);
         BANKRUPTCY_THRESHOLD.put(7, 0);
     }
+    protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
 
     @Getter
     private final UUID id;
@@ -236,7 +236,7 @@ public class Player {
 
     public void addXp(int newXP) {
         // Check if the new XP level exceeds an XP_LEVEL_THRESHOLD and increase the xpLevel if necessary
-        int xpToLevelUp = SkillServiceImpl.XP_LEVEL_THRESHOLDS[this.xpLevel];
+        int xpToLevelUp = XP_LEVEL_THRESHOLDS[this.xpLevel];
 
         if (this.xp + newXP >= xpToLevelUp) {
             this.xp += newXP; // Add the new XP

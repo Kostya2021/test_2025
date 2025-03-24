@@ -24,8 +24,6 @@ public class SkillServiceImpl implements SkillService {
     private final ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
 
-    public static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
-
     public SkillServiceImpl() {
         playersSkills = new ConcurrentHashMap<>();
 

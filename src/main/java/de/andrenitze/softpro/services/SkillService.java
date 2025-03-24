@@ -2,8 +2,6 @@ package de.andrenitze.softpro.services;
 
 import de.andrenitze.softpro.Player;
 
-import java.util.Map;
-
 /**
  * Service für die Verwaltung von Spieler-Skills.
  */
