@@ -4,16 +4,17 @@ import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 @Service
 @Primary
 public class LevelConsequencesService {
-    private final PlayerServiceImpl playerService;
+    private final GamePlayerServiceImpl playerService;
     private final TalentMarket talentMarket;
 
-    public LevelConsequencesService(PlayerServiceImpl playerService, TalentMarket talentMarket) {
+    public LevelConsequencesService(GamePlayerServiceImpl playerService, TalentMarket talentMarket) {
         this.playerService = playerService;
         this.talentMarket = talentMarket;
     }

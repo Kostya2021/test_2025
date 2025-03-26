@@ -15,6 +15,7 @@ import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.impl.*;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.jetbrains.annotations.Nullable;
@@ -45,7 +46,7 @@ import static java.time.LocalDate.now;
 public class Game {
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    @Getter private PlayerServiceImpl playerService;
+    @Getter private GamePlayerServiceImpl playerService;
     @Getter private SkillServiceImpl skillService;
     @Getter private AccountingServiceImpl accountingService;
     @Getter private MessagingServiceImpl messagingService;
@@ -80,7 +81,7 @@ public class Game {
     public Game(SkillServiceImpl skillService,
                 AccountingServiceImpl accountingService,
                 MessagingServiceImpl messagingService,
-                PlayerServiceImpl playerService,
+                GamePlayerServiceImpl playerService,
                 TalentMarket talentMarket,
                 ProjectServiceImpl projectService,
                 EmployeeServiceImpl employeeService,
@@ -108,7 +109,7 @@ public class Game {
     }
 
     // Mandatory services are injected here
-    public Game(PlayerServiceImpl playerService, SkillServiceImpl skillService) {
+    public Game(GamePlayerServiceImpl playerService, SkillServiceImpl skillService) {
         this.playerService = playerService;
         this.skillService = skillService;
     }
@@ -395,7 +396,7 @@ public class Game {
         messagingService.sendEventToPlayer(player, playerUpdateEvent);
 
         // Fire game over event for GameServer to handle (save high-score etc.)
-        GameOverData gameOverData = new GameOverData(webSocket, player, goStats);
+        GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
         GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
         eventPublisher.publishGameOverEvent(internalGameOverEvent);
 
@@ -432,7 +433,7 @@ public class Game {
         return goStats;
     }
 
-    public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats) {}
+    public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats, Game game) {}
 
     public static float calculateXP(Project project) {
         // Riskier and larger projects yield more XP
@@ -453,7 +454,6 @@ public class Game {
 
     public void removePlayer(WebSocket key) {
         playerService.removePlayer(key);
-        messagingService.removePlayer(key);
 
         PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
         eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
@@ -512,7 +512,6 @@ public class Game {
             }
 
             playerService.addPlayer(key, value);
-            messagingService.addPlayer(key, value);
 
             PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
             eventPublisher.publishPlayersChangedEvent(playersChangedEvent);

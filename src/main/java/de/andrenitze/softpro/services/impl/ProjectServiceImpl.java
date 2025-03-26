@@ -12,6 +12,7 @@ import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.services.ProjectService;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import lombok.Getter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -51,14 +52,14 @@ public class ProjectServiceImpl implements ProjectService {
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingImpl mappingService;
     private final MessagingServiceImpl messagingService;
-    private final PlayerServiceImpl playerService;
+    private final GamePlayerServiceImpl playerService;
 
     @Autowired
     public ProjectServiceImpl(MessagingServiceImpl messagingService,
                               SkillServiceImpl skillService,
                               AccountingServiceImpl accountingService,
                               @Qualifier("projectEmployeeMapping") ProjectEmployeeMappingImpl projectEmployeeMapping,
-                              @Qualifier("playerServiceImpl") PlayerServiceImpl playerService) {
+                              @Qualifier("gamePlayerServiceImpl") GamePlayerServiceImpl playerService) {
         this.messagingService = messagingService;
         this.skillService = skillService;
         this.accountingService = accountingService;

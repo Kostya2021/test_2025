@@ -14,6 +14,7 @@ import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.GlobalGameEmptyEvent;
 import de.andrenitze.softpro.events.GlobalGameOverEvent;
+import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,7 +28,6 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -48,13 +48,13 @@ import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
 
 @Component
 public class GameServer extends WebSocketServer {
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ApplicationContext parentContext; // Global context
     @Getter @Setter private Map<Game, AnnotationConfigApplicationContext> gameContexts = new ConcurrentHashMap<>();
 
+    public static final int DEFAULT_PORT = 80;
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
-    private final Set<Game> games = ConcurrentHashMap.newKeySet();
-    private final ConcurrentHashMap<WebSocket, Player> lobby = new ConcurrentHashMap<>();
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
     private static final ExclusionStrategy strategy = new ExclusionStrategy() {
         @Override
         public boolean shouldSkipClass(Class<?> clazz) {
@@ -67,6 +67,10 @@ public class GameServer extends WebSocketServer {
         }
     };
     @Getter public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+
+    private final Set<Game> games = ConcurrentHashMap.newKeySet();
+    private final PlayerService lobby;
+
     @Getter private GameOverStats dailyHighScore;
     public static final Random RANDOM = new Random();
     private List<GameOverStats> dailyHighScores;
@@ -74,15 +78,14 @@ public class GameServer extends WebSocketServer {
     private List<GameOverStats> quarterlyHighScores;
 
     /**
-     * Creates a GameServer instance to manage games and players
-     *
-     * @param port int   Port number
+     * Creates a GameServer instance to manage games and players.
      */
     @Autowired
     public GameServer(ApplicationContext parentContext,
-                      @Value("${server.port}") int port) {
-        super(new InetSocketAddress(port));
+                      PlayerService lobby) {
+        super(new InetSocketAddress(DEFAULT_PORT));
         this.parentContext = parentContext;
+        this.lobby = lobby;
     }
 
     @Override
@@ -96,8 +99,7 @@ public class GameServer extends WebSocketServer {
         new Thread(this::fetchHighScore).start();
 
         // Graceful shutdown hook
-        Thread printingHook = new Thread(this::gracefulShutdown);
-        Runtime.getRuntime().addShutdownHook(printingHook);
+        Runtime.getRuntime().addShutdownHook(new Thread(this::gracefulShutdown));
 
         String hostAddress = "";
         try {
@@ -113,7 +115,7 @@ public class GameServer extends WebSocketServer {
     private void gracefulShutdown() {
         logger.info("Shutting down server...");
         // Disconnect all client connections for lobby...
-        for (WebSocket client : lobby.keySet()) {
+        for (WebSocket client : lobby.getPlayers().keySet()) {
             client.close();
         }
 
@@ -206,12 +208,9 @@ public class GameServer extends WebSocketServer {
 
         sendVersionAndGameSpeed(webSocket);
 
-        // Generate a new player
         Player newPlayer = new Player();
-        logger.debug("New player: {}", newPlayer.getId());
+        addPlayerToLobby(webSocket, newPlayer);
 
-        // Move player to lobby and create a game instance
-        movePlayerToLobby(webSocket, newPlayer);
     }
 
     private void sendVersionAndGameSpeed(WebSocket webSocket) {
@@ -351,11 +350,11 @@ public class GameServer extends WebSocketServer {
     private void removeDisconnectedClient(WebSocket webSocket) {
         // Remove disconnected clients from lobby
         logger.debug("Removing WebSocket {} from lobby and game", webSocket.getRemoteSocketAddress());
-        Player player = lobby.remove(webSocket);
+        Player player = lobby.removePlayerByWebsocket(webSocket);
         if (player != null) {
             logger.info("Player '{}' disconnected. New number of players in lobby: {}",
                     player.getName(),
-                    lobby.size());
+                    lobby.getPlayers().size());
         }
 
         // Remove disconnected client from running game
@@ -393,7 +392,7 @@ public class GameServer extends WebSocketServer {
 
     private void handlePlayerReadyEvent(WebSocket webSocket, String message) {
         try {
-            Player player = lobby.get(webSocket);
+            Player player = lobby.getPlayerByWebSocket(webSocket);
 
             for (Game game : games) {
                 if (game.getPlayerService().hasWebSocket(webSocket)) {
@@ -416,7 +415,7 @@ public class GameServer extends WebSocketServer {
 
         String newName = sanitizePlayerName(updatedPlayer.getName());
         if (newName.length() >= 2) {
-            Player player = lobby.get(webSocket);
+            Player player = lobby.getPlayerByWebSocket(webSocket);
             String oldName = player.getName();
             player.setName(newName);
 
@@ -455,9 +454,9 @@ public class GameServer extends WebSocketServer {
     }
 
     private void startGameSessionsForReadyPlayers() {
-        for (Map.Entry<WebSocket, Player> player : lobby.entrySet()) {
+        for (Map.Entry<WebSocket, Player> player : lobby.getPlayers().entrySet()) {
             if (player.getValue().isReady()) {
-                lobby.remove(player.getKey());
+                lobby.removePlayerByWebsocket(player.getKey());
 
                 Game game = games.stream()
                         .filter(g -> g.getPlayerService().hasWebSocket(player.getKey()))
@@ -476,7 +475,7 @@ public class GameServer extends WebSocketServer {
 
     public void broadcastLobbyState() {
         JSONArray playersList = new JSONArray();
-        for (Map.Entry<WebSocket, Player> entry : lobby.entrySet()) {
+        for (Map.Entry<WebSocket, Player> entry : lobby.getPlayers().entrySet()) {
             Player readyPlayer = entry.getValue();
             JSONObject player = new JSONObject();
             player.put("id", readyPlayer.getId().toString());
@@ -504,7 +503,7 @@ public class GameServer extends WebSocketServer {
 
     private void logLobbyState() {
         logger.debug("Players in lobby/briefing: {} | Players in running games: {}",
-                lobby.size(), games.stream().filter(Game::isRunning).count());
+                lobby.getPlayers().size(), games.stream().filter(Game::isRunning).count());
     }
 
     private List<GameOverStats> getAnonymizedHighScores(List<GameOverStats> highScores) {
@@ -562,18 +561,23 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    public void movePlayerToLobby(WebSocket webSocket, Player player) {
-        logger.debug("Moving player {} to lobby", player.getId());
-        lobby.put(webSocket, player);
+    public void addPlayerToLobby(WebSocket webSocket, Player player) {
+        logger.debug("Adding player {} to lobby", player.getId());
+        lobby.addPlayer(webSocket, player);
+        createGame(webSocket, player);
+        broadcastLobbyState();
+    }
 
-        try {
-            // Create a new game instance for the player
-            createGame(webSocket, player);
-        } catch (Exception e) {
-            logger.error("Could not create game for player. Message: {}", e.getMessage());
+    public void startGameWithLobbyPlayers() {
+        Game game = createGameInstance();
+        PlayerService gamePlayerService = game.getPlayerService();
+
+        for (Map.Entry<WebSocket, Player> entry : lobby.getPlayers().entrySet()) {
+            gamePlayerService.addPlayer(entry.getKey(), entry.getValue());
         }
 
-        // Broadcast updated lobby state
+        lobby.clearLobby();
+        addGame(game);
         broadcastLobbyState();
     }
 
@@ -650,9 +654,23 @@ public class GameServer extends WebSocketServer {
         logger.info("🚨 Global listener received GameOverEvent from game.");
         logger.debug("Saving high-score and moving player back to lobby...");
         Game.GameOverData data = event.getGameOverData();
-        movePlayerToLobby(data.webSocket(), data.player());
+        movePlayerBackToLobby(data.game(), data.player());
         saveGameOverStats(data.webSocket(), data.player(), data.stats());
         checkAndBroadcastHighScore(data.stats());
+    }
+
+    // Move a single player back to the lobby after game over
+    public void movePlayerBackToLobby(Game game, Player player) {
+        PlayerService gamePlayerService = game.getPlayerService();
+
+        WebSocket webSocket = gamePlayerService.getPlayers().keySet().iterator().next();
+
+        // Move player from game to lobby
+        gamePlayerService.removePlayerByWebsocket(webSocket);
+        lobby.addPlayer(webSocket, player);
+
+        removeGame(game);
+        broadcastLobbyState();
     }
 
     @EventListener

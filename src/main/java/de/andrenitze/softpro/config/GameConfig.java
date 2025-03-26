@@ -6,6 +6,7 @@ import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.events.GameEventPublisher;
 import de.andrenitze.softpro.services.impl.*;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
 
@@ -25,7 +26,7 @@ public class GameConfig {
                      EmployeeServiceImpl employeeService,
                      ProjectServiceImpl projectService,
                      MessagingServiceImpl messagingService,
-                     PlayerServiceImpl playerService,
+                     GamePlayerServiceImpl playerService,
                      GameEventHandler eventHandler,
                      TalentMarket talentMarket,
                      GameEventPublisher eventPublisher,
@@ -71,7 +72,7 @@ public class GameConfig {
                                              SkillServiceImpl skillService,
                                              AccountingServiceImpl accountingService,
                                              ProjectEmployeeMappingImpl projectEmployeeMapping,
-                                             PlayerServiceImpl playerService
+                                             GamePlayerServiceImpl playerService
     ) {
         return new ProjectServiceImpl(messagingService, skillService, accountingService, projectEmployeeMapping, playerService);
     }
@@ -79,12 +80,12 @@ public class GameConfig {
     @Bean
     @Scope("prototype")
     @Primary
-    public PlayerServiceImpl playerService(TalentMarket talentMarket,
-                                           ProjectServiceImpl projectService,
-                                           ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
-                                           MessagingServiceImpl messagingService
+    public GamePlayerServiceImpl playerService(TalentMarket talentMarket,
+                                               ProjectServiceImpl projectService,
+                                               ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
+                                               MessagingServiceImpl messagingService
     ) {
-        return new PlayerServiceImpl(talentMarket, projectService, projectEmployeeMappingImpl, messagingService);
+        return new GamePlayerServiceImpl(talentMarket, projectService, projectEmployeeMappingImpl, messagingService);
     }
 
     @Bean
@@ -98,14 +99,14 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public MessagingServiceImpl messagingService() {
-        return new MessagingServiceImpl();
+    public MessagingServiceImpl messagingService(GamePlayerServiceImpl playerService) {
+        return new MessagingServiceImpl(playerService);
     }
 
     @Bean
     @Scope("prototype")
-    public GameEventHandler eventHandler() {
-        return new GameEventHandler(null); // Will be set after game creation
+    public GameEventHandler eventHandler(GamePlayerServiceImpl playerService) {
+        return new GameEventHandler(null, playerService); // Will be set after game creation
     }
 
     @Bean
@@ -117,7 +118,7 @@ public class GameConfig {
     @Bean
     @Scope("prototype")
     @Primary
-    public ObjectiveServiceImpl objectiveService(PlayerServiceImpl playerService) {
+    public ObjectiveServiceImpl objectiveService(GamePlayerServiceImpl playerService) {
         return new ObjectiveServiceImpl(playerService);
     }
 }

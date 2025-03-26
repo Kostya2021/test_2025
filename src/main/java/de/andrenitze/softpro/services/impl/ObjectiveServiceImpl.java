@@ -3,6 +3,7 @@ package de.andrenitze.softpro.services.impl;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.services.ObjectiveService;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -13,9 +14,9 @@ import static de.andrenitze.softpro.Main.logger;
 
 @Service
 public class ObjectiveServiceImpl implements ObjectiveService {
-    private final PlayerServiceImpl playersService;
+    private final GamePlayerServiceImpl playersService;
 
-    public ObjectiveServiceImpl(PlayerServiceImpl playerService) {
+    public ObjectiveServiceImpl(GamePlayerServiceImpl playerService) {
         this.playersService = playerService;
     }
 

@@ -6,22 +6,22 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.events.PlayersChangedEvent;
 import de.andrenitze.softpro.services.MessagingService;
+import de.andrenitze.softpro.services.PlayerService;
 import org.java_websocket.WebSocket;
-import org.springframework.context.event.EventListener;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
 import static de.andrenitze.softpro.Main.logger;
 
 public class MessagingServiceImpl implements MessagingService {
-    private Map<WebSocket, Player> players;
+    private final PlayerService playerService;
 
-    public MessagingServiceImpl() {
-        players = new HashMap<>();
+    @Autowired
+    public MessagingServiceImpl(PlayerService playerService) {
+        this.playerService = playerService;
     }
 
     public void sendFundsUpdateToPlayer(Player player) {
@@ -38,7 +38,7 @@ public class MessagingServiceImpl implements MessagingService {
 
     public void sendMessageToPlayer(Player player, String message) {
         // Get the WebSocket connection of the player
-        WebSocket webSocket = getWebSocketByPlayer(players, player);
+        WebSocket webSocket = getWebSocketByPlayer(playerService.getPlayers(), player);
 
         if (webSocket != null) {
             // Send a single message on that WebSocket connection
@@ -54,7 +54,7 @@ public class MessagingServiceImpl implements MessagingService {
     }
 
     public void broadcastToAllPlayers(String message) {
-        players.forEach((webSocket, _) -> webSocket.send(message));
+        playerService.getPlayers().forEach((webSocket, _) -> webSocket.send(message));
     }
 
     public void sendEmployeeUpdate(Player player, Employee employee) {
@@ -89,7 +89,7 @@ public class MessagingServiceImpl implements MessagingService {
 
     public void sendEventToPlayer(Player player, GameEvent<?> gameEvent) {
         // Check if player is in the game
-        if (players == null || !players.containsValue(player)) {
+        if (playerService.getPlayers() == null || !playerService.getPlayers().containsValue(player)) {
             logger.debug("Player {} is not in the game. Not sending event.", player.getId());
             return;
         }
@@ -100,25 +100,10 @@ public class MessagingServiceImpl implements MessagingService {
      * Broadcasts the initial state of the game to all players.
      */
     public void broadcastInitialState() {
-        players.forEach((_, player) -> {
+        playerService.getPlayers().forEach((_, player) -> {
             GameEvent<Player> event = new GameEvent<>(EventType.STATE_UPDATED);
             event.setPayload(player);
             sendEventToPlayer(player, event);
         });
-    }
-
-    @EventListener
-    public void onPlayersChanged(PlayersChangedEvent event) {
-        logger.debug("PlayersChangedEvent received in MessagingServiceImpl. Adding {} players.", event.getPlayers().size());
-        players = event.getPlayers();
-    }
-
-    // This is redundant, but the event listener is not working for some reason.
-    public void addPlayer(WebSocket key, Player value) {
-        players.put(key, value);
-    }
-
-    public void removePlayer(WebSocket key) {
-        players.remove(key);
     }
 }

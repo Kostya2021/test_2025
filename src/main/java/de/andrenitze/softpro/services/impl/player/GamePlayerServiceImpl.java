@@ -1,11 +1,13 @@
-package de.andrenitze.softpro.services.impl;
+package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.services.PlayerService;
+import de.andrenitze.softpro.services.impl.MessagingServiceImpl;
+import de.andrenitze.softpro.services.impl.ProjectEmployeeMappingImpl;
+import de.andrenitze.softpro.services.impl.ProjectServiceImpl;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -19,20 +21,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
 @Service
-public class PlayerServiceImpl implements PlayerService {
-    @Getter
-    private final ConcurrentHashMap<WebSocket, Player> players;
+public class GamePlayerServiceImpl extends BasePlayerService {
+    @Getter private final ConcurrentHashMap<WebSocket, Player> players;
+    @Getter private final ConcurrentHashMap<WebSocket, Player> lobby;
     private final TalentMarket talentMarket;
     private final ProjectServiceImpl projectService;
     private final ProjectEmployeeMappingImpl projectEmployeeMapping;
     private final MessagingServiceImpl messagingService;
 
-    public PlayerServiceImpl(TalentMarket talentMarket,
-                             @Lazy @Qualifier("projectServiceImpl") ProjectServiceImpl projectService,
-                                @Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectEmployeeMapping,
-                                MessagingServiceImpl messagingService
+    public GamePlayerServiceImpl(TalentMarket talentMarket,
+                                 @Lazy @Qualifier("projectServiceImpl") ProjectServiceImpl projectService,
+                                 @Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectEmployeeMapping,
+                                 MessagingServiceImpl messagingService
     ) {
         this.players = new ConcurrentHashMap<>();
+        this.lobby = new ConcurrentHashMap<>();
         this.talentMarket = talentMarket;
         this.projectService = projectService;
         this.projectEmployeeMapping = projectEmployeeMapping;
@@ -84,6 +87,16 @@ public class PlayerServiceImpl implements PlayerService {
         GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
         employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
         messagingService.broadcastEvent(employeeEvent);
+    }
+
+    @Override
+    public Player removePlayerByWebsocket(WebSocket webSocket) {
+        return players.remove(webSocket);
+    }
+
+    @Override
+    public void clearLobby() {
+        lobby.clear();
     }
 
     public boolean isPlayerInAnyGame(Player player) {
