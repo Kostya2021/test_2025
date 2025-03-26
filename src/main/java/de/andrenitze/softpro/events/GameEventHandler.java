@@ -260,7 +260,7 @@ public class GameEventHandler {
                 return;
             }
 
-            for (Employee employee : game.getProjectService().getProjectEmployeesMap().get(project)) {
+            for (Employee employee : game.getProjectEmployeeMapping().getEmployeesByProject(project)) {
                 employee.addComplexStatusEffect(effect);
                 game.getMessagingService().sendEmployeeUpdate(game.getPlayerService().getPlayerByWebSocket(websocket), employee);
             }
@@ -353,9 +353,9 @@ public class GameEventHandler {
         Project project = game.getProjectService().getProjectById(projectId);
 
         if (isAssignOperation) {
-            game.getProjectService().assignEmployeeToProject(employee, project);
+            game.getProjectEmployeeMapping().assignEmployeeToProject(employee, project);
         } else {
-            game.getProjectService().removeEmployeeFromProject(employee, project);
+            game.getProjectEmployeeMapping().removeEmployeeFromProject(employee, project);
         }
 
         // Notify frontend about change

@@ -16,8 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.Main.logger;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
 public class SkillServiceImpl implements SkillService {
     public static final String JSON = ".json";

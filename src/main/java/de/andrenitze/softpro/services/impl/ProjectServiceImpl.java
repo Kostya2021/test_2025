@@ -18,11 +18,14 @@ import lombok.Setter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -32,46 +35,49 @@ import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJ
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
 import static java.lang.Math.*;
 
+@Service
+@Primary
 public class ProjectServiceImpl implements ProjectService {
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
     public static final int BASE_PRODUCTIVITY_VALUE = 1000; // How much value one person (FTE) can produce in one day
     public static final double PROFIT_MARGIN = 0.3;
-    public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
     @Setter private Game game;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final SkillServiceImpl skillService;
     @Getter
-    private final ConcurrentHashMap<Project, ArrayList<Employee>> projectEmployeesMap;
     private final AccountingServiceImpl accountingService;
     @Getter
     private ArrayList<Project> projects = new ArrayList<>();
-    private static final String EVENT_TYPE = "type";
-    private static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
-    private static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
+    static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
+    static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     @Getter
     private final ProblemGenerator problemGenerator = new ProblemGenerator();
+    private final ProjectEmployeeMappingImpl mappingService;
+    private final MessagingServiceImpl messagingService;
 
-    public ProjectServiceImpl(Game game, SkillServiceImpl skillService, AccountingServiceImpl accountingService) {
-        this.game = game;
+    @Autowired
+    public ProjectServiceImpl(MessagingServiceImpl messagingService,
+                              SkillServiceImpl skillService,
+                              AccountingServiceImpl accountingService,
+                              @Qualifier("projectEmployeeMapping") ProjectEmployeeMappingImpl projectEmployeeMapping) {
+        this.messagingService = messagingService;
         this.skillService = skillService;
         this.accountingService = accountingService;
-        this.projectEmployeesMap = new ConcurrentHashMap<>();
+        this.mappingService = projectEmployeeMapping;
     }
 
-    public void conductWorkOnAllProjects(LocalDate currentDate, ConcurrentMap<Project,
+    public void conductWorkOnAllProjects(int currentTick, LocalDate currentDate, ConcurrentMap<Project,
             ArrayList<Employee>> projectEmployeesMap) {
         // No work on weekends
         if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
             return;
         }
 
-        int currentTick = game.getCurrentTick();
-
         // For all projects that are started AND have employees assigned
-        Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeesMap.entrySet().iterator();
+        Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = mappingService.getProjectEmployeesMap().entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
@@ -81,14 +87,12 @@ public class ProjectServiceImpl implements ProjectService {
             if (project.getStartedAt() != 0 && !employees.isEmpty()) {
                 addEarnedValueForEachEmployee(project, employees, currentTick);
 
-                JSONObject event = new JSONObject();
-                event.put(EVENT_TYPE, EventType.PROJECT_UPDATED);
                 var projectObject = new JSONObject();
 
                 // Finish the project if completed
                 if (project.isCompleted()) {
                     // Remove all status effects on employees related to this project
-                    projectEmployeesMap.get(project).forEach(employee -> {
+                    mappingService.getProjectEmployeesMap().get(project).forEach(employee -> {
                         employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_DOMAIN);
                         employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_TYPE);
                     });
@@ -108,11 +112,12 @@ public class ProjectServiceImpl implements ProjectService {
                 projectObject.put("earnedValue", project.getEarnedValue());
                 projectObject.put("tick", currentTick);
 
-                event.put("payload", projectObject);
+                GameEvent<JSONObject> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                projectUpdatedEvent.setPayload(projectObject);
 
                 // Send update to all involved players
                 for (Player player : project.getInvolvedPlayers()) {
-                    game.getMessagingService().sendMessageToPlayer(player, event.toString());
+                    messagingService.sendEventToPlayer(player, projectUpdatedEvent);
                 }
             }
         }
@@ -126,7 +131,7 @@ public class ProjectServiceImpl implements ProjectService {
             int daysLeft = project.getDeadline() - (currentTick - project.getStartedAt());
             if (daysLeft < 0) {
                 // Per 1% delayed delivery, return 2% less win margin
-                overduePenaltyMultiplier = 1 - ((float) Math.abs(daysLeft) / project.getDeadline() * 2);
+                overduePenaltyMultiplier = 1 - ((float) abs(daysLeft) / project.getDeadline() * 2);
                 float penalty = profit * (1 - overduePenaltyMultiplier);
                 if (game.getLevel() == 1) {
                     penalty = 0;
@@ -285,6 +290,19 @@ public class ProjectServiceImpl implements ProjectService {
         return earnedValue;
     }
 
+    private float calculateSkillsFactor(Project project) {
+        List<Player> players = project.getInvolvedPlayers();
+
+        // If only one player is working on the project
+        if (players.size() == 1) {
+            Player player = players.getFirst();
+            if (skillService.playerHasSkill(player, "pmo")) {
+                return 1.05f;
+            }
+        }
+        return 1.0f;
+    }
+
     private int applyExperienceFactors(Employee employee, Project project, int baseValue) {
         int typeXP = employee.getExperienceInDaysByProjectType(project.getType());
         int domainXP = employee.getExperienceInDaysByProjectDomain(project.getDomain());
@@ -367,22 +385,9 @@ public class ProjectServiceImpl implements ProjectService {
 
         return (float) (baseProductivity +
                 (1 - baseProductivity) * (
-                        typeXpWeight * (1 - Math.exp(-0.001 * typeXP)) +
-                                domainXpWeight * (1 - Math.exp(-0.001 * domainXP))
+                        typeXpWeight * (1 - exp(-0.001 * typeXP)) +
+                                domainXpWeight * (1 - exp(-0.001 * domainXP))
                 ));
-    }
-
-    private float calculateSkillsFactor(Project project) {
-        List<Player> players = project.getInvolvedPlayers();
-
-        // If only one player is working on the project
-        if (players.size() == 1) {
-            Player player = players.getFirst();
-            if (skillService.playerHasSkill(player, "pmo")) {
-                return 1.05f;
-            }
-        }
-        return 1.0f;
     }
 
     private float calculateOnboardingFactor(Project project, ArrayList<Employee> employees) {
@@ -420,7 +425,7 @@ public class ProjectServiceImpl implements ProjectService {
     private int getNumberOfParallelProjectsForEmployee(Employee employee) {
         int numberOfProjects = 0;
 
-        for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeesMap.entrySet()) {
+        for (Map.Entry<Project, ArrayList<Employee>> entry : mappingService.getProjectEmployeesMap().entrySet()) {
             ArrayList<Employee> employees = entry.getValue();
             Project project = entry.getKey();
 
@@ -429,46 +434,6 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
         return numberOfProjects;
-    }
-
-    public void assignEmployeeToProject(Employee employee, Project project) {
-        if (isNull(employee, project)) return;
-
-        // Get current list of employees working on that project
-        try {
-            projectEmployeesMap.putIfAbsent(project, new ArrayList<>());
-            ArrayList<Employee> employees = projectEmployeesMap.get(project);
-
-            // Add employee to project if not already assigned
-            if (!employees.contains(employee)) {
-                employees.add(employee);
-                projectEmployeesMap.put(project, employees);
-                logger.debug("{} assigned to {}", employee.getName(), project.getName());
-            }
-        } catch (NullPointerException e) {
-            logger.error(e.toString());
-        }
-    }
-
-    public void removeEmployeeFromProject(Employee employee, Project project) {
-        if (isNull(employee, project)) return;
-
-        // Get current list of employees working on that project
-        ArrayList<Employee> employees = projectEmployeesMap.get(project) ;
-
-        if (employees.contains(employee)) {
-            employees.remove(employee);
-            projectEmployeesMap.put(project, employees);
-            logger.debug("{} unassigned from {}", employee.getName(), project.getName());
-        }
-    }
-
-    private boolean isNull(Employee employee, Project project) {
-        if (project == null || employee == null) {
-            logger.error("Project or employee is null.");
-            return true;
-        }
-        return false;
     }
 
     public void cancelProject(Player player, Project project, String cancelledBy) {
@@ -534,8 +499,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         // Remove any employees assigned to this project
-        if (projectEmployeesMap.containsKey(project)) {
-            projectEmployeesMap.get(project).clear();
+        if (mappingService.getProjectEmployeesMap().containsKey(project)) {
+            mappingService.getProjectEmployeesMap().get(project).clear();
         }
 
         // Remove player from project
@@ -552,7 +517,7 @@ public class ProjectServiceImpl implements ProjectService {
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
             getProjects().remove(project);
-            projectEmployeesMap.remove(project);
+            mappingService.getProjectEmployeesMap().remove(project);
         }
 
         logger.debug("Project {} cancelled by player {}", project.getName(), player.getId());
@@ -629,7 +594,7 @@ public class ProjectServiceImpl implements ProjectService {
     public void addProject(Project project) {
         // Check if project id already exists, if not, add the project. Also, initialize the project employees map.
         if (getProjectById(project.getId()) == null && projects.add(project)) {
-            projectEmployeesMap.put(project, new ArrayList<>());
+            mappingService.getProjectEmployeesMap().put(project, new ArrayList<>());
         }
     }
 
@@ -674,7 +639,7 @@ public class ProjectServiceImpl implements ProjectService {
             getProjects().add(project);
 
             // Add to project-employee map
-            getProjectEmployeesMap().put(project, new ArrayList<>());
+            mappingService.addProject(project, new ArrayList<>());
 
             // Immediately assign the project to all players
             GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
@@ -696,46 +661,6 @@ public class ProjectServiceImpl implements ProjectService {
                 game.getMessagingService().sendMessageToPlayer(player, getGson().toJson(projectStartedEvent)));
     }
 
-    public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
-        if (isEmployeeAssignedToProject(employee)) {
-            projectEmployeesMap.forEach((project, _) -> {
-                if (project.getStartedAt() == 0) {
-                    return;
-                }
-                applyStatusEffectForProjectType(employee, project);
-                applyStatusEffectForProjectDomain(employee, project);
-                game.getMessagingService().sendEmployeeUpdate(player, employee);
-            });
-        }
-    }
-
-    private boolean isEmployeeAssignedToProject(Employee employee) {
-        return projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee));
-    }
-
-    private void applyStatusEffectForProjectType(Employee employee, Project project) {
-        StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.7f, FAMILIARIZATION_WITH_NEW_TYPE);
-        if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
-            employee.addStatusEffect(newProjectTypeEffect);
-        }
-    }
-
-    private void applyStatusEffectForProjectDomain(Employee employee, Project project) {
-        StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.85f, FAMILIARIZATION_WITH_NEW_DOMAIN);
-        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
-            employee.addStatusEffect(newProjectDomainEffect);
-        }
-    }
-
-    public void removeEmployeeFromAllProjects(Employee employee) {
-        projectEmployeesMap.forEach((project, employees) -> {
-            if (employees.contains(employee)) {
-                employees.remove(employee);
-                projectEmployeesMap.put(project, employees);
-            }
-        });
-    }
-
     public void conductTeamEstimation(int projectId, Player player) {
         Project project = getProjectById(projectId);
         if (project == null) {
@@ -746,12 +671,12 @@ public class ProjectServiceImpl implements ProjectService {
         // Calculate remaining value of the project
         int remainingValue = project.getTotalValue() - project.getEarnedValue();
         // Remaining value and project volume affect estimation duration, but it's at least 2 days
-        int estimationDurationInDays = (int) Math.max(2, 3 * Math.log(remainingValue) - 30);
+        int estimationDurationInDays = (int) max(2, 3 * log(remainingValue) - 30);
         logger.debug("Estimation duration for remaining value {} € project {}: {} days", remainingValue, project.getName(), estimationDurationInDays);
 
         // Add status effect with decreased productivity for all employees in the project
         for (Employee employee : player.getEmployees()) {
-            if (projectEmployeesMap.containsKey(project) && projectEmployeesMap.get(project).contains(employee)) {
+            if (mappingService.getProjectEmployeesMap().containsKey(project) && mappingService.getProjectEmployeesMap().get(project).contains(employee)) {
                 employee.addStatusEffect(new StatusEffect(
                         StatusEffectType.PRODUCTIVITY, 0.1f,
                         "Estimating project", estimationDurationInDays));
@@ -893,7 +818,7 @@ public class ProjectServiceImpl implements ProjectService {
             // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
             if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
                 int daysPassed = game.getCurrentTick() - project.getAcquiredAt();
-                if (daysPassed >= Math.max(30, project.getScheduledDuration() / 10)) {
+                if (daysPassed >= max(30, project.getScheduledDuration() / 10)) {
                     // Start the project and inform involved players
                     startProject(project, game.getCurrentTick() - 1);
                     notifyInvolvedPlayers(project);
@@ -946,7 +871,7 @@ public class ProjectServiceImpl implements ProjectService {
             addProject(project);
 
             // Initialize project-employee map
-            projectEmployeesMap.put(project, new ArrayList<>(2));
+            mappingService.getProjectEmployeesMap().put(project, new ArrayList<>(2));
 
             // Inform players about the new tender
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
@@ -984,5 +909,4 @@ public class ProjectServiceImpl implements ProjectService {
         riskAssessedConfirmation.setPayload(project);
         game.getMessagingService().sendEventToPlayer(player, riskAssessedConfirmation);
     }
-
 }

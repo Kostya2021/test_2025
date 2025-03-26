@@ -1,18 +1,17 @@
 package de.andrenitze.softpro.config;
 
 import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.events.GameEventPublisher;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.events.GameEventHandler;
-import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
 
 import static de.andrenitze.softpro.Main.logger;
 
-// TODO POSSIBLE CONCURRENCY PROBLEMS: Check for all beans if they are in the right (game-specific) context
-//  or can be moved to the global context (Skill file management, Messaging??? etc.)
 @Configuration
 @ComponentScan("de.andrenitze.softpro")
 public class GameConfig {
@@ -22,13 +21,16 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
+    @DependsOn({"projectService", "eventHandler"})
     public Game game(SkillServiceImpl skillService,
                      AccountingServiceImpl accountingService,
                      EmployeeServiceImpl employeeService,
                      ProjectServiceImpl projectService,
                      MessagingServiceImpl messagingService,
                      PlayerServiceImpl playerService,
-                     GameEventHandler eventHandler) {
+                     GameEventHandler eventHandler,
+                     TalentMarket talentMarket,
+                     @Qualifier("gameEventPublisher") GameEventPublisher eventPublisher) {
         Game game = new Game();
         game.setSkillService(skillService);
         game.setAccountingService(accountingService);
@@ -37,6 +39,10 @@ public class GameConfig {
         game.setMessagingService(messagingService);
         game.setPlayerService(playerService);
         game.setEventHandler(eventHandler);
+        game.setTalentMarket(talentMarket);
+        game.setEventPublisher(eventPublisher);
+        projectService.setGame(game);
+        eventHandler.setGame(game);
         return game;
     }
 
@@ -53,57 +59,73 @@ public class GameConfig {
     }
 
     @Bean
+    @Scope("prototype")
     public SkillServiceImpl skillService() {
         return new SkillServiceImpl();
     }
 
     @Bean
+    @Scope("prototype")
     public AccountingServiceImpl accountingService() {
         return new AccountingServiceImpl();
     }
 
     @Bean
-    public ProjectServiceImpl projectService(SkillServiceImpl skillService, AccountingServiceImpl accountingService) {
-        // Pass the skillService directly instead of expecting to get it from game
-        return new ProjectServiceImpl(null, skillService, accountingService);
+    @Scope("prototype")
+    public ProjectEmployeeMappingImpl projectEmployeeMapping() {
+        return new ProjectEmployeeMappingImpl();
     }
 
     @Bean
-    public MessagingServiceImpl messagingService() {
-        return new MessagingServiceImpl();
+    @Scope("prototype")
+    @DependsOn({"skillService", "accountingService", "projectEmployeeMapping"})
+    public ProjectServiceImpl projectService(SkillServiceImpl skillService,
+                                             AccountingServiceImpl accountingService,
+                                             ProjectEmployeeMappingImpl projectEmployeeMappingImpl) {
+        return new ProjectServiceImpl(null, skillService, accountingService, projectEmployeeMappingImpl);
     }
 
     @Bean
-    public EmployeeServiceImpl employeeService(ProjectServiceImpl projectService, MessagingServiceImpl messagingService) {
-        EmployeeServiceImpl service = new EmployeeServiceImpl(projectService);
+    @Scope("prototype")
+    public EmployeeServiceImpl employeeService(MessagingServiceImpl messagingService,
+                                               ProjectEmployeeMappingImpl projectEmployeeMappingImpl) {
+        EmployeeServiceImpl service = new EmployeeServiceImpl(projectEmployeeMappingImpl);
         service.setMessagingService(messagingService);
         return service;
     }
 
     @Bean
+    @Scope("prototype")
+    public MessagingServiceImpl messagingService() {
+        return new MessagingServiceImpl();
+    }
+
+    @Bean
+    @Scope("prototype")
     public GameEventHandler eventHandler() {
         return new GameEventHandler(null); // Will be set after game creation
     }
 
     @Bean
-    public BeanPostProcessor gameWiringPostProcessor() {
-        return new BeanPostProcessor() {
-            @Override
-            public Object postProcessAfterInitialization(Object bean, String beanName) {
-                if (bean instanceof Game game) {
-                    // Wire cyclic dependencies
-                    ProjectServiceImpl projectService = game.getProjectService();
-                    if (projectService != null) {
-                        projectService.setGame(game);
-                    }
+    @Scope("prototype")
+    @Qualifier("playerServiceImpl")
+    public PlayerServiceImpl playerService(TalentMarket talentMarket,
+                                           ProjectServiceImpl projectService,
+                                           ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
+                                           MessagingServiceImpl messagingService
+    ) {
+        return new PlayerServiceImpl(talentMarket, projectService, projectEmployeeMappingImpl, messagingService);
+    }
 
-                    GameEventHandler eventHandler = game.getEventHandler();
-                    if (eventHandler != null) {
-                        eventHandler.setGame(game);
-                    }
-                }
-                return bean;
-            }
-        };
+    @Bean
+    @Scope("prototype")
+    public GameEventPublisher eventPublisher() {
+        return new GameEventPublisher();
+    }
+
+    @Bean
+    @Scope("prototype")
+    public ObjectiveServiceImpl objectiveService(PlayerServiceImpl playerService) {
+        return new ObjectiveServiceImpl(playerService);
     }
 }

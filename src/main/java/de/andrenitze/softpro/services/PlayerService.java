@@ -13,5 +13,4 @@ public interface PlayerService {
     boolean hasWebSocket(WebSocket conn);
     void generateFirstEmployeesForPlayers();
     void dismissEmployee(Player player, Employee employee);
-    void sendNewObjectives();
 }

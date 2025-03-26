@@ -1,36 +1,41 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.PlayerService;
 import lombok.Getter;
-import lombok.Setter;
 import org.java_websocket.WebSocket;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Service
+@Primary
 public class PlayerServiceImpl implements PlayerService {
     @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;
-    @Setter private Game game;
     private final TalentMarket talentMarket;
     private final ProjectServiceImpl projectService;
+    private final ProjectEmployeeMappingImpl projectEmployeeMapping;
+    private final MessagingServiceImpl messagingService;
 
-    public PlayerServiceImpl(TalentMarket talentMarket, ProjectServiceImpl projectService) {
+    public PlayerServiceImpl(TalentMarket talentMarket,
+                             @Qualifier("projectServiceImpl") ProjectServiceImpl projectService,
+                                @Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectEmployeeMapping,
+                                MessagingServiceImpl messagingService
+    ) {
         this.players = new ConcurrentHashMap<>();
         this.talentMarket = talentMarket;
         this.projectService = projectService;
+        this.projectEmployeeMapping = projectEmployeeMapping;
+        this.messagingService = messagingService;
     }
 
     public void addPlayer(WebSocket key, Player value) {
@@ -64,36 +69,20 @@ public class PlayerServiceImpl implements PlayerService {
         employee.removeAllStatusEffects();
         talentMarket.addTalent(employee);
 
-        // If there are projectService.getProjects()...
+        // If there are projects...
         if (projectService.getProjects() != null) {
-            projectService.removeEmployeeFromAllProjects(employee);
+            projectEmployeeMapping.removeEmployeeFromAllProjects(employee);
         }
 
         // Send employee dismissal confirmation
         GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
         employeeDismissedEvent.setPayload(employee);
-        game.getMessagingService().sendEventToPlayer(player, employeeDismissedEvent);
+        messagingService.sendEventToPlayer(player, employeeDismissedEvent);
 
         // Send new employee to all players' TalentMarkets in the game
         GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
         employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
-        game.getMessagingService().broadcastEvent(employeeEvent);
-    }
-
-    public void sendNewObjectives() {
-        int currentTick = game.getCurrentTick();
-        getPlayers().forEach((_, player) -> {
-            boolean thereAreNewObjectives = !player.getNewObjectivesByTick(currentTick).isEmpty();
-            if (thereAreNewObjectives) {
-                logger.debug("Sending {} new objectives to player.", player.getNewObjectivesByTick(currentTick).size());
-
-                // For the frontend, still include ALL objectives, even completed ones, in this event
-                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-                List<Objective> allObjectives = player.getObjectivesUntilThisTick(currentTick);
-                objectivesUpdatedEvent.setPayload(allObjectives);
-                game.getMessagingService().sendEventToPlayer(player, objectivesUpdatedEvent);
-            }
-        });
+        messagingService.broadcastEvent(employeeEvent);
     }
 
     public boolean isPlayerInAnyGame(Player player) {

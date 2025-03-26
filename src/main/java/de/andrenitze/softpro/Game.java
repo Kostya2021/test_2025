@@ -2,12 +2,12 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.*;
 import de.andrenitze.softpro.events.*;
+import de.andrenitze.softpro.services.impl.LevelConsequencesService;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
-import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
@@ -51,6 +51,7 @@ public class Game {
     @Getter @Setter private EmployeeServiceImpl employeeService;
     @Getter @Setter private GameEventHandler eventHandler;
     @Getter @Setter private GameEventPublisher eventPublisher;
+    @Getter @Setter private ProjectEmployeeMappingImpl projectEmployeeMapping;
 
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -63,6 +64,8 @@ public class Game {
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
     private ArrayList<StoryElement> storyElements; // Level-specific
+    private ObjectiveServiceImpl objectiveService;
+    @Autowired private LevelConsequencesService levelConsequencesService;
 
     /**
      * Creates a new Game instance.
@@ -79,7 +82,8 @@ public class Game {
                 ProjectServiceImpl projectService,
                 EmployeeServiceImpl employeeService,
                 GameEventHandler eventHandler,
-                GameEventPublisher eventPublisher) {
+                GameEventPublisher eventPublisher,
+                ObjectiveServiceImpl objectiveService) {
 
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         this.talentMarket = new TalentMarket(employeeIdGenerator);
@@ -93,6 +97,7 @@ public class Game {
         this.employeeService = employeeService;
         this.eventHandler = eventHandler;
         this.eventPublisher = eventPublisher;
+        this.objectiveService = objectiveService;
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -160,8 +165,7 @@ public class Game {
                 // Set randomly negative publish dates to have some history of tenders
                 project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
 
-                projectService.addProject(project);
-                projectService.getProjectEmployeesMap().put(project, new ArrayList<>());
+                getProjectEmployeeMapping().addProject(project, new ArrayList<>());
             }
 
             // Send talent market to players at once
@@ -178,13 +182,13 @@ public class Game {
         // Logic for decisions and their consequences
         // Beware: Decisions from previous levels might have consequences in other levels
         if (getLevel() == 1) {
-            triggerLevel1Consequences();
+            levelConsequencesService.triggerLevel1Consequences();
         } else if (getLevel() == 2) {
-            triggerLevel2Consequences();
+            levelConsequencesService.triggerLevel2Consequences();
         } else if (getLevel() == 3) {
-            triggerLevel3Consequences();
+            levelConsequencesService.triggerLevel3Consequences();
         } else if (getLevel() == MAX_NUMBER_OF_PLAYERS_PER_GAME) {
-            triggerLevel4Consequences();
+            levelConsequencesService.triggerLevel4Consequences();
         }
 
         // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
@@ -202,91 +206,6 @@ public class Game {
         playerService.getPlayers().forEach((_, player) -> {
             if (player.getDecisionsByLevel(getLevel()).isEmpty()) {
                 logger.warn("Player {} has no decisions for level {}", player.getId(), getLevel());
-            }
-        });
-    }
-
-    private void triggerLevel1Consequences() {
-        playerService.getPlayers().forEach((_, player) -> {
-            // Decision "Fail to plan, plan to fail" (level 1, decision 1)
-            int option = player.getDecisionsByLevel(1).getFirst().getOptionId();
-
-            if (option == 1) {
-                // Option 1 "Efficiency" -> Increase productivity by 75% for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 1.75f, "Efficient work organization"));
-            } else if (option == 2) {
-                // Option 2 "Creativity" -> Add an employee with salary = 0 for the whole level
-                Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
-                freeEmployee.setSalary( 0, 0);
-                freeEmployee.setSatisfaction(0.7f);
-                player.addEmployee(freeEmployee, 0);
-            } else if (option == 3) {
-                // Option 3 "Spontaneity" -> Add status effect "Stress" for the whole level (productivity -20%, satisfaction -10%)
-                player.getEmployees().forEach(employee -> {
-                    employee.addStatusEffect(
-                            StatusEffectType.PRODUCTIVITY, 0.8f, "Spontaneous work organization");
-                    employee.addStatusEffect(
-                            StatusEffectType.SATISFACTION, 0.9f, "Spontaneous work organization");
-                });
-            }
-        });
-    }
-
-    private void triggerLevel2Consequences() {
-        // Adjust gameplay for each player according to decisions made in briefing
-        playerService.getPlayers().forEach((_, player) -> {
-            // "Backup decision" (level 2, decision 1)
-            int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
-            if (option == 1) {
-                // Option 1 "Employee does it": Lower productivity of first employee as status effect for the whole level
-                // Make sure that the effect stays even if employee is fired. Always use the first employee.
-                player.setFunds(player.getFunds() - 5000);
-                Employee firstEmployee = player.getEmployees().getFirst();
-                firstEmployee.addStatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 0.8f, "Implementing backup solution");
-                // All status effects will be reset when the next level is prepared
-
-                // Option 2 "Do nothing": No effect in this level. Later on, the player will have to deal with the consequences
-            } else if (option == 3) {
-                // Option 3 "Vendor does it", decrease funds by 15000.
-                player.setFunds(player.getFunds() - 15000);
-            }
-        });
-    }
-
-    private void triggerLevel3Consequences() {
-        playerService.getPlayers().forEach((_, player) -> {
-            // "Backup decision" (level 2, decision 1)
-            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
-            if (backupOption == 2) {
-                // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 0.6f, RESTORE_LOST_DATA)
-                );
-            } else if (backupOption == 1) {
-                // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA)
-                );
-            }
-        });
-    }
-
-    private void triggerLevel4Consequences() {
-        playerService.getPlayers().forEach((_, player) -> {
-            // "Backup decision"
-            int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
-            if (backupOption == 2) {
-                // Dramatically decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 0.2f, RESTORE_LOST_DATA)
-                );
-            } else if (backupOption == 1) {
-                // Slightly decrease productivity of all employees as status effect for the whole level
-                player.getEmployees().forEach(employee -> employee.addStatusEffect(
-                        StatusEffectType.PRODUCTIVITY, 0.95f, RESTORE_LOST_DATA)
-                );
             }
         });
     }
@@ -318,14 +237,14 @@ public class Game {
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectService.conductWorkOnAllProjects(currentDate, projectService.getProjectEmployeesMap());
+        projectService.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeeMapping.getProjectEmployeesMap());
         projectService.cancelOverdueProjects();
         accountingService.processMonthlyPayments(currentDate, playerService.getPlayers());
         projectService.randomlySpawnProjectTenders();
         projectService.randomlySpawnComplianceProjects();
         projectService.removeStaleTenders();
         projectService.evaluateTenderProcesses();
-        playerService.sendNewObjectives();
+        processNewObjectives(currentTick);
         checkObjectivesCriteriaAndSendRewards();
         employeeService.simulateEmployeeLives();
         sendStoryElements();
@@ -341,6 +260,16 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20 && isRunning) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
+    }
+
+    public void processNewObjectives(int currentTick) {
+        Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(currentTick);
+        newObjectivesMap.forEach((player, _) -> {
+            GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
+            List<Objective> allObjectives = player.getObjectivesUntilThisTick(currentTick);
+            objectivesUpdatedEvent.setPayload(allObjectives);
+            messagingService.sendEventToPlayer(player, objectivesUpdatedEvent);
+        });
     }
 
     private void sendStoryElements() {

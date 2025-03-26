@@ -3,14 +3,11 @@ package de.andrenitze.softpro.events;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-@Component
+@Service
 public class GameEventPublisher implements ApplicationEventPublisherAware {
     private ApplicationEventPublisher publisher;
-
-    public GameEventPublisher() {
-    }
 
     @Override
     public void setApplicationEventPublisher(@NotNull ApplicationEventPublisher publisher) {

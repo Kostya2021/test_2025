@@ -1,17 +1,15 @@
 package main.java.de.andrenitze.softpro;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-
-import de.andrenitze.softpro.*;
+import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.events.GameEventHandler;
-import de.andrenitze.softpro.events.GameEventPublisher;
-import de.andrenitze.softpro.services.impl.*;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 class GameTest {
 
@@ -21,17 +19,7 @@ class GameTest {
 
     @BeforeEach
     void setUp() {
-        game = new Game(
-                mock(SkillServiceImpl.class),
-                mock(AccountingServiceImpl.class),
-                mock(MessagingServiceImpl.class),
-                mock(PlayerServiceImpl.class),
-                mock(TalentMarket.class),
-                mock(ProjectServiceImpl.class),
-                mock(EmployeeServiceImpl.class),
-                mock(GameEventHandler.class),
-                mock(GameEventPublisher.class)
-        );
+        game = new Game();
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();
 

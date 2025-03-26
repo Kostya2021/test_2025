@@ -29,7 +29,7 @@ public class ObjectiveChecker {
 
     public void checkObjectives(Player player) {
         List<Project> projects = game.getProjectService().getProjects();
-        Map<Project, ArrayList<Employee>> projectEmployeesMap = game.getProjectService().getProjectEmployeesMap();
+        Map<Project, ArrayList<Employee>> projectEmployeesMap = game.getProjectEmployeeMapping().getProjectEmployeesMap();
         SkillServiceImpl skillService = game.getSkillService();
 
         boolean objectivesUpdated = false;
