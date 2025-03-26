@@ -453,6 +453,7 @@ public class Game {
 
     public void removePlayer(WebSocket key) {
         playerService.removePlayer(key);
+        messagingService.removePlayer(key);
 
         PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
         eventPublisher.publishPlayersChangedEvent(playersChangedEvent);

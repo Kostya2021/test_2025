@@ -115,7 +115,10 @@ public class MessagingServiceImpl implements MessagingService {
 
     // This is redundant, but the event listener is not working for some reason.
     public void addPlayer(WebSocket key, Player value) {
-        logger.debug("Adding player {} to MessagingServiceImpl.", value.getId());
         players.put(key, value);
+    }
+
+    public void removePlayer(WebSocket key) {
+        players.remove(key);
     }
 }
