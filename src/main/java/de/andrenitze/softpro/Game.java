@@ -69,7 +69,7 @@ public class Game {
     private ScheduledExecutorService gameLoop;
     private ArrayList<StoryElement> storyElements; // Level-specific
     private ObjectiveServiceImpl objectiveService;
-    @Autowired private LevelConsequencesService levelConsequencesService;
+    private LevelConsequencesService levelConsequencesService;
 
     /**
      * Creates a new Game instance.
@@ -87,7 +87,8 @@ public class Game {
                 EmployeeServiceImpl employeeService,
                 GameEventHandler eventHandler,
                 GameEventPublisher eventPublisher,
-                ObjectiveServiceImpl objectiveService) {
+                ObjectiveServiceImpl objectiveService,
+                LevelConsequencesService levelConsequencesService) {
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         this.talentMarket = new TalentMarket(employeeIdGenerator);
         this.talentMarket.clear();
@@ -101,6 +102,7 @@ public class Game {
         this.eventHandler = eventHandler;
         this.eventPublisher = eventPublisher;
         this.objectiveService = objectiveService;
+        this.levelConsequencesService = levelConsequencesService;
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -499,6 +501,7 @@ public class Game {
     }
 
     public void addPlayer(WebSocket key, Player value) {
+        logger.debug("Adding player {} to game.", value.getId());
         try {
             if (playerService.hasWebSocket(key)) {
                 logger.warn("Player already exists in game. Ignoring request to add player.");

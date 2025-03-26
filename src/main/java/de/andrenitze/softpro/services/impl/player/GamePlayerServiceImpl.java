@@ -32,7 +32,7 @@ public class GamePlayerServiceImpl extends BasePlayerService {
     public GamePlayerServiceImpl(TalentMarket talentMarket,
                                  @Lazy @Qualifier("projectServiceImpl") ProjectServiceImpl projectService,
                                  @Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectEmployeeMapping,
-                                 MessagingServiceImpl messagingService
+                                 @Lazy MessagingServiceImpl messagingService
     ) {
         this.players = new ConcurrentHashMap<>();
         this.lobby = new ConcurrentHashMap<>();
@@ -42,18 +42,17 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         this.messagingService = messagingService;
     }
 
+    @Override
     public void addPlayer(WebSocket key, Player value) {
         players.put(key, value);
     }
 
+    @Override
     public Player getPlayerByWebSocket(WebSocket websocket) {
         return players.get(websocket);
     }
 
-    public void removePlayer(WebSocket key) {
-        players.remove(key);
-    }
-
+    @Override
     public boolean hasWebSocket(WebSocket conn) {
         return players.containsKey(conn);
     }
@@ -90,13 +89,8 @@ public class GamePlayerServiceImpl extends BasePlayerService {
     }
 
     @Override
-    public Player removePlayerByWebsocket(WebSocket webSocket) {
+    public Player removePlayer(WebSocket webSocket) {
         return players.remove(webSocket);
-    }
-
-    @Override
-    public void clearLobby() {
-        lobby.clear();
     }
 
     public boolean isPlayerInAnyGame(Player player) {

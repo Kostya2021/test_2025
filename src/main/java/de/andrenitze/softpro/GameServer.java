@@ -3,7 +3,6 @@ package de.andrenitze.softpro;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.config.DatabaseConfig;
-import de.andrenitze.softpro.config.GameConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
@@ -29,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -50,11 +48,13 @@ import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
 public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ApplicationContext parentContext; // Global context
-    @Getter @Setter private Map<Game, AnnotationConfigApplicationContext> gameContexts = new ConcurrentHashMap<>();
+    private final GameFactory gameFactory;
+    private final PlayerService lobby;
+
+    @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
     public static final int DEFAULT_PORT = 80;
     public static final int MAX_PLAYER_NAME_LENGTH = 25;
-
     private static final ExclusionStrategy strategy = new ExclusionStrategy() {
         @Override
         public boolean shouldSkipClass(Class<?> clazz) {
@@ -67,10 +67,6 @@ public class GameServer extends WebSocketServer {
         }
     };
     @Getter public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
-
-    private final Set<Game> games = ConcurrentHashMap.newKeySet();
-    private final PlayerService lobby;
-
     @Getter private GameOverStats dailyHighScore;
     public static final Random RANDOM = new Random();
     private List<GameOverStats> dailyHighScores;
@@ -81,10 +77,11 @@ public class GameServer extends WebSocketServer {
      * Creates a GameServer instance to manage games and players.
      */
     @Autowired
-    public GameServer(ApplicationContext parentContext,
+    public GameServer(ApplicationContext parentContext, GameFactory gameFactory,
                       PlayerService lobby) {
         super(new InetSocketAddress(DEFAULT_PORT));
         this.parentContext = parentContext;
+        this.gameFactory = gameFactory;
         this.lobby = lobby;
     }
 
@@ -120,7 +117,7 @@ public class GameServer extends WebSocketServer {
         }
 
         // ...and for running games
-        for (Game game : games) {
+        for (Game game : gameContexts.values()) {
             for (WebSocket client : game.getPlayerService().getPlayers().keySet()) {
                 client.close();
             }
@@ -210,7 +207,6 @@ public class GameServer extends WebSocketServer {
 
         Player newPlayer = new Player();
         addPlayerToLobby(webSocket, newPlayer);
-
     }
 
     private void sendVersionAndGameSpeed(WebSocket webSocket) {
@@ -229,23 +225,6 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    public Game createGameInstance() {
-        AnnotationConfigApplicationContext gameContext = new AnnotationConfigApplicationContext();
-        gameContext.setParent(parentContext); // Inherit global context
-        gameContext.register(GameConfig.class); // Game-specific Beans
-
-        // Explicitly register the parent context as a resolvable dependency so that the
-        // game context can access the parent context's beans (e.g., to forward GameOverEvent and GameEmptyEvent
-        // to GameServer context).
-        gameContext.getBeanFactory().registerResolvableDependency(
-                ApplicationEventPublisher.class, parentContext);
-
-        gameContext.refresh();
-        Game game = gameContext.getBean(Game.class);
-        gameContexts.put(game, gameContext);
-        return game;
-    }
-
     /**
      * Creates a new game instance for a player and adds her to it.
      * A new instance is created for each new level a player reaches.
@@ -256,13 +235,17 @@ public class GameServer extends WebSocketServer {
     private void createGame(WebSocket webSocket, Player player) {
         // Create a new game instance with isolated context
         logger.debug("Creating new game instance for player {}", player.getId());
+        AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
+        Game game = gameContext.getBean(Game.class);
 
-        Game game = createGameInstance();
-        game.addPlayer(webSocket, player);
-        addGame(game);
+        // Add the game context and game instance to the gameContexts map
+        gameContexts.put(gameContext, game);
+
+        game.addPlayer(webSocket, player); // -> Player is now in game and in lobby at the same time
+        logLobbyState();
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
 
-        preparePlayerAndGameForNextLevel(player, game);
+        prepareForNextLevel(player, game);
 
         // Send updated player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
@@ -274,7 +257,7 @@ public class GameServer extends WebSocketServer {
      * Prepare the player and game instance for the next level while player is in "BRIEFING" state.
      * This can be in the lobby OR on the briefing screen.
      */
-    private void preparePlayerAndGameForNextLevel(Player player, Game game) {
+    private void prepareForNextLevel(Player player, Game game) {
         logger.debug("Preparing game for level {} and player {}", player.getLevel(), player.getId());
 
         // Give player chance to prepare for the next level (read up, make decisions etc.)
@@ -350,15 +333,15 @@ public class GameServer extends WebSocketServer {
     private void removeDisconnectedClient(WebSocket webSocket) {
         // Remove disconnected clients from lobby
         logger.debug("Removing WebSocket {} from lobby and game", webSocket.getRemoteSocketAddress());
-        Player player = lobby.removePlayerByWebsocket(webSocket);
+        Player player = lobby.removePlayer(webSocket);
         if (player != null) {
             logger.info("Player '{}' disconnected. New number of players in lobby: {}",
-                    player.getName(),
+                    player.getId(),
                     lobby.getPlayers().size());
         }
 
         // Remove disconnected client from running game
-        for (Game game : games) {
+        for (Game game : gameContexts.values()) {
             if (game.getPlayerService().hasWebSocket(webSocket)) {
                 game.removePlayer(webSocket);
 
@@ -383,8 +366,6 @@ public class GameServer extends WebSocketServer {
             } else {
                 forwardEventToGame(webSocket, message);
             }
-
-            startGameSessionsForReadyPlayers();
         } catch (JSONException | JsonSyntaxException e) {
             logger.error("Received invalid websocket message: {}", e.getMessage());
         }
@@ -394,13 +375,14 @@ public class GameServer extends WebSocketServer {
         try {
             Player player = lobby.getPlayerByWebSocket(webSocket);
 
-            for (Game game : games) {
+            for (Game game : gameContexts.values()) {
                 if (game.getPlayerService().hasWebSocket(webSocket)) {
                     game.getEventHandler().handleEvent(webSocket, message);
                 }
             }
 
             player.setReady(true);
+            startReadyGames();
             broadcastLobbyState();
         } catch (Exception e) {
             logger.debug(e.getMessage());
@@ -419,8 +401,6 @@ public class GameServer extends WebSocketServer {
             String oldName = player.getName();
             player.setName(newName);
 
-            updateFirstEmployeeName(player);
-
             GameEvent<Player> playerUpdateEvent = new GameEvent<>();
             playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
@@ -436,29 +416,24 @@ public class GameServer extends WebSocketServer {
                 .replaceAll("[^\\p{L}\\p{M}\\s]", "").trim();
     }
 
-    private void updateFirstEmployeeName(Player player) {
-        try {
-            player.getEmployees().getFirst().setFirstName(player.getFirstName());
-            player.getEmployees().getFirst().setLastName(player.getLastName());
-        } catch (IndexOutOfBoundsException e) {
-            logger.error("No employees found for player {}", player.getId());
-        }
-    }
-
     private void forwardEventToGame(WebSocket webSocket, String message) {
-        for (Game game : games) {
+        for (Game game : gameContexts.values()) {
             if (game.getPlayerService().hasWebSocket(webSocket)) {
                 game.getEventHandler().handleEvent(webSocket, message);
             }
         }
     }
 
-    private void startGameSessionsForReadyPlayers() {
+    /**
+     * Start all games that have the required amount of players who are ready.
+     * Also, move players out of the lobby.
+     */
+    private void startReadyGames() {
         for (Map.Entry<WebSocket, Player> player : lobby.getPlayers().entrySet()) {
             if (player.getValue().isReady()) {
-                lobby.removePlayerByWebsocket(player.getKey());
+                lobby.removePlayer(player.getKey());
 
-                Game game = games.stream()
+                Game game = gameContexts.values().stream()
                         .filter(g -> g.getPlayerService().hasWebSocket(player.getKey()))
                         .findFirst()
                         .orElse(null);
@@ -490,7 +465,7 @@ public class GameServer extends WebSocketServer {
         List<GameOverStats> anonymizedQuarterlyHighScores = getAnonymizedQuarterlyHighScores();
 
         // Calculate how many games are currently running (gameLoop.isRunning = true)
-        short runningGames = (short) games.stream().filter(Game::isRunning).count();
+        short runningGames = (short) gameContexts.values().stream().filter(Game::isRunning).count();
 
         broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
                 "\"runningGames\": " + runningGames +
@@ -503,7 +478,7 @@ public class GameServer extends WebSocketServer {
 
     private void logLobbyState() {
         logger.debug("Players in lobby/briefing: {} | Players in running games: {}",
-                lobby.getPlayers().size(), games.stream().filter(Game::isRunning).count());
+                lobby.getPlayers().size(), gameContexts.values().stream().filter(Game::isRunning).count());
     }
 
     private List<GameOverStats> getAnonymizedHighScores(List<GameOverStats> highScores) {
@@ -562,22 +537,11 @@ public class GameServer extends WebSocketServer {
     }
 
     public void addPlayerToLobby(WebSocket webSocket, Player player) {
+        logLobbyState();
         logger.debug("Adding player {} to lobby", player.getId());
         lobby.addPlayer(webSocket, player);
+        logLobbyState();
         createGame(webSocket, player);
-        broadcastLobbyState();
-    }
-
-    public void startGameWithLobbyPlayers() {
-        Game game = createGameInstance();
-        PlayerService gamePlayerService = game.getPlayerService();
-
-        for (Map.Entry<WebSocket, Player> entry : lobby.getPlayers().entrySet()) {
-            gamePlayerService.addPlayer(entry.getKey(), entry.getValue());
-        }
-
-        lobby.clearLobby();
-        addGame(game);
         broadcastLobbyState();
     }
 
@@ -599,14 +563,16 @@ public class GameServer extends WebSocketServer {
     }
 
     public void removeGame(Game game) {
-        boolean removed = games.remove(game);
-        if (removed) {
-            logger.debug("Game {} removed successfully.", game.hashCode());
-            // Close the game context if it was removed
-            AnnotationConfigApplicationContext ctx = gameContexts.remove(game);
-            if (ctx != null) {
-                ctx.close();
+        AnnotationConfigApplicationContext ctx = null;
+        for (Map.Entry<AnnotationConfigApplicationContext, Game> entry : gameContexts.entrySet()) {
+            if (entry.getValue().equals(game)) {
+                ctx = entry.getKey();
+                break;
             }
+        }
+        if (ctx != null) {
+            gameContexts.remove(ctx);
+            ctx.close();
         }
     }
 
@@ -645,10 +611,6 @@ public class GameServer extends WebSocketServer {
                 highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
-    public void addGame(Game game) {
-        games.add(game);
-    }
-
     @EventListener
     public void handleGameOverEvent(GlobalGameOverEvent event) {
         logger.info("🚨 Global listener received GameOverEvent from game.");
@@ -666,7 +628,7 @@ public class GameServer extends WebSocketServer {
         WebSocket webSocket = gamePlayerService.getPlayers().keySet().iterator().next();
 
         // Move player from game to lobby
-        gamePlayerService.removePlayerByWebsocket(webSocket);
+        gamePlayerService.removePlayer(webSocket);
         lobby.addPlayer(webSocket, player);
 
         removeGame(game);
@@ -677,9 +639,9 @@ public class GameServer extends WebSocketServer {
     public void handleEmptyGameEvent(GlobalGameEmptyEvent event) {
         logger.info("🚨 Global listener received GameEmptyEvent from game.");
         Game game = event.getGame();
-        logger.debug("Running games: {} | Game contexts: {}", games.stream().filter(Game::isRunning).count(), gameContexts.size());
+        logger.debug("Running games: {} | Game contexts: {}", gameContexts.values().stream().filter(Game::isRunning).count(), gameContexts.size());
         logger.debug("Game {} is empty. Removing...", game.hashCode());
         removeGame(game);
-        logger.debug("Running games: {} | Game contexts: {}", games.stream().filter(Game::isRunning).count(), gameContexts.size());
+        logger.debug("Running games: {} | Game contexts: {}", gameContexts.values().stream().filter(Game::isRunning).count(), gameContexts.size());
     }
 }

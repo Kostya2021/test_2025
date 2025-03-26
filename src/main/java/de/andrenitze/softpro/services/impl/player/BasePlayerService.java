@@ -26,22 +26,12 @@ public abstract class BasePlayerService implements PlayerService {
     }
 
     @Override
-    public void removePlayer(WebSocket webSocket) {
-        players.remove(webSocket);
-    }
-
-    @Override
-    public Player removePlayerByWebsocket(WebSocket webSocket) {
+    public Player removePlayer(WebSocket webSocket) {
         return players.remove(webSocket);
     }
 
     @Override
     public ConcurrentHashMap<WebSocket, Player> getPlayers() {
         return players;
-    }
-
-    @Override
-    public void clearLobby() {
-        players.clear();
     }
 }

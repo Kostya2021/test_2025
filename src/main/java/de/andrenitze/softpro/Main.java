@@ -1,6 +1,6 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.config.GlobalConfig;
+import de.andrenitze.softpro.config.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -14,7 +14,7 @@ public class Main {
 
     public static void main(String[] args) {
         try (AnnotationConfigApplicationContext context =
-                     new AnnotationConfigApplicationContext(GlobalConfig.class)) {
+                     new AnnotationConfigApplicationContext(ServerConfig.class)) {
 
             GameServer gameServer = context.getBean(GameServer.class);
             gameServer.setConnectionLostTimeout(CONNECTION_LOST_TIMEOUT);

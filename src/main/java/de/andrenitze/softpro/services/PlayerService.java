@@ -14,10 +14,8 @@ public interface PlayerService {
     void addPlayer(WebSocket key, Player value);
     Player getPlayerByWebSocket(WebSocket websocket);
     boolean hasWebSocket(WebSocket conn);
-    void removePlayer(WebSocket webSocket);
     ConcurrentHashMap<WebSocket, Player> getPlayers();
-    Player removePlayerByWebsocket(WebSocket webSocket);
-    void clearLobby();
+    Player removePlayer(WebSocket webSocket);
 
     // Game-specific methods
     void dismissEmployee(Player player, Employee employee);

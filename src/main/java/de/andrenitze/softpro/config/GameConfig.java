@@ -30,8 +30,11 @@ public class GameConfig {
                      GameEventHandler eventHandler,
                      TalentMarket talentMarket,
                      GameEventPublisher eventPublisher,
-                     ObjectiveServiceImpl objectiveService) {
-        return new Game(skillService, accountingService, messagingService, playerService, talentMarket, projectService, employeeService, eventHandler, eventPublisher, objectiveService);
+                     ObjectiveServiceImpl objectiveService,
+                     LevelConsequencesService levelConsequencesService) {
+        return new Game(skillService, accountingService, messagingService, playerService, talentMarket,
+                projectService, employeeService, eventHandler, eventPublisher, objectiveService,
+                levelConsequencesService);
     }
 
     @Bean
@@ -99,7 +102,7 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public MessagingServiceImpl messagingService(GamePlayerServiceImpl playerService) {
+    public MessagingServiceImpl messagingService(@Lazy GamePlayerServiceImpl playerService) {
         return new MessagingServiceImpl(playerService);
     }
 
@@ -117,8 +120,13 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    @Primary
-    public ObjectiveServiceImpl objectiveService(GamePlayerServiceImpl playerService) {
+    public ObjectiveServiceImpl objectiveService(@Lazy GamePlayerServiceImpl playerService) {
         return new ObjectiveServiceImpl(playerService);
+    }
+
+    @Bean
+    @Scope("prototype")
+    public LevelConsequencesService levelConsequencesService(@Lazy GamePlayerServiceImpl playerService, @Lazy TalentMarket talentMarket) {
+        return new LevelConsequencesService(playerService, talentMarket);
     }
 }

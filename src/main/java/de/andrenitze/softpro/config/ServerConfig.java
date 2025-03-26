@@ -1,5 +1,6 @@
 package de.andrenitze.softpro.config;
 
+import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
@@ -14,22 +15,27 @@ import static de.andrenitze.softpro.Main.logger;
 @Configuration
 @ComponentScan("de.andrenitze.softpro")
 @PropertySource("classpath:application.properties")
-public class GlobalConfig {
+public class ServerConfig {
     private final ApplicationContext parentContext;
 
-    public GlobalConfig(ApplicationContext parentContext) {
+    public ServerConfig(ApplicationContext parentContext) {
         this.parentContext = parentContext;
         logger.debug("GlobalConfig created.");
     }
 
     @Bean
-    public GameServer gameServer(LobbyPlayerServiceImpl lobby) {
-        return new GameServer(parentContext, lobby);
+    public GameServer gameServer(LobbyPlayerServiceImpl lobby, GameFactory gameFactory) {
+        return new GameServer(parentContext, gameFactory, lobby);
     }
 
     @Bean
     public PlayerService lobbyPlayerService() {
         return new LobbyPlayerServiceImpl();
+    }
+
+    @Bean
+    public GameFactory gameFactory() {
+        return new GameFactory(parentContext);
     }
 
     // Messaging service for the lobby!
