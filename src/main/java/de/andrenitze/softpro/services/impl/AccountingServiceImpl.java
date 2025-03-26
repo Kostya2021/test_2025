@@ -55,17 +55,17 @@ public class AccountingServiceImpl implements AccountingService {
             players.forEach((_, player) -> {
                 // Calculate and subtract salaries
                 int salaries = player.calculateAndSubtractSalaries();
-                addEntry(new AccountingEntry(player, game.getCurrentTick(), salaries, AccountCategory.SALARIES,
+                addEntry(new AccountingEntry(player, game.getTick(), salaries, AccountCategory.SALARIES,
                         TransactionType.DEBIT, "Monthly salaries"));
 
                 // Office rent (fixed costs, rises with level)
                 int rent = 500 * (game.getLevel()-1);
-                addEntry(new AccountingEntry(player, game.getCurrentTick(), rent, AccountCategory.OVERHEAD,
+                addEntry(new AccountingEntry(player, game.getTick(), rent, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Office rent"));
 
                 // Insurance (fixed costs, rises with level)
                 int insurance = 150 * game.getLevel();
-                addEntry(new AccountingEntry(player, game.getCurrentTick(), insurance, AccountCategory.OVERHEAD,
+                addEntry(new AccountingEntry(player, game.getTick(), insurance, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Insurance"));
 
                 // Subtract rent and insurance from funds (not handled by accounting service)
@@ -80,7 +80,7 @@ public class AccountingServiceImpl implements AccountingService {
         // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
         game.getPlayerService().getPlayers().forEach((_, player) -> {
             List<AccountingEntry> newEntries = getAllEntriesByPlayer(player.getId()).stream()
-                    .filter(entry -> entry.getDay() == game.getCurrentTick())
+                    .filter(entry -> entry.getDay() == game.getTick())
                     .toList();
 
             if (!newEntries.isEmpty()) {

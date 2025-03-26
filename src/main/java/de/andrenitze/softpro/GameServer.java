@@ -2,16 +2,19 @@ package de.andrenitze.softpro;
 
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.config.GameConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
+import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.projects.RiskLevel;
-import de.andrenitze.softpro.events.*;
-import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.types.*;
-import de.andrenitze.softpro.config.DatabaseConfig;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.events.GlobalGameEmptyEvent;
+import de.andrenitze.softpro.events.GlobalGameOverEvent;
+import de.andrenitze.softpro.types.GameOverStatsDAO;
 import lombok.Getter;
 import lombok.Setter;
 import net.bytebuddy.build.ToStringPlugin;
@@ -38,7 +41,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -66,7 +68,7 @@ public class GameServer extends WebSocketServer {
     };
     @Getter public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
     @Getter private GameOverStats dailyHighScore;
-    public static final SecureRandom RANDOM = new SecureRandom();
+    public static final Random RANDOM = new Random();
     private List<GameOverStats> dailyHighScores;
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
@@ -255,6 +257,7 @@ public class GameServer extends WebSocketServer {
     private void createGame(WebSocket webSocket, Player player) {
         // Create a new game instance with isolated context
         logger.debug("Creating new game instance for player {}", player.getId());
+
         Game game = createGameInstance();
         game.addPlayer(webSocket, player);
         addGame(game);
@@ -265,7 +268,11 @@ public class GameServer extends WebSocketServer {
         // Send updated player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        game.getMessagingService().sendEventToPlayer(player, playerUpdateEvent);
+        if (game.getMessagingService() != null) {
+            game.getMessagingService().sendEventToPlayer(player, playerUpdateEvent);
+        } else {
+            logger.error("Messaging service not available in game {}", game.hashCode());
+        }
     }
 
     /**
@@ -287,7 +294,7 @@ public class GameServer extends WebSocketServer {
         game.getSkillService().addPlayer(player);
 
         // Load problems for the next level
-        game.getProjectService().loadProblems();
+        game.getProjectService().loadProblems(game.getLevel());
 
         // Load story elements for the next level
         // game.getLevel() is "1", because game has not been completely initialized

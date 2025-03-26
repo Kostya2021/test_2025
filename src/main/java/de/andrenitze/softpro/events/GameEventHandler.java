@@ -87,7 +87,7 @@ public class GameEventHandler {
                     project.addParty(player);
 
                     if (project.hasNoTenderProcess()) {
-                        game.getProjectService().assignProjectToPlayer(player, project);
+                        game.getProjectService().assignProjectToPlayer(player, project, game.getTick());
                     } else {
                         Gson gson = new GsonBuilder()
                                 .setExclusionStrategies(new ProjectPartyExclusionStrategy())
@@ -162,7 +162,7 @@ public class GameEventHandler {
         Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
         int employeeId = hireTalentEvent.getPayload();
 
-        Employee employee = game.getTalentMarket().hireTalent(player, employeeId, game.getCurrentTick());
+        Employee employee = game.getTalentMarket().hireTalent(player, employeeId, game.getTick());
 
         if (employee == null) {
             logger.warn("Could not hire talent. Employee {} not found.", employeeId);
@@ -195,7 +195,7 @@ public class GameEventHandler {
         int projectId = riskAssessmentEvent.getPayload().get(PROJECT_ID);
         Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
 
-        game.getProjectService().assessProjectRiskForPlayer(projectId, player);
+        game.getProjectService().assessProjectRiskForPlayer(projectId, player, game.getTick());
     }
 
     private void handleEmployeeDismissedEvent(WebSocket websocket, String message) {
@@ -240,7 +240,7 @@ public class GameEventHandler {
         }
 
         int salary = employeeUpdatedEvent.getPayload().get("salary");
-        employee.setSalary(salary, game.getCurrentTick());
+        employee.setSalary(salary, game.getTick());
 
         game.getMessagingService().sendEmployeeUpdate(player, employee);
     }
@@ -319,7 +319,7 @@ public class GameEventHandler {
     private void handleTeamEstimateRequestedEvent(WebSocket websocket, String message) {
         int projectId = parseIdByKey(message, PROJECT_ID);
         Player player = game.getPlayerService().getPlayerByWebSocket(websocket);
-        game.getProjectService().conductTeamEstimation(projectId, player);
+        game.getProjectService().conductTeamEstimation(projectId, player, game.getTick());
     }
 
     private void handleProjectCancelRequestedEvent(WebSocket websocket, String message) {
@@ -329,7 +329,7 @@ public class GameEventHandler {
 
         if (project != null) {
             logger.debug("Cancelling project '{}'...", projectId);
-            game.getProjectService().cancelProject(player, project, PARTY_CONTRACTOR);
+            game.getProjectService().cancelProject(player, project, PARTY_CONTRACTOR, game.getTick(), game.getLevel());
         } else {
             logger.warn("Could not cancel project. Project {} not found.", projectId);
         }

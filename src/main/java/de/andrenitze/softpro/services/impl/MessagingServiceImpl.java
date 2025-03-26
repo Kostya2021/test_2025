@@ -14,6 +14,7 @@ import org.springframework.context.event.EventListener;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
+import static de.andrenitze.softpro.Main.logger;
 
 public class MessagingServiceImpl implements MessagingService {
     private Map<WebSocket, Player> players;
@@ -101,6 +102,13 @@ public class MessagingServiceImpl implements MessagingService {
 
     @EventListener
     public void onPlayersChanged(PlayersChangedEvent event) {
+        logger.debug("PlayersChangedEvent received in MessagingServiceImpl. Adding {} players.", event.getPlayers().size());
         this.players = event.getPlayers();
+    }
+
+    // This is redundant, but the event listener is not working for some reason.
+    public void addPlayer(WebSocket key, Player value) {
+        logger.debug("Adding player {} to MessagingServiceImpl.", value);
+        players.put(key, value);
     }
 }

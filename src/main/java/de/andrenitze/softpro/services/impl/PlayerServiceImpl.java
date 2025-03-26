@@ -9,12 +9,15 @@ import de.andrenitze.softpro.services.PlayerService;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static de.andrenitze.softpro.GameServer.RANDOM;
 
 @Service
 @Primary
@@ -27,7 +30,7 @@ public class PlayerServiceImpl implements PlayerService {
     private final MessagingServiceImpl messagingService;
 
     public PlayerServiceImpl(TalentMarket talentMarket,
-                             @Qualifier("projectServiceImpl") ProjectServiceImpl projectService,
+                             @Lazy @Qualifier("projectServiceImpl") ProjectServiceImpl projectService,
                                 @Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectEmployeeMapping,
                                 MessagingServiceImpl messagingService
     ) {
@@ -87,5 +90,13 @@ public class PlayerServiceImpl implements PlayerService {
 
     public boolean isPlayerInAnyGame(Player player) {
         return players.containsValue(player);
+    }
+
+    public Player getRandomPlayer() {
+        List<Player> playerList = new ArrayList<>(players.values());
+        if (playerList.isEmpty()) {
+            return null;
+        }
+        return playerList.get(RANDOM.nextInt(playerList.size()));
     }
 }

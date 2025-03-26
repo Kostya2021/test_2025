@@ -30,16 +30,16 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     public void simulateEmployeeLives() {
         game.getPlayerService().getPlayers().forEach((_, player) -> player.getEmployees().forEach(employee -> {
-            employee.liveLife(game.getCurrentTick());
-            boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(game.getCurrentTick()) || employee.removeExpiredStatusEffects();
+            employee.liveLife(game.getTick());
+            boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(game.getTick()) || employee.removeExpiredStatusEffects();
 
             // Annual events that affect employees
-            if (game.getCurrentTick() % 365 == 0) {
+            if (game.getTick() % 365 == 0) {
                 employee.initializeSickDays();
             }
 
             // Monthly events that affect employees
-            if (game.getCurrentTick() % 30 == 0) {
+            if (game.getTick() % 30 == 0) {
                 // Send at least one update per month for metrics (i.e., utilization, sick days, satisfaction)
                 needsUpdate = true;
             }

@@ -24,7 +24,7 @@ public class ObjectiveChecker {
 
     public ObjectiveChecker(Game game) {
         this.game = game;
-        this.currentTick = game.getCurrentTick();
+        this.currentTick = game.getTick();
     }
 
     public void checkObjectives(Player player) {

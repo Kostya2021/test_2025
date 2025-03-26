@@ -1,11 +1,11 @@
 package de.andrenitze.softpro.config;
 
 import de.andrenitze.softpro.Game;
-import de.andrenitze.softpro.events.GameEventPublisher;
-import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.events.GameEventHandler;
+import de.andrenitze.softpro.events.GameEventPublisher;
+import de.andrenitze.softpro.services.impl.*;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
@@ -21,7 +21,7 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    @DependsOn({"projectService", "eventHandler"})
+    @DependsOn({"playerService", "eventHandler"})
     public Game game(SkillServiceImpl skillService,
                      AccountingServiceImpl accountingService,
                      EmployeeServiceImpl employeeService,
@@ -41,17 +41,18 @@ public class GameConfig {
         game.setEventHandler(eventHandler);
         game.setTalentMarket(talentMarket);
         game.setEventPublisher(eventPublisher);
-        projectService.setGame(game);
         eventHandler.setGame(game);
         return game;
     }
 
     @Bean
+    @Scope("singleton")
     public EmployeeIdGenerator employeeIdGenerator() {
         return new EmployeeIdGenerator();
     }
 
     @Bean
+    @Scope("singleton")
     public TalentMarket talentMarket(EmployeeIdGenerator employeeIdGenerator) {
         TalentMarket market = new TalentMarket(employeeIdGenerator);
         market.clear();
@@ -78,11 +79,26 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    @DependsOn({"skillService", "accountingService", "projectEmployeeMapping"})
-    public ProjectServiceImpl projectService(SkillServiceImpl skillService,
+    @DependsOn({"messagingService", "skillService", "accountingService", "projectEmployeeMapping"})
+    public ProjectServiceImpl projectService(MessagingServiceImpl messagingService,
+                                             SkillServiceImpl skillService,
                                              AccountingServiceImpl accountingService,
-                                             ProjectEmployeeMappingImpl projectEmployeeMappingImpl) {
-        return new ProjectServiceImpl(null, skillService, accountingService, projectEmployeeMappingImpl);
+                                             ProjectEmployeeMappingImpl projectEmployeeMapping,
+                                             PlayerServiceImpl playerService
+    ) {
+        return new ProjectServiceImpl(messagingService, skillService, accountingService, projectEmployeeMapping, playerService);
+    }
+
+    @Bean
+    @Scope("prototype")
+    @Qualifier("playerServiceImpl")
+    @DependsOn({"projectService"})
+    public PlayerServiceImpl playerService(TalentMarket talentMarket,
+                                           ProjectServiceImpl projectService,
+                                           ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
+                                           MessagingServiceImpl messagingService
+    ) {
+        return new PlayerServiceImpl(talentMarket, projectService, projectEmployeeMappingImpl, messagingService);
     }
 
     @Bean
@@ -104,17 +120,6 @@ public class GameConfig {
     @Scope("prototype")
     public GameEventHandler eventHandler() {
         return new GameEventHandler(null); // Will be set after game creation
-    }
-
-    @Bean
-    @Scope("prototype")
-    @Qualifier("playerServiceImpl")
-    public PlayerServiceImpl playerService(TalentMarket talentMarket,
-                                           ProjectServiceImpl projectService,
-                                           ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
-                                           MessagingServiceImpl messagingService
-    ) {
-        return new PlayerServiceImpl(talentMarket, projectService, projectEmployeeMappingImpl, messagingService);
     }
 
     @Bean

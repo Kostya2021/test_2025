@@ -13,11 +13,11 @@ import java.util.concurrent.ConcurrentMap;
  * Service für die Verwaltung von Projekten.
  */
 public interface ProjectService {
-    void conductWorkOnAllProjects(int currentTick, LocalDate currentDate, ConcurrentMap<Project,
+    void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate, ConcurrentMap<Project,
             ArrayList<Employee>> projectEmployeesMap);
-    int calculateEmployeeEarnedValue(Employee employee, Project project, int currentTick, float onboardingFactor);
-    void cancelProject(Player player, Project project, String cancelledBy);
-    void cancelOverdueProjects();
+    int calculateEmployeeEarnedValue(Employee employee, Project project, int tick, float onboardingFactor);
+    void cancelProject(Player player, Project project, String cancelledBy, int tick, int level);
+    void cancelOverdueProjects(int tick, int level);
     void setProjects(List<Object> objects);
     void addProject(Project project);
 

@@ -60,7 +60,7 @@ public class Game {
     public static final int BACKUP_BLUES_LEVEL = 2;
     private boolean isRunning; // Game instance is active
     private boolean isPaused = false; // Game instance is active, but paused (e.g., for briefing and tutorials)
-    @Getter private int currentTick = 0;
+    @Getter private int tick = 0;
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
     private ArrayList<StoryElement> storyElements; // Level-specific
@@ -130,7 +130,7 @@ public class Game {
 
             // Notify all clients of current time
             GameEvent<Integer> timerEvent = new GameEvent<>(EventType.T);
-            timerEvent.setPayload(getCurrentTick());
+            timerEvent.setPayload(getTick());
             messagingService.broadcastEvent(timerEvent);
 
             logger.debug("Progressing game time...");
@@ -214,7 +214,7 @@ public class Game {
         this.level = i;
 
         // Load problems for the level
-        projectService.loadProblems();
+        projectService.loadProblems(i);
     }
 
     public void loadStory(int level) {
@@ -227,30 +227,34 @@ public class Game {
             return;
         }
 
-        ++currentTick;
+        ++tick;
 
         // Progress calendar date
         currentDate = now();
-        currentDate = currentDate.plusDays(currentTick);
+        currentDate = currentDate.plusDays(tick);
 
         long startTime = System.nanoTime();
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectService.conductWorkOnAllProjects(currentTick, currentDate, projectEmployeeMapping.getProjectEmployeesMap());
-        projectService.cancelOverdueProjects();
+        projectService.conductWorkOnAllProjects(getTick(), getLevel(), currentDate, projectEmployeeMapping.getProjectEmployeesMap());
+        projectService.cancelOverdueProjects(getTick(), getLevel());
+        projectService.randomlySpawnProjectTenders(getTick(), getLevel());
+        projectService.evaluateTenderProcesses(getTick());
+        // Things not to do in the first level to ease the player into the game
+        // The "level" param in the other methods are used for a similar decision and might be removed in the future.
+        if (getLevel() != 1) {
+            projectService.randomlyAssignComplianceProjects(getTick());
+            projectService.removeStaleTenders(getTick());
+            projectService.startStaleProjects(getTick());
+        }
+        projectService.createProblemsInProjects(getTick(), getLevel());
         accountingService.processMonthlyPayments(currentDate, playerService.getPlayers());
-        projectService.randomlySpawnProjectTenders();
-        projectService.randomlySpawnComplianceProjects();
-        projectService.removeStaleTenders();
-        projectService.evaluateTenderProcesses();
-        processNewObjectives(currentTick);
-        checkObjectivesCriteriaAndSendRewards();
-        employeeService.simulateEmployeeLives();
-        sendStoryElements();
-        projectService.startStaleProjects();
-        projectService.createProblemsInProjects();
         accountingService.sendNewAccountingEntries();
+        employeeService.simulateEmployeeLives();
+        processNewObjectives(getTick());
+        checkObjectivesCriteriaAndSendRewards();
+        sendStoryElements();
         checkGameOverConditions();
 
         long endTime = System.nanoTime();
@@ -296,7 +300,7 @@ public class Game {
         List<StoryElement> relevantStoryElements = new ArrayList<>();
         this.storyElements.forEach(element -> {
             // Relevant = Has not been sent AND (is scheduled earliest for this tick OR has an objective precondition)
-            if (!element.isSent() && (element.getEarliestOccurrence() == currentTick ||
+            if (!element.isSent() && (element.getEarliestOccurrence() == tick ||
                     element.getAfterObjective() != 0)) {
                 relevantStoryElements.add(element);
             }
@@ -408,8 +412,8 @@ public class Game {
         GameOverStats goStats = new GameOverStats();
         goStats.setDeliveredProjects(deliveredProjects);
         goStats.setProjectsVolume(projectsVolume);
-        goStats.setSurvivedDays(currentTick);
-        goStats.setPlayedSeconds(currentTick * GAME_SPEED_IN_MILLISECONDS / 1000);
+        goStats.setSurvivedDays(tick);
+        goStats.setPlayedSeconds(tick * GAME_SPEED_IN_MILLISECONDS / 1000);
         goStats.setLevel(level);
 
         DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
@@ -452,13 +456,12 @@ public class Game {
 
     @EventListener
     public void closeGameIfNoPlayersLeft(PlayersChangedEvent event) {
-        logger.debug("Players in game {} have changed: Checking if empty...", this.hashCode());
         int numberOfPlayers = event.getPlayers().size();
 
         // Close game session if this was the last player
         if (numberOfPlayers == 0) {
             // Stop the game loop to make sure the thread can be interrupted
-            logger.debug("Yup, game {} has no players left. Stopping game loop and closing game.", this.hashCode());
+            logger.debug("Game {} has no players left. Closing game...", this.hashCode());
 
             // Fire event for GameServer to handle
             GlobalGameEmptyEvent globalGameEmptyEvent = new GlobalGameEmptyEvent(this, this);
@@ -467,8 +470,7 @@ public class Game {
             // Stop the game loop asynchronously (no guarantees)
             shutdownAndAwaitTermination(gameLoop);
         } else {
-            logger.debug("No, game {} still has {} player(s) left.", this.hashCode(), numberOfPlayers);
-            logger.debug("Players in game {} are: {}", this.hashCode(), event.getPlayers().keySet());
+            logger.debug("Game {} has {} player(s) left. Keeping game instance alive.", this.hashCode(), numberOfPlayers);
         }
     }
 
@@ -506,6 +508,12 @@ public class Game {
 
             logger.debug("Adding player {} to game via PlayerServiceImpl", value.getId());
             playerService.addPlayer(key, value);
+
+            if (messagingService != null) {
+                messagingService.addPlayer(key, value);
+            } else {
+                logger.error("MessagingService is not initialized.");
+            }
 
             PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
             eventPublisher.publishPlayersChangedEvent(playersChangedEvent);

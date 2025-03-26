@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
@@ -14,7 +13,6 @@ import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.services.ProjectService;
 import lombok.Getter;
-import lombok.Setter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,38 +36,37 @@ import static java.lang.Math.*;
 @Service
 @Primary
 public class ProjectServiceImpl implements ProjectService {
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
     public static final int BASE_PRODUCTIVITY_VALUE = 1000; // How much value one person (FTE) can produce in one day
     public static final double PROFIT_MARGIN = 0.3;
     public static final float PROJECT_SPAWN_PROBABILITY = 0.1f;
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
-    @Setter private Game game;
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final SkillServiceImpl skillService;
-    @Getter
-    private final AccountingServiceImpl accountingService;
-    @Getter
-    private ArrayList<Project> projects = new ArrayList<>();
     static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
-    @Getter
-    private final ProblemGenerator problemGenerator = new ProblemGenerator();
+    @Getter private ArrayList<Project> projects = new ArrayList<>();
+    @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
+    @Getter private final AccountingServiceImpl accountingService;
+    private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingImpl mappingService;
     private final MessagingServiceImpl messagingService;
+    private final PlayerServiceImpl playerService;
 
     @Autowired
     public ProjectServiceImpl(MessagingServiceImpl messagingService,
                               SkillServiceImpl skillService,
                               AccountingServiceImpl accountingService,
-                              @Qualifier("projectEmployeeMapping") ProjectEmployeeMappingImpl projectEmployeeMapping) {
+                              @Qualifier("projectEmployeeMapping") ProjectEmployeeMappingImpl projectEmployeeMapping,
+                              @Qualifier("playerServiceImpl") PlayerServiceImpl playerService) {
         this.messagingService = messagingService;
         this.skillService = skillService;
         this.accountingService = accountingService;
         this.mappingService = projectEmployeeMapping;
+        this.playerService = playerService;
     }
 
-    public void conductWorkOnAllProjects(int currentTick, LocalDate currentDate, ConcurrentMap<Project,
+    public void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate, ConcurrentMap<Project,
             ArrayList<Employee>> projectEmployeesMap) {
         // No work on weekends
         if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
@@ -85,7 +82,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             // Only process started projects with assigned employees
             if (project.getStartedAt() != 0 && !employees.isEmpty()) {
-                addEarnedValueForEachEmployee(project, employees, currentTick);
+                addEarnedValueForEachEmployee(project, employees, tick);
 
                 var projectObject = new JSONObject();
 
@@ -98,19 +95,19 @@ public class ProjectServiceImpl implements ProjectService {
                     });
 
                     // Send reward
-                    handleProjectCompletion(project, employees, currentTick, projectObject);
+                    handleProjectCompletion(project, employees, tick, level, projectObject);
 
                     // Remove the project from employees map, so that employees are unassigned
                     project.setEarnedValue(project.getTotalValue());
                     iterator.remove();
 
-                    projectObject.put("completedAt", currentTick);
+                    projectObject.put("completedAt", tick);
                 }
 
                 // Build a small custom event to just send new project progress and success metrics
                 projectObject.put("id", project.getId());
                 projectObject.put("earnedValue", project.getEarnedValue());
-                projectObject.put("tick", currentTick);
+                projectObject.put("tick", tick);
 
                 GameEvent<JSONObject> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                 projectUpdatedEvent.setPayload(projectObject);
@@ -123,7 +120,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
-    private void handleProjectCompletion(Project project, ArrayList<Employee> employees, int currentTick, JSONObject projectObject) {
+    private void handleProjectCompletion(Project project, ArrayList<Employee> employees, int currentTick, int level, JSONObject projectObject) {
         for (Player player : project.getInvolvedPlayers()) {
             int profit = (int) round(project.getTotalValue() * ProjectServiceImpl.PROFIT_MARGIN);
 
@@ -133,7 +130,7 @@ public class ProjectServiceImpl implements ProjectService {
                 // Per 1% delayed delivery, return 2% less win margin
                 overduePenaltyMultiplier = 1 - ((float) abs(daysLeft) / project.getDeadline() * 2);
                 float penalty = profit * (1 - overduePenaltyMultiplier);
-                if (game.getLevel() == 1) {
+                if (level == 1) {
                     penalty = 0;
                 }
                 projectObject.put("penalty", penalty);
@@ -143,14 +140,14 @@ public class ProjectServiceImpl implements ProjectService {
             }
 
             // Prevent losses in level 1
-            if (game.getLevel() != 1) {
+            if (level != 1) {
                 profit = (int) (profit * overduePenaltyMultiplier);
             }
 
             projectObject.put("profit", profit);
             project.setProfit(profit);
             // Don't win or lose anything in level 1 or if it's a compliance project
-            if (game.getLevel() == 1 || project.getType() == ProjectType.COMPLIANCE) {
+            if (level == 1 || project.getType() == ProjectType.COMPLIANCE) {
                 profit = 0;
             }
 
@@ -158,7 +155,7 @@ public class ProjectServiceImpl implements ProjectService {
             AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
-            game.getMessagingService().sendFundsUpdateToPlayer(player);
+            messagingService.sendFundsUpdateToPlayer(player);
 
             // Calculate player's XP gained in this project
             float xp = calculateXP(project);
@@ -167,11 +164,11 @@ public class ProjectServiceImpl implements ProjectService {
             GameEvent<Player> playerUpdateEvent = new GameEvent<>();
             playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
-            game.getMessagingService().sendMessageToPlayer(player, gson.toJson(playerUpdateEvent));
+            messagingService.sendMessageToPlayer(player, gson.toJson(playerUpdateEvent));
 
             // After project completion, send gained XP of employees to player
             for (Employee employee : employees) {
-                game.getMessagingService().sendEmployeeUpdate(player, employee);
+                messagingService.sendEmployeeUpdate(player, employee);
             }
         }
 
@@ -262,7 +259,7 @@ public class ProjectServiceImpl implements ProjectService {
         return 1.0f; // No onboarding required (safe period or no new employees)
     }
 
-    public int calculateEmployeeEarnedValue(Employee employee, Project project, int currentTick, float onboardingFactor) {
+    public int calculateEmployeeEarnedValue(Employee employee, Project project, int tick, float onboardingFactor) {
         // Base productivity
         int earnedValue = BASE_PRODUCTIVITY_VALUE;
 
@@ -285,7 +282,7 @@ public class ProjectServiceImpl implements ProjectService {
         earnedValue = applyStatusEffects(employee, earnedValue);
 
         // Apply unsolved problems penalty
-        earnedValue = applyUnsolvedProblemsPenalty(project, earnedValue, currentTick);
+        earnedValue = applyUnsolvedProblemsPenalty(project, earnedValue, tick);
 
         return earnedValue;
     }
@@ -436,7 +433,7 @@ public class ProjectServiceImpl implements ProjectService {
         return numberOfProjects;
     }
 
-    public void cancelProject(Player player, Project project, String cancelledBy) {
+    public void cancelProject(Player player, Project project, String cancelledBy, int tick, int level) {
         if (project == null) {
             logger.error("Project not found while attempting to cancel.");
             return;
@@ -467,7 +464,7 @@ public class ProjectServiceImpl implements ProjectService {
             return;
         }
 
-        project.setCancelledAt(game.getCurrentTick());
+        project.setCancelledAt(tick);
         project.setCancelledBy(cancelledBy);
 
         // Apply different penalty rates based on who cancelled
@@ -476,7 +473,7 @@ public class ProjectServiceImpl implements ProjectService {
                 : CONTRACTOR_CANCELLATION_PENALTY;
 
         int cancellationPenalty = 0;
-        if (game.getLevel() != 1) {
+        if (level != 1) {
             cancellationPenalty = (int) (project.getTotalValue() * penaltyRate);
         }
         project.setPenalty(cancellationPenalty);
@@ -485,12 +482,12 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStartedAt() > 0) {
             // Update funds
             player.subtractFunds(cancellationPenalty);
-            game.getMessagingService().sendFundsUpdateToPlayer(player);
+            messagingService.sendFundsUpdateToPlayer(player);
 
             // Add accounting entry
             accountingService.addEntry(new AccountingEntry(
                     player,
-                    game.getCurrentTick(),
+                    tick,
                     cancellationPenalty,
                     AccountCategory.PENALTIES,
                     TransactionType.DEBIT,
@@ -512,7 +509,7 @@ public class ProjectServiceImpl implements ProjectService {
         projectCancelledEvent.setPayload(project);
 
         // Notify the player
-        game.getMessagingService().sendMessageToPlayer(player, gson.toJson(projectCancelledEvent));
+        messagingService.sendMessageToPlayer(player, gson.toJson(projectCancelledEvent));
 
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
@@ -523,13 +520,13 @@ public class ProjectServiceImpl implements ProjectService {
         logger.debug("Project {} cancelled by player {}", project.getName(), player.getId());
     }
 
-    public void cancelOverdueProjects() {
+    public void cancelOverdueProjects(int tick, int level) {
         List<Project> projectsToCancel = new ArrayList<>();
 
         // Identify projects that meet the cancellation criteria
         for (Project project : getProjects()) {
             // Check if project should be automatically cancelled
-            if (shouldAutomaticallyCancel(project, game.getCurrentTick())) {
+            if (shouldAutomaticallyCancel(project, tick)) {
                 projectsToCancel.add(project);
             }
         }
@@ -540,7 +537,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             // Cancel for each involved player
             for (Player player : project.getInvolvedPlayers()) {
-                cancelProject(player, project, PARTY_CLIENT);
+                cancelProject(player, project, PARTY_CLIENT, tick, level);
             }
         }
     }
@@ -616,13 +613,8 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStartedAt(startedAt);
     }
 
-    public void randomlySpawnComplianceProjects() {
-        // Don't auto-spawn compliance projects in level 1
-        if (game.getLevel() == 1) {
-            return;
-        }
-
-        Player player = game.getPlayerService().getPlayers().values().iterator().next();
+    public void randomlyAssignComplianceProjects(int currentTick) {
+        Player player = playerService.getRandomPlayer();
 
         // Only have one compliance project at a time
         if (getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
@@ -630,8 +622,8 @@ public class ProjectServiceImpl implements ProjectService {
             // Generate a new compliance project
             Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.LOW, false);
 
-            project.setPublishedAt(game.getCurrentTick());
-            project.setAcquiredAt(game.getCurrentTick()); // Immediately acquired: Frontend will show it as "acquired"
+            project.setPublishedAt(currentTick);
+            project.setAcquiredAt(currentTick); // Immediately acquired: Frontend will show it as "acquired"
             project.addParty(player); // Add the player as involved party (also important for frontend)
             project.setDeadline(0);
             // Select a name from a list of predefined names
@@ -645,7 +637,7 @@ public class ProjectServiceImpl implements ProjectService {
             GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
             newProjectEvent.setPayload(project);
             logger.debug("New compliance project spawned for all players: {}", project.getName());
-            game.getMessagingService().broadcastToAllPlayers(getGson().toJson(newProjectEvent));
+            messagingService.broadcastToAllPlayers(getGson().toJson(newProjectEvent));
         }
     }
 
@@ -658,10 +650,10 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Notify involved players about forced start
         project.getInvolvedPlayers().forEach(player ->
-                game.getMessagingService().sendMessageToPlayer(player, getGson().toJson(projectStartedEvent)));
+                messagingService.sendMessageToPlayer(player, getGson().toJson(projectStartedEvent)));
     }
 
-    public void conductTeamEstimation(int projectId, Player player) {
+    public void conductTeamEstimation(int projectId, Player player, int tick) {
         Project project = getProjectById(projectId);
         if (project == null) {
             logger.error("Project with ID {} not found.", projectId);
@@ -684,16 +676,16 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         // Calculate the estimation and add it to the project
-        project.estimateProgress(game.getCurrentTick());
+        project.estimateProgress(tick);
 
         // Send project update to player
-        game.getMessagingService().sendProjectUpdateToPlayer(player, project);
+        messagingService.sendProjectUpdateToPlayer(player, project);
     }
 
-    public void assignProjectToPlayer(Player player, Project project) {
+    public void assignProjectToPlayer(Player player, Project project, int tick) {
         // Assign the project to the player
         project.addParty(player);
-        project.setAcquiredAt(game.getCurrentTick());
+        project.setAcquiredAt(tick);
 
         // Add the project to the project-employee map
         addProject(project);
@@ -701,15 +693,15 @@ public class ProjectServiceImpl implements ProjectService {
         // Send PROJECT_UPDATED to all players (-> important for tenders!)
         GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdatedEvent.setPayload(project);
-        game.getMessagingService().broadcastToAllPlayers(getGson().toJson(projectUpdatedEvent));
+        messagingService.broadcastToAllPlayers(getGson().toJson(projectUpdatedEvent));
 
         // Send PROJECT_RECEIVED event to the player
         GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
         projectReceivedEvent.setPayload(project);
-        game.getMessagingService().sendMessageToPlayer(player, getGson().toJson(projectReceivedEvent));
+        messagingService.sendMessageToPlayer(player, getGson().toJson(projectReceivedEvent));
     }
 
-    public void evaluateTenderProcesses() {
+    public void evaluateTenderProcesses(int tick) {
         for (Project project : getProjects()) {
             // Don't evaluate acquired projects
             if (project.getAcquiredAt() != 0) {
@@ -727,7 +719,7 @@ public class ProjectServiceImpl implements ProjectService {
                             project.getName(), project.getInvolvedPlayers().getFirst().getId());
 
                     // Inform winner with a confirmation message
-                    assignProjectToPlayer(project.getInvolvedPlayers().getFirst(), project);
+                    assignProjectToPlayer(project.getInvolvedPlayers().getFirst(), project, tick);
                 }
             } else {
                 // For tender processes, just decrease the time left for tender participation
@@ -736,19 +728,14 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
-    public void removeStaleTenders() {
-        // Dont remove tenders in level 1
-        if (game.getLevel() == 1) {
-            return;
-        }
-
+    public void removeStaleTenders(int tick) {
         // Remove tenders that have been on the market for a long time and store them in a separate array
         List<Project> staleTenders = new ArrayList<>();
         for (Iterator<Project> iterator = getProjects().iterator(); iterator.hasNext();) {
             Project project = iterator.next();
             if (project.getEarnedValue() == 0 &&
                     project.getInvolvedPlayers().isEmpty() &&
-                    project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < game.getCurrentTick()) {
+                    project.getPublishedAt() + STALE_TENDERS_KILL_DAYS < tick) {
                 // Add the tender to the list of stale tenders
                 staleTenders.add(project);
 
@@ -763,10 +750,10 @@ public class ProjectServiceImpl implements ProjectService {
         }
         GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
         tendersRemovedEvent.setPayload(staleTenders);
-        game.getMessagingService().broadcastToAllPlayers(getGson().toJson(tendersRemovedEvent));
+        messagingService.broadcastToAllPlayers(getGson().toJson(tendersRemovedEvent));
     }
 
-    public void createProblemsInProjects() {
+    public void createProblemsInProjects(int tick, int level) {
         // In all running projectService.getProjects()...
         for (Project project : getProjects()) {
             // If it's not running or completed, skip to the next project
@@ -774,7 +761,7 @@ public class ProjectServiceImpl implements ProjectService {
                 // For now, with a fixed chance for a problem to occur,
                 // (can be adjusted later depending on project volume, risk level, etc.)
                 double problemSpawnProbability = 0.01;
-                int maxUnsolvedProblemsPerProject = game.getLevel(); // In higher levels, more problems can occur
+                int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
 
                 // but not more than a certain number problems per project
                 if (RANDOM.nextFloat() <= problemSpawnProbability
@@ -786,7 +773,7 @@ public class ProjectServiceImpl implements ProjectService {
                     Problem problem = problemGenerator.generateRandomNewProblem(occurredProblems);
                     if (problem != null) { // Only add if a new problem is generated
                         // Add the problem to the project
-                        problem.setOccurredAt(game.getCurrentTick());
+                        problem.setOccurredAt(tick);
                         project.addProblem(problem);
 
                         // Inform all involved players about the new problem
@@ -795,7 +782,7 @@ public class ProjectServiceImpl implements ProjectService {
                         project.getInvolvedPlayers().forEach(player -> {
                             GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                             projectUpdatedEvent.setPayload(project);
-                            game.getMessagingService().sendMessageToPlayer(player, getGson().toJson(projectUpdatedEvent));
+                            messagingService.sendMessageToPlayer(player, getGson().toJson(projectUpdatedEvent));
                         });
                     }
                 }
@@ -803,12 +790,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
-    public void startStaleProjects() {
-        // Don't do that in level 1
-        if (game.getLevel() == 1) {
-            return;
-        }
-
+    public void startStaleProjects(int tick) {
         // Don't do it for COMPLIANCE projects, independent of startedAt, acquiredAt etc.
         for (Project project : getProjects()) {
             if (project.getType() == ProjectType.COMPLIANCE) {
@@ -817,10 +799,10 @@ public class ProjectServiceImpl implements ProjectService {
 
             // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
             if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
-                int daysPassed = game.getCurrentTick() - project.getAcquiredAt();
+                int daysPassed = tick - project.getAcquiredAt();
                 if (daysPassed >= max(30, project.getScheduledDuration() / 10)) {
                     // Start the project and inform involved players
-                    startProject(project, game.getCurrentTick() - 1);
+                    startProject(project, tick - 1);
                     notifyInvolvedPlayers(project);
                     logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
                 }
@@ -828,12 +810,11 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
-    public void randomlySpawnProjectTenders() {
-        // There is only one player in level 1
-        Player p = game.getPlayerService().getPlayers().values().iterator().next();
-
+    public void randomlySpawnProjectTenders(int tick, int level) {
         // Don't spawn new projects in level 1 before the first mission is completed
-        if (game.getLevel() == 1 && p.getMissions().getFirst().isNotCompleted()) {
+        // There is only one player in level 1. Check if their first mission is completed.
+        Player p = playerService.getRandomPlayer();
+        if (level == 1 && p.getMissions().getFirst().isNotCompleted()) {
             return;
         }
 
@@ -842,7 +823,7 @@ public class ProjectServiceImpl implements ProjectService {
             Project project;
 
             // For level 1, make sure that it's only easy and small projects
-            if (game.getLevel() == 1) {
+            if (level == 1) {
                 // 25% chance for a perfect project
                 if (RANDOM.nextFloat() <= 0.75) {
                     // Low-risk, small projects
@@ -867,7 +848,7 @@ public class ProjectServiceImpl implements ProjectService {
                 project = new Project().initialize();
             }
 
-            project.setPublishedAt(game.getCurrentTick());
+            project.setPublishedAt(tick);
             addProject(project);
 
             // Initialize project-employee map
@@ -877,15 +858,15 @@ public class ProjectServiceImpl implements ProjectService {
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
             newTenderEvent.setPayload(project);
 
-            game.getMessagingService().broadcastToAllPlayers(getGson().toJson(newTenderEvent));
+            messagingService.broadcastToAllPlayers(getGson().toJson(newTenderEvent));
         }
     }
 
-    public void loadProblems() {
-        problemGenerator.loadProblemsByLevel(game.getLevel());
+    public void loadProblems(int level) {
+        problemGenerator.loadProblemsByLevel(level);
     }
 
-    public void assessProjectRiskForPlayer(int projectId, Player player) {
+    public void assessProjectRiskForPlayer(int projectId, Player player, int tick) {
         Project project = getProjectById(projectId);
         if (project == null) {
             logger.error("Project with ID {} could not be found.", projectId);
@@ -894,19 +875,19 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Deduct funds from player
         int riskAssessmentCost = (int) GameParameters.PROJECT_RISK_ASSESSMENT_COST;
-        game.getAccountingService().addEntry(new AccountingEntry(
+        accountingService.addEntry(new AccountingEntry(
                 player,
-                game.getCurrentTick(),
+                tick,
                 riskAssessmentCost,
                 AccountCategory.DEBIT_PROJECTS,
                 TransactionType.DEBIT,
                 "Project risk assessment")
         );
         player.subtractFunds(riskAssessmentCost);
-        game.getMessagingService().sendFundsUpdateToPlayer(player);
+        messagingService.sendFundsUpdateToPlayer(player);
 
         GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
         riskAssessedConfirmation.setPayload(project);
-        game.getMessagingService().sendEventToPlayer(player, riskAssessedConfirmation);
+        messagingService.sendEventToPlayer(player, riskAssessedConfirmation);
     }
 }
