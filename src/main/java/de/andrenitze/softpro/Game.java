@@ -1,9 +1,7 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.domains.*;
-import de.andrenitze.softpro.events.*;
-import de.andrenitze.softpro.services.impl.LevelConsequencesService;
-import de.andrenitze.softpro.services.impl.*;
+import de.andrenitze.softpro.config.DatabaseConfig;
+import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
@@ -11,12 +9,13 @@ import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
-import de.andrenitze.softpro.domains.projects.*;
+import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
-import de.andrenitze.softpro.config.DatabaseConfig;
+import de.andrenitze.softpro.events.*;
+import de.andrenitze.softpro.services.impl.*;
 import lombok.Getter;
-import lombok.Setter;
 import org.java_websocket.WebSocket;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -28,13 +27,17 @@ import org.springframework.stereotype.Component;
 
 import java.net.ConnectException;
 import java.time.LocalDate;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import static de.andrenitze.softpro.GameServer.*;
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static java.lang.Math.*;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
+import static java.lang.Math.round;
 import static java.time.LocalDate.now;
 
 @Component
@@ -42,16 +45,16 @@ import static java.time.LocalDate.now;
 public class Game {
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    @Getter @Setter private SkillServiceImpl skillService;
-    @Getter @Setter private AccountingServiceImpl accountingService;
-    @Getter @Setter private MessagingServiceImpl messagingService;
-    @Getter @Setter private PlayerServiceImpl playerService;
-    @Getter @Setter private TalentMarket talentMarket;
-    @Getter @Setter private ProjectServiceImpl projectService;
-    @Getter @Setter private EmployeeServiceImpl employeeService;
-    @Getter @Setter private GameEventHandler eventHandler;
-    @Getter @Setter private GameEventPublisher eventPublisher;
-    @Getter @Setter private ProjectEmployeeMappingImpl projectEmployeeMapping;
+    @Getter private PlayerServiceImpl playerService;
+    @Getter private SkillServiceImpl skillService;
+    @Getter private AccountingServiceImpl accountingService;
+    @Getter private MessagingServiceImpl messagingService;
+    @Getter private TalentMarket talentMarket;
+    @Getter private ProjectServiceImpl projectService;
+    @Getter private EmployeeServiceImpl employeeService;
+    @Getter private GameEventHandler eventHandler;
+    @Getter private GameEventPublisher eventPublisher;
+    @Getter private ProjectEmployeeMappingImpl projectEmployeeMapping;
 
     public static final int GAME_SPEED_IN_MILLISECONDS = 600;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
@@ -84,7 +87,6 @@ public class Game {
                 GameEventHandler eventHandler,
                 GameEventPublisher eventPublisher,
                 ObjectiveServiceImpl objectiveService) {
-
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         this.talentMarket = new TalentMarket(employeeIdGenerator);
         this.talentMarket.clear();
@@ -105,8 +107,10 @@ public class Game {
         }
     }
 
-    public Game() {
-        // Empty constructor for Spring
+    // Mandatory services are injected here
+    public Game(PlayerServiceImpl playerService, SkillServiceImpl skillService) {
+        this.playerService = playerService;
+        this.skillService = skillService;
     }
 
     public void start() {
@@ -171,13 +175,13 @@ public class Game {
             // Send talent market to players at once
             GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcastToAllPlayers(getGson().toJson(employeeEvent));
+            messagingService.broadcastToAllPlayers(GameServer.getGson().toJson(employeeEvent));
         }
 
         // Send all tenders at once
         GameEvent<List<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projectService.getProjects());
-        messagingService.broadcastToAllPlayers(getGson().toJson(projectEvent));
+        messagingService.broadcastToAllPlayers(GameServer.getGson().toJson(projectEvent));
 
         // Logic for decisions and their consequences
         // Beware: Decisions from previous levels might have consequences in other levels
@@ -291,7 +295,7 @@ public class Game {
                 // Send the compiled list to the player
                 GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
                 newStoryElementEvent.setPayload(thisPlayersStoryElements);
-                messagingService.sendMessageToPlayer(player, getGson().toJson(newStoryElementEvent));
+                messagingService.sendMessageToPlayer(player, GameServer.getGson().toJson(newStoryElementEvent));
             }
         });
     }
@@ -506,14 +510,8 @@ public class Game {
                 return;
             }
 
-            logger.debug("Adding player {} to game via PlayerServiceImpl", value.getId());
             playerService.addPlayer(key, value);
-
-            if (messagingService != null) {
-                messagingService.addPlayer(key, value);
-            } else {
-                logger.error("MessagingService is not initialized.");
-            }
+            messagingService.addPlayer(key, value);
 
             PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
             eventPublisher.publishPlayersChangedEvent(playersChangedEvent);

@@ -6,7 +6,6 @@ import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.events.GameEventPublisher;
 import de.andrenitze.softpro.services.impl.*;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
 
@@ -21,7 +20,6 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    @DependsOn({"playerService", "eventHandler"})
     public Game game(SkillServiceImpl skillService,
                      AccountingServiceImpl accountingService,
                      EmployeeServiceImpl employeeService,
@@ -30,19 +28,9 @@ public class GameConfig {
                      PlayerServiceImpl playerService,
                      GameEventHandler eventHandler,
                      TalentMarket talentMarket,
-                     @Qualifier("gameEventPublisher") GameEventPublisher eventPublisher) {
-        Game game = new Game();
-        game.setSkillService(skillService);
-        game.setAccountingService(accountingService);
-        game.setEmployeeService(employeeService);
-        game.setProjectService(projectService);
-        game.setMessagingService(messagingService);
-        game.setPlayerService(playerService);
-        game.setEventHandler(eventHandler);
-        game.setTalentMarket(talentMarket);
-        game.setEventPublisher(eventPublisher);
-        eventHandler.setGame(game);
-        return game;
+                     GameEventPublisher eventPublisher,
+                     ObjectiveServiceImpl objectiveService) {
+        return new Game(skillService, accountingService, messagingService, playerService, talentMarket, projectService, employeeService, eventHandler, eventPublisher, objectiveService);
     }
 
     @Bean
@@ -79,7 +67,6 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    @DependsOn({"messagingService", "skillService", "accountingService", "projectEmployeeMapping"})
     public ProjectServiceImpl projectService(MessagingServiceImpl messagingService,
                                              SkillServiceImpl skillService,
                                              AccountingServiceImpl accountingService,
@@ -91,8 +78,7 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    @Qualifier("playerServiceImpl")
-    @DependsOn({"projectService"})
+    @Primary
     public PlayerServiceImpl playerService(TalentMarket talentMarket,
                                            ProjectServiceImpl projectService,
                                            ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
@@ -130,6 +116,7 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
+    @Primary
     public ObjectiveServiceImpl objectiveService(PlayerServiceImpl playerService) {
         return new ObjectiveServiceImpl(playerService);
     }

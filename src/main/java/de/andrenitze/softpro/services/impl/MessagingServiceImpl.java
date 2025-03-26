@@ -4,13 +4,14 @@ import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.PlayersChangedEvent;
 import de.andrenitze.softpro.services.MessagingService;
 import org.java_websocket.WebSocket;
 import org.springframework.context.event.EventListener;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
@@ -20,6 +21,7 @@ public class MessagingServiceImpl implements MessagingService {
     private Map<WebSocket, Player> players;
 
     public MessagingServiceImpl() {
+        players = new HashMap<>();
     }
 
     public void sendFundsUpdateToPlayer(Player player) {
@@ -86,6 +88,11 @@ public class MessagingServiceImpl implements MessagingService {
     }
 
     public void sendEventToPlayer(Player player, GameEvent<?> gameEvent) {
+        // Check if player is in the game
+        if (players == null || !players.containsValue(player)) {
+            logger.debug("Player {} is not in the game. Not sending event.", player.getId());
+            return;
+        }
         sendMessageToPlayer(player, gson.toJson(gameEvent));
     }
 
@@ -103,12 +110,12 @@ public class MessagingServiceImpl implements MessagingService {
     @EventListener
     public void onPlayersChanged(PlayersChangedEvent event) {
         logger.debug("PlayersChangedEvent received in MessagingServiceImpl. Adding {} players.", event.getPlayers().size());
-        this.players = event.getPlayers();
+        players = event.getPlayers();
     }
 
     // This is redundant, but the event listener is not working for some reason.
     public void addPlayer(WebSocket key, Player value) {
-        logger.debug("Adding player {} to MessagingServiceImpl.", value);
+        logger.debug("Adding player {} to MessagingServiceImpl.", value.getId());
         players.put(key, value);
     }
 }

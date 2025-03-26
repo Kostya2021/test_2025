@@ -268,11 +268,7 @@ public class GameServer extends WebSocketServer {
         // Send updated player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        if (game.getMessagingService() != null) {
-            game.getMessagingService().sendEventToPlayer(player, playerUpdateEvent);
-        } else {
-            logger.error("Messaging service not available in game {}", game.hashCode());
-        }
+        game.getMessagingService().sendEventToPlayer(player, playerUpdateEvent);
     }
 
     /**

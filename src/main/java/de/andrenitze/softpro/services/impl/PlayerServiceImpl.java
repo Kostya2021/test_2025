@@ -10,7 +10,6 @@ import lombok.Getter;
 import org.java_websocket.WebSocket;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
 @Service
-@Primary
 public class PlayerServiceImpl implements PlayerService {
     @Getter
     private final ConcurrentHashMap<WebSocket, Player> players;
