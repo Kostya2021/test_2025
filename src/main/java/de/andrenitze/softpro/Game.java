@@ -6,19 +6,18 @@ import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
-import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
-import de.andrenitze.softpro.domains.objectives.ObjectiveChecker;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 import de.andrenitze.softpro.events.*;
+import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import lombok.Getter;
+import lombok.Setter;
 import org.java_websocket.WebSocket;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,9 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
-import static java.lang.Math.round;
 import static java.time.LocalDate.now;
 
 @Component
@@ -53,22 +50,21 @@ public class Game {
     @Getter private TalentMarket talentMarket;
     @Getter private ProjectServiceImpl projectService;
     @Getter private EmployeeServiceImpl employeeService;
-    @Getter private GameEventHandler eventHandler;
+    @Getter @Setter private GameEventHandler eventHandler;
     @Getter private GameEventPublisher eventPublisher;
-    @Getter private ProjectEmployeeMappingImpl projectEmployeeMapping;
+    @Getter private ProjectEmployeeMappingImpl projectEmployeeService;
+    @Setter @Getter private GameLifeCycleService lifeCycleService;
+    @Setter private ObjectiveServiceImpl objectiveService;
 
-    public static final int GAME_SPEED_IN_MILLISECONDS = 600;
+    public static final int GAME_SPEED_IN_MILLISECONDS = 200;
     public static final int STALE_TENDERS_KILL_DAYS = 548;
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
     public static final String RESTORE_LOST_DATA = "Restore lost data";
     public static final int BACKUP_BLUES_LEVEL = 2;
-    private boolean isRunning; // Game instance is active
-    private boolean isPaused = false; // Game instance is active, but paused (e.g., for briefing and tutorials)
     @Getter private int tick = 0;
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
     private ArrayList<StoryElement> storyElements; // Level-specific
-    private ObjectiveServiceImpl objectiveService;
     private LevelConsequencesService levelConsequencesService;
 
     /**
@@ -87,7 +83,6 @@ public class Game {
                 EmployeeServiceImpl employeeService,
                 GameEventHandler eventHandler,
                 GameEventPublisher eventPublisher,
-                ObjectiveServiceImpl objectiveService,
                 LevelConsequencesService levelConsequencesService) {
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         this.talentMarket = new TalentMarket(employeeIdGenerator);
@@ -101,7 +96,6 @@ public class Game {
         this.employeeService = employeeService;
         this.eventHandler = eventHandler;
         this.eventPublisher = eventPublisher;
-        this.objectiveService = objectiveService;
         this.levelConsequencesService = levelConsequencesService;
 
         // Don't initialize the talent market for level 1
@@ -111,12 +105,14 @@ public class Game {
     }
 
     // Mandatory services are injected here
-    public Game(GamePlayerServiceImpl playerService, SkillServiceImpl skillService) {
+    public Game(GameLifeCycleService lifeCycleService, GamePlayerServiceImpl playerService, SkillServiceImpl skillService) {
+        this.lifeCycleService = lifeCycleService;
         this.playerService = playerService;
         this.skillService = skillService;
     }
 
     public void start() {
+        logger.debug("start()'ing game loop with {} players.", playerService.getPlayers().size());
         // CHeck if there is at least one player in this game instance
         if (playerService.getPlayers().isEmpty()) {
             logger.error("No players in this game. Cannot start.");
@@ -124,25 +120,23 @@ public class Game {
         }
 
         // Start the round for all players
-        isRunning = true;
+        lifeCycleService.run();
+        messagingService.setPlayerService(playerService);
         messagingService.broadcastEvent(EventType.ROUND_STARTED);
         messagingService.broadcastInitialState();
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleWithFixedDelay(() -> {
-            if (isPaused) {
+            if (lifeCycleService.isPaused()) {
                 return;
             }
 
             // Notify all clients of current time
-            GameEvent<Integer> timerEvent = new GameEvent<>(EventType.T);
-            timerEvent.setPayload(getTick());
+            GameEvent<Integer> timerEvent = new GameEvent<>(EventType.TICK);
+            timerEvent.setPayload(lifeCycleService.getTick());
             messagingService.broadcastEvent(timerEvent);
 
-            logger.debug("Progressing game time...");
-
-            // Progress game time and calculate the world's state for each tick
             progressGameTime();
         }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
 
@@ -165,26 +159,18 @@ public class Game {
         logger.debug("prepareNextLevel(): Players' highest level (= {}) will be the next level", nextLevel);
 
         if (getLevel() != 1) {
-            projectService.setProjects(new ArrayList<>());
-            for (int i = 0; i < 100; i++) {
-                Project project = new Project().initialize();
-
-                // Set randomly negative publish dates to have some history of tenders
-                project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
-
-                getProjectEmployeeMapping().addProject(project, new ArrayList<>());
-            }
+            projectService.initialize();
 
             // Send talent market to players at once
             GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcastToAllPlayers(GameServer.getGson().toJson(employeeEvent));
+            messagingService.broadcast(GameServer.getGson().toJson(employeeEvent));
         }
 
         // Send all tenders at once
         GameEvent<List<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         projectEvent.setPayload(projectService.getProjects());
-        messagingService.broadcastToAllPlayers(GameServer.getGson().toJson(projectEvent));
+        messagingService.broadcast(GameServer.getGson().toJson(projectEvent));
 
         // Logic for decisions and their consequences
         // Beware: Decisions from previous levels might have consequences in other levels
@@ -229,46 +215,54 @@ public class Game {
     }
 
     private void progressGameTime() {
+        logger.debug("progressGameTime()");
+
         LocalDate currentDate;
-        if (isPaused) {
+        if (lifeCycleService.isPaused()) {
             return;
         }
 
-        ++tick;
+        lifeCycleService.nextTick();
 
         // Progress calendar date
         currentDate = now();
-        currentDate = currentDate.plusDays(tick);
+        currentDate = currentDate.plusDays(lifeCycleService.getTick());
 
         long startTime = System.nanoTime();
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectService.conductWorkOnAllProjects(getTick(), getLevel(), currentDate, projectEmployeeMapping.getProjectEmployeesMap());
-        projectService.cancelOverdueProjects(getTick(), getLevel());
-        projectService.randomlySpawnProjectTenders(getTick(), getLevel());
-        projectService.evaluateTenderProcesses(getTick());
-        // Things not to do in the first level to ease the player into the game
+        logger.debug("1");
+        //projectService.conductWorkOnAllProjects(lifeCycleService.getTick(), getLevel(), currentDate, projectEmployeeMapping.getProjectEmployeesMap());
+        //projectService.cancelOverdueProjects(lifeCycleService.getTick(), getLevel());
+        //projectService.randomlySpawnProjectTenders(lifeCycleService.getTick(), getLevel());
+        //projectService.evaluateTenderProcesses(lifeCycleService.getTick());
+        logger.debug("1.5");
+        // Things not to do in the first level
         // The "level" param in the other methods are used for a similar decision and might be removed in the future.
         if (getLevel() != 1) {
-            projectService.randomlyAssignComplianceProjects(getTick());
-            projectService.removeStaleTenders(getTick());
-            projectService.startStaleProjects(getTick());
+            projectService.generateRandomComplianceProjects(lifeCycleService.getTick());
+            projectService.generateRandomComplianceProjects(lifeCycleService.getTick());
+            projectService.removeStaleTenders(lifeCycleService.getTick());
+            projectService.startStaleProjects(lifeCycleService.getTick());
         }
-        projectService.createProblemsInProjects(getTick(), getLevel());
-        accountingService.processMonthlyPayments(currentDate, playerService.getPlayers());
-        accountingService.sendNewAccountingEntries();
-        employeeService.simulateEmployeeLives();
-        processNewObjectives(getTick());
+        logger.debug("2");
+        projectService.createProblemsInProjects(lifeCycleService.getTick(), getLevel());
+        accountingService.processMonthlyPayments(currentDate, playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
+        messagingService.sendNewAccountingEntries(accountingService.getNewAccountingEntries(lifeCycleService.getTick()));
+        //employeeService.simulateEmployeeLives();
+        logger.debug("3");
+        processNewObjectives(lifeCycleService.getTick());
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
         checkGameOverConditions();
+        logger.debug("4");
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
         // If time elapsed is more than 20 ms and game is not currently shutting down
-        if (timeElapsedInMilliseconds >= 20 && isRunning) {
+        if (timeElapsedInMilliseconds >= 20 && lifeCycleService.isRunning()) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
     }
@@ -307,7 +301,7 @@ public class Game {
         List<StoryElement> relevantStoryElements = new ArrayList<>();
         this.storyElements.forEach(element -> {
             // Relevant = Has not been sent AND (is scheduled earliest for this tick OR has an objective precondition)
-            if (!element.isSent() && (element.getEarliestOccurrence() == tick ||
+            if (!element.isSent() && (element.getEarliestOccurrence() == lifeCycleService.getTick() ||
                     element.getAfterObjective() != 0)) {
                 relevantStoryElements.add(element);
             }
@@ -335,23 +329,15 @@ public class Game {
     }
 
     private void checkObjectivesCriteriaAndSendRewards() {
-        ObjectiveChecker objectiveChecker = new ObjectiveChecker(this);
-        playerService.getPlayers().forEach((_, player) -> objectiveChecker.checkObjectives(player));
-    }
-
-    @Nullable
-    public Mission getMissionByObjective(Player player, Objective objective) {
-        // Get mission by objective
-        Mission mission = player.getMissions().stream()
-                .filter(m -> m.getObjectives().contains(objective))
-                .findFirst()
-                .orElse(null);
-
-        if (mission == null) {
-            logger.warn("Objective {} has no mission.", objective.getId());
-            return null;
-        }
-        return mission;
+        playerService.getPlayers().forEach((_, player) -> {
+            if (objectiveService.areThereObjectivesUpdates(player)) {
+                logger.debug("Sending updated objectives to player.");
+                List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
+                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
+                objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                messagingService.sendMessageToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
+            }
+        });
     }
 
     void checkGameOverConditions() {
@@ -366,13 +352,13 @@ public class Game {
         logger.debug("Game over for player {}.", player.getId());
         boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt();
 
-        GameOverStats goStats = createGameOverStats(this, player);
+        GameOverStats goStats = createGameOverStats(this, player, lifeCycleService.getTick());
         goStats.setReport(playerHasWon ? "win" : "fail");
 
         if (playerHasWon) {
             // Keep the player in the game and prepare for the next level
             logger.debug("Player {} has completed all {} missions. Moving to next level ({}).",
-                    player.getId(),
+                    player.hashCode(),
                     player.getMissions().size(),
                     level + 1);
 
@@ -406,7 +392,7 @@ public class Game {
         removePlayer(webSocket);
     }
 
-    private GameOverStats createGameOverStats(Game game, Player player) {
+    private GameOverStats createGameOverStats(Game game, Player player, int tick) {
         int deliveredProjects = 0;
         int projectsVolume = 0;
         for (Project project : game.getProjectService().getProjects()) {
@@ -477,7 +463,7 @@ public class Game {
             // Stop the game loop asynchronously (no guarantees)
             shutdownAndAwaitTermination(gameLoop);
         } else {
-            logger.debug("Game {} has {} player(s) left. Keeping game instance alive.", this.hashCode(), numberOfPlayers);
+            logger.debug("Game {} has {} player(s). Keeping game instance alive.", this.hashCode(), numberOfPlayers);
         }
     }
 
@@ -515,6 +501,7 @@ public class Game {
             }
 
             playerService.addPlayer(key, value);
+            logger.debug("Added player {} to game.", value.getId());
 
             PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
             eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
@@ -523,21 +510,8 @@ public class Game {
         }
     }
 
+    // Forwarding the method for the GameServer
     public boolean isRunning() {
-        return isRunning;
-    }
-
-    public void pause() {
-        isPaused = true;
-    }
-
-    public void resume() {
-        isPaused = false;
-    }
-
-    public void conductOneToOneMeeting(Player player, Employee employee) {
-        // Increase satisfaction of employee
-        employee.haveOneToOneMeeting();
-        messagingService.sendEmployeeUpdate(player, employee);
+        return lifeCycleService.isRunning();
     }
 }

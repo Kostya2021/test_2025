@@ -1,7 +1,6 @@
 package de.andrenitze.softpro.services;
 
 import de.andrenitze.softpro.Player;
-import de.andrenitze.softpro.domains.employees.Employee;
 import org.java_websocket.WebSocket;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,15 +8,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Service for managing players in the lobby or in games.
  */
-public interface PlayerService {
-    // Common methods for game and lobby
+public interface LobbyPlayerService {
     void addPlayer(WebSocket key, Player value);
-    Player getPlayerByWebSocket(WebSocket websocket);
+    Player getPlayer(WebSocket websocket);
     boolean hasWebSocket(WebSocket conn);
+    WebSocket getWebSocket(Player player);
     ConcurrentHashMap<WebSocket, Player> getPlayers();
+    void removePlayer(Player player);
     Player removePlayer(WebSocket webSocket);
-
-    // Game-specific methods
-    void dismissEmployee(Player player, Employee employee);
-    void generateFirstEmployeesForPlayers();
 }

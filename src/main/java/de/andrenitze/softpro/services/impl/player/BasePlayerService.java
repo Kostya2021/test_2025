@@ -2,13 +2,14 @@
 package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.Player;
-import de.andrenitze.softpro.services.PlayerService;
+import de.andrenitze.softpro.services.LobbyPlayerService;
 import org.java_websocket.WebSocket;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class BasePlayerService implements PlayerService {
-    protected final ConcurrentHashMap<WebSocket, Player> players = new ConcurrentHashMap<>();
+public abstract class BasePlayerService implements LobbyPlayerService {
+    private final ConcurrentHashMap<WebSocket, Player> players = new ConcurrentHashMap<>();
 
     @Override
     public void addPlayer(WebSocket webSocket, Player player) {
@@ -16,7 +17,7 @@ public abstract class BasePlayerService implements PlayerService {
     }
 
     @Override
-    public Player getPlayerByWebSocket(WebSocket websocket) {
+    public Player getPlayer(WebSocket websocket) {
         return players.get(websocket);
     }
 
@@ -31,7 +32,24 @@ public abstract class BasePlayerService implements PlayerService {
     }
 
     @Override
+    public WebSocket getWebSocket(Player player) {
+        return players.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(player))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
     public ConcurrentHashMap<WebSocket, Player> getPlayers() {
         return players;
+    }
+
+    @Override
+    public void removePlayer(Player player) {
+        WebSocket webSocket = getWebSocket(player);
+        if (webSocket != null) {
+            removePlayer(webSocket);
+        }
     }
 }

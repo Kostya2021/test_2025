@@ -4,6 +4,7 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentMap;
 
 public interface ProjectEmployeeMappingService {
     void assignEmployeeToProject(Employee employee, Project project);
@@ -11,4 +12,5 @@ public interface ProjectEmployeeMappingService {
     void removeEmployeeFromAllProjects(Employee employee);
     ArrayList<Employee> getEmployeesByProject(Project project);
     void addProject(Project project, ArrayList<Object> objects);
+    ConcurrentMap<Project, ArrayList<Employee>> getProjectEmployeesMap();
 }

@@ -6,7 +6,7 @@ import org.springframework.context.ApplicationEvent;
 
 @Getter
 public class GameOverEvent extends ApplicationEvent {
-    private final Game.GameOverData gameOverData;
+    private final transient Game.GameOverData gameOverData;
 
     public GameOverEvent(Object source, Game.GameOverData gameOverData) {
         super(source);

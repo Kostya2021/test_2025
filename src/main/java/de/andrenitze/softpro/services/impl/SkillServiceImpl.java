@@ -34,29 +34,29 @@ public class SkillServiceImpl implements SkillService {
         }
     }
 
-    public void unlockSkill(Player player, String skillId, int unlockSkillPoints) {
+    public void unlockSkill(Player player, String skillName, int unlockSkillPoints) {
         Skill skill = new Skill();
-        skill.setId(skillId);
+        skill.setId(skillName);
         skill.setUnlocked(true);
 
         player.setSkillPoints(player.getSkillPoints() - unlockSkillPoints);
 
         HashMap<String, Skill> skills = playersSkills.get(player);
-        skills.putIfAbsent(skillId, skill);
+        skills.putIfAbsent(skillName, skill);
         playersSkills.put(player, skills);
-        logger.debug("Player {} unlocked skill {}", player.getId(), skillId);
+        logger.debug("Player {} unlocked skill {}", player.getId(), skillName);
         saveSkills(player);
         addPermanentStatusEffectsToAllEmployees();
     }
 
-    public boolean playerHasSkill(Player player, String skillId) {
+    public boolean playerHasSkill(Player player, String skillName) {
         HashMap<String, Skill> skills = playersSkills.get(player);
         if (skills == null) {
             logger.debug("Player {} has no skills registered.", player.getId());
             return false;
         }
 
-        Skill skill = skills.get(skillId);
+        Skill skill = skills.get(skillName);
         return skill != null && skill.isUnlocked();
     }
 

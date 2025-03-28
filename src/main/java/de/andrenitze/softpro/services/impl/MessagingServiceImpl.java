@@ -2,25 +2,29 @@ package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.MessagingService;
-import de.andrenitze.softpro.services.PlayerService;
+import de.andrenitze.softpro.services.LobbyPlayerService;
+import lombok.Setter;
 import org.java_websocket.WebSocket;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
 import static de.andrenitze.softpro.Main.logger;
 
+@Setter
 public class MessagingServiceImpl implements MessagingService {
-    private final PlayerService playerService;
+    private LobbyPlayerService playerService;
 
     @Autowired
-    public MessagingServiceImpl(PlayerService playerService) {
+    public MessagingServiceImpl(LobbyPlayerService playerService) {
         this.playerService = playerService;
     }
 
@@ -53,7 +57,7 @@ public class MessagingServiceImpl implements MessagingService {
                 .findFirst().orElse(null);
     }
 
-    public void broadcastToAllPlayers(String message) {
+    public void broadcast(String message) {
         playerService.getPlayers().forEach((webSocket, _) -> webSocket.send(message));
     }
 
@@ -68,23 +72,14 @@ public class MessagingServiceImpl implements MessagingService {
      * @param eventType The type of the event to broadcast.
      */
     public void broadcastEvent(EventType eventType) {
+        logger.debug("Broadcasting event of type {} to {} players.", eventType, playerService.getPlayers().size());
         GameEvent<Void> event = new GameEvent<>(eventType);
-        broadcastToAllPlayers(gson.toJson(event));
-    }
-
-    /**
-     * Broadcasts an event of specified type with the current tick as payload to all players.
-     * @param eventType The type of the event to broadcast.
-     * @param currentTick The current tick of the game.
-     */
-    public void broadcastEvent(EventType eventType, int currentTick) {
-        GameEvent<Integer> event = new GameEvent<>(eventType);
-        event.setPayload(currentTick);
-        broadcastToAllPlayers(gson.toJson(event));
+        broadcast(gson.toJson(event));
     }
 
     public void broadcastEvent(GameEvent<?> gameEvent) {
-        broadcastToAllPlayers(gson.toJson(gameEvent));
+        logger.debug("Broadcasting event of type {} to {} players.", gameEvent.getType(), playerService.getPlayers().size());
+        broadcast(gson.toJson(gameEvent));
     }
 
     public void sendEventToPlayer(Player player, GameEvent<?> gameEvent) {
@@ -105,5 +100,15 @@ public class MessagingServiceImpl implements MessagingService {
             event.setPayload(player);
             sendEventToPlayer(player, event);
         });
+    }
+
+    public void sendNewAccountingEntries(List<AccountingEntry> newEntries) {
+        if (!newEntries.isEmpty()) {
+            GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
+            newAccountingEntriesEvent.setPayload(newEntries);
+            playerService.getPlayers().forEach((_, player) -> {
+                sendEventToPlayer(player, newAccountingEntriesEvent);
+            });
+        }
     }
 }

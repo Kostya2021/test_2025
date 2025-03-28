@@ -34,6 +34,18 @@ For the feature "Player gains experience (XP)", the following steps are needed:
 * Add notificaiton code for the frontend
 * Extend the frontend to include the new data.
 
+## Architecture
+One **GameServer** instance hosts multiple **Game** instances.
+**Player**s are created when WebSocket connections are established. Players are added to the GameServer instance.
+
+There are service classes.
+
+Service classes are organized as Beans using Spring's dependency injection.
+Service classes for **GameServer** are defined in ```config/ServerConfig.java```.
+Service classes for **Game** are defined in ```config/GameConfig.java```.
+
+
+
 ## Test Suite
 ### Unit Tests
 Should be written rather sooner than later for new features to get all the side effects sorted out and get your thinking as clear as water.

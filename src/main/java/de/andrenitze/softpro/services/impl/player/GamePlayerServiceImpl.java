@@ -2,15 +2,11 @@ package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.TalentMarket;
-import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.events.EventType;
-import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.impl.MessagingServiceImpl;
 import de.andrenitze.softpro.services.impl.ProjectEmployeeMappingImpl;
 import de.andrenitze.softpro.services.impl.ProjectServiceImpl;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -30,9 +26,9 @@ public class GamePlayerServiceImpl extends BasePlayerService {
     private final MessagingServiceImpl messagingService;
 
     public GamePlayerServiceImpl(TalentMarket talentMarket,
-                                 @Lazy @Qualifier("projectServiceImpl") ProjectServiceImpl projectService,
-                                 @Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectEmployeeMapping,
-                                 @Lazy MessagingServiceImpl messagingService
+                                 @Lazy ProjectServiceImpl projectService,
+                                 ProjectEmployeeMappingImpl projectEmployeeMapping,
+                                 MessagingServiceImpl messagingService
     ) {
         this.players = new ConcurrentHashMap<>();
         this.lobby = new ConcurrentHashMap<>();
@@ -48,7 +44,7 @@ public class GamePlayerServiceImpl extends BasePlayerService {
     }
 
     @Override
-    public Player getPlayerByWebSocket(WebSocket websocket) {
+    public Player getPlayer(WebSocket websocket) {
         return players.get(websocket);
     }
 
@@ -65,27 +61,6 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         players.forEach((_, player) -> talentMarket.generateFirstEmployees().forEach(
                 employee -> player.addEmployee(employee, 0)
         ));
-    }
-
-    public void dismissEmployee(Player player, Employee employee) {
-        player.removeEmployee(employee);
-        employee.removeAllStatusEffects();
-        talentMarket.addTalent(employee);
-
-        // If there are projects...
-        if (projectService.getProjects() != null) {
-            projectEmployeeMapping.removeEmployeeFromAllProjects(employee);
-        }
-
-        // Send employee dismissal confirmation
-        GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
-        employeeDismissedEvent.setPayload(employee);
-        messagingService.sendEventToPlayer(player, employeeDismissedEvent);
-
-        // Send new employee to all players' TalentMarkets in the game
-        GameEvent<ArrayList<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-        employeeEvent.setPayload(new ArrayList<>(List.of(employee)));
-        messagingService.broadcastEvent(employeeEvent);
     }
 
     @Override

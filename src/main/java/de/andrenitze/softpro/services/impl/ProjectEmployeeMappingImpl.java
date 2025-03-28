@@ -51,7 +51,7 @@ public class ProjectEmployeeMappingImpl implements ProjectEmployeeMappingService
         return projectEmployeesMap.get(project);
     }
 
-    boolean isEmployeeAssignedToProject(Employee employee) {
+    boolean isEmployeeAssignedToAnyProject(Employee employee) {
         return projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(employee));
     }
 

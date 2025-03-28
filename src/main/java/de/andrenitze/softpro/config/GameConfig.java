@@ -5,6 +5,7 @@ import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.events.GameEventPublisher;
+import de.andrenitze.softpro.services.*;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.springframework.context.ApplicationContext;
@@ -16,7 +17,7 @@ import static de.andrenitze.softpro.Main.logger;
 @ComponentScan("de.andrenitze.softpro")
 public class GameConfig {
     public GameConfig(ApplicationContext parentContext) {
-        logger.debug("GameConfig created.");
+        logger.debug("GameConfig with parentContext '{}' created.", parentContext.getId());
     }
 
     @Bean
@@ -30,10 +31,9 @@ public class GameConfig {
                      GameEventHandler eventHandler,
                      TalentMarket talentMarket,
                      GameEventPublisher eventPublisher,
-                     ObjectiveServiceImpl objectiveService,
                      LevelConsequencesService levelConsequencesService) {
         return new Game(skillService, accountingService, messagingService, playerService, talentMarket,
-                projectService, employeeService, eventHandler, eventPublisher, objectiveService,
+                projectService, employeeService, eventHandler, eventPublisher,
                 levelConsequencesService);
     }
 
@@ -59,8 +59,8 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public AccountingServiceImpl accountingService() {
-        return new AccountingServiceImpl();
+    public AccountingServiceImpl accountingService(@Lazy MessagingService messagingService, @Lazy LobbyPlayerService playerService) {
+        return new AccountingServiceImpl(messagingService, playerService);
     }
 
     @Bean
@@ -75,9 +75,8 @@ public class GameConfig {
                                              SkillServiceImpl skillService,
                                              AccountingServiceImpl accountingService,
                                              ProjectEmployeeMappingImpl projectEmployeeMapping,
-                                             GamePlayerServiceImpl playerService
-    ) {
-        return new ProjectServiceImpl(messagingService, skillService, accountingService, projectEmployeeMapping, playerService);
+                                             @Lazy GamePlayerServiceImpl playerService) {
+        return new ProjectServiceImpl(accountingService, skillService, projectEmployeeMapping, messagingService, playerService);
     }
 
     @Bean
@@ -94,8 +93,9 @@ public class GameConfig {
     @Bean
     @Scope("prototype")
     public EmployeeServiceImpl employeeService(MessagingServiceImpl messagingService,
-                                               ProjectEmployeeMappingImpl projectEmployeeMappingImpl) {
-        EmployeeServiceImpl service = new EmployeeServiceImpl(projectEmployeeMappingImpl);
+                                               ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
+                                               GamePlayerServiceImpl playerService){
+        EmployeeServiceImpl service = new EmployeeServiceImpl(projectEmployeeMappingImpl, playerService);
         service.setMessagingService(messagingService);
         return service;
     }
@@ -108,8 +108,22 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public GameEventHandler eventHandler(GamePlayerServiceImpl playerService) {
-        return new GameEventHandler(null, playerService); // Will be set after game creation
+    public GameEventHandler eventHandler(MessagingService messagingService,
+                                         GamePlayerServiceImpl playerService,
+                                         EmployeeService employeeService,
+                                         TalentMarket talentMarket,
+                                         ProjectService projectService,
+                                         GameLifeCycleService lifeCycleService,
+                                         SkillServiceImpl skillService,
+                                         ProjectEmployeeMappingService projectEmployeeService) {
+        return new GameEventHandler(messagingService,
+                playerService,
+                employeeService,
+                talentMarket,
+                projectService,
+                lifeCycleService,
+                skillService,
+                projectEmployeeService);
     }
 
     @Bean
@@ -120,13 +134,25 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public ObjectiveServiceImpl objectiveService(@Lazy GamePlayerServiceImpl playerService) {
-        return new ObjectiveServiceImpl(playerService);
+    public ObjectiveServiceImpl objectiveService(@Lazy GamePlayerServiceImpl playerService,
+                                                 GameLifeCycleService lifeCycleService,
+                                                 ProjectServiceImpl projectService,
+                                                 SkillServiceImpl skillService,
+                                                 ProjectEmployeeMappingService projectEmployeeService) {
+        return new ObjectiveServiceImpl(playerService, lifeCycleService, projectService, skillService, projectEmployeeService);
     }
 
     @Bean
     @Scope("prototype")
-    public LevelConsequencesService levelConsequencesService(@Lazy GamePlayerServiceImpl playerService, @Lazy TalentMarket talentMarket) {
+    public LevelConsequencesService levelConsequencesService(
+            @Lazy GamePlayerServiceImpl playerService,
+            @Lazy TalentMarket talentMarket) {
         return new LevelConsequencesService(playerService, talentMarket);
+    }
+
+    @Bean
+    @Scope("prototype")
+    public GameLifeCycleService lifeCycleService() {
+        return new GameLifeCycleService();
     }
 }

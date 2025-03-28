@@ -2,7 +2,7 @@ package de.andrenitze.softpro.config;
 
 import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
-import de.andrenitze.softpro.services.PlayerService;
+import de.andrenitze.softpro.services.LobbyPlayerService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -20,16 +20,16 @@ public class ServerConfig {
 
     public ServerConfig(ApplicationContext parentContext) {
         this.parentContext = parentContext;
-        logger.debug("GlobalConfig created.");
+        logger.debug("GlobalConfig with parentContext '{}' created.", parentContext.getId());
     }
 
     @Bean
     public GameServer gameServer(LobbyPlayerServiceImpl lobby, GameFactory gameFactory) {
-        return new GameServer(parentContext, gameFactory, lobby);
+        return new GameServer(gameFactory, lobby);
     }
 
     @Bean
-    public PlayerService lobbyPlayerService() {
+    public LobbyPlayerService lobbyPlayerService() {
         return new LobbyPlayerServiceImpl();
     }
 

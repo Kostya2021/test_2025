@@ -1,13 +1,12 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
-import de.andrenitze.softpro.events.EventType;
-import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.AccountingService;
+import de.andrenitze.softpro.services.MessagingService;
+import de.andrenitze.softpro.services.LobbyPlayerService;
 import lombok.Setter;
 import org.java_websocket.WebSocket;
 
@@ -22,9 +21,13 @@ import static de.andrenitze.softpro.Main.logger;
 
 public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();
-    @Setter private Game game;
+    @Setter private MessagingService messagingService;
+    @Setter private LobbyPlayerService playerService;
 
-    public AccountingServiceImpl() {}
+    public AccountingServiceImpl(MessagingService messagingService, LobbyPlayerService playerService) {
+        this.messagingService = messagingService;
+        this.playerService = playerService;
+    }
 
     // Adds a new entry to the in-memory list
     public synchronized void addEntry(AccountingEntry entry) {
@@ -34,7 +37,7 @@ public class AccountingServiceImpl implements AccountingService {
         }
 
         if (entry.getAmount() <= 0) {
-            logger.error("Tried to add an entry with a non-positive amount.");
+            logger.error("Tried to add an entry with a non-positive or zero amount.");
             return;
         }
 
@@ -50,44 +53,39 @@ public class AccountingServiceImpl implements AccountingService {
                 .collect(Collectors.toList());
     }
 
-    public void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players) {
+    public void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players, int gameTick, int gameLevel) {
         if (d.getDayOfMonth() == 1) {
             players.forEach((_, player) -> {
                 // Calculate and subtract salaries
                 int salaries = player.calculateAndSubtractSalaries();
-                addEntry(new AccountingEntry(player, game.getTick(), salaries, AccountCategory.SALARIES,
+                addEntry(new AccountingEntry(player, gameTick, salaries, AccountCategory.SALARIES,
                         TransactionType.DEBIT, "Monthly salaries"));
 
                 // Office rent (fixed costs, rises with level)
-                int rent = 500 * (game.getLevel()-1);
-                addEntry(new AccountingEntry(player, game.getTick(), rent, AccountCategory.OVERHEAD,
+                int rent = 500 * (gameLevel-1);
+                addEntry(new AccountingEntry(player, gameTick, rent, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Office rent"));
 
                 // Insurance (fixed costs, rises with level)
-                int insurance = 150 * game.getLevel();
-                addEntry(new AccountingEntry(player, game.getTick(), insurance, AccountCategory.OVERHEAD,
+                int insurance = 150 * gameLevel;
+                addEntry(new AccountingEntry(player, gameTick, insurance, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Insurance"));
 
                 // Subtract rent and insurance from funds (not handled by accounting service)
                 player.subtractFunds((float) rent + insurance);
 
-                game.getMessagingService().sendFundsUpdateToPlayer(player);
+                messagingService.sendFundsUpdateToPlayer(player);
             });
         }
     }
 
-    public void sendNewAccountingEntries() {
-        // Send new accounting entries (the ones with tick == currentTick) to the corresponding players
-        game.getPlayerService().getPlayers().forEach((_, player) -> {
-            List<AccountingEntry> newEntries = getAllEntriesByPlayer(player.getId()).stream()
-                    .filter(entry -> entry.getDay() == game.getTick())
-                    .toList();
-
-            if (!newEntries.isEmpty()) {
-                GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
-                newAccountingEntriesEvent.setPayload(newEntries);
-                game.getMessagingService().sendEventToPlayer(player, newAccountingEntriesEvent);
-            }
+    public List<AccountingEntry> getNewAccountingEntries(int gameTick) {
+        List<AccountingEntry> newEntries = new ArrayList<>();
+        playerService.getPlayers().forEach((_, player) -> {
+            newEntries.addAll(getAllEntriesByPlayer(player.getId()).stream()
+                    .filter(entry -> entry.getDay() == gameTick)
+                    .toList());
         });
+        return newEntries;
     }
 }

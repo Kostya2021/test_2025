@@ -1,45 +1,51 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.EmployeeService;
 import de.andrenitze.softpro.services.MessagingService;
+import de.andrenitze.softpro.services.LobbyPlayerService;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_DOMAIN;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_TYPE;
 
 public class EmployeeServiceImpl implements EmployeeService {
-    @Setter private Game game;
-    @Setter
-    private MessagingService messagingService;
-    private final ProjectEmployeeMappingImpl projectEmployeeMap;
+    @Setter private MessagingService messagingService;
+    private final ProjectEmployeeMappingImpl projectsEmployeesMap;
+    private final LobbyPlayerService playerService;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
 
     @Autowired
-    public EmployeeServiceImpl(@Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectEmployeeMap) {
-        this.projectEmployeeMap = projectEmployeeMap;
+    public EmployeeServiceImpl(@Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectsEmployeesMap,
+                               LobbyPlayerService playerService) {
+        this.projectsEmployeesMap = projectsEmployeesMap;
         this.messagingService = null;
+        this.playerService = playerService;
     }
 
-    public void simulateEmployeeLives() {
-        game.getPlayerService().getPlayers().forEach((_, player) -> player.getEmployees().forEach(employee -> {
-            employee.liveLife(game.getTick());
-            boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(game.getTick()) || employee.removeExpiredStatusEffects();
+    public void simulateEmployeeLives(int gameTick) {
+        playerService.getPlayers().forEach((_, player) -> player.getEmployees().forEach(employee -> {
+            employee.liveLife(gameTick);
+            boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(gameTick) || employee.removeExpiredStatusEffects();
 
             // Annual events that affect employees
-            if (game.getTick() % 365 == 0) {
+            if (gameTick % 365 == 0) {
                 employee.initializeSickDays();
             }
 
             // Monthly events that affect employees
-            if (game.getTick() % 30 == 0) {
+            if (gameTick % 30 == 0) {
                 // Send at least one update per month for metrics (i.e., utilization, sick days, satisfaction)
                 needsUpdate = true;
             }
@@ -54,15 +60,31 @@ public class EmployeeServiceImpl implements EmployeeService {
         }));
     }
 
+    public void dismissEmployee(Player player, Employee employee) {
+        employee.removeAllStatusEffects();
+        player.removeEmployee(employee);
+        projectsEmployeesMap.removeEmployeeFromAllProjects(employee);
+
+        // Send employee dismissal confirmation
+        GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
+        employeeDismissedEvent.setPayload(employee);
+        messagingService.sendEventToPlayer(player, employeeDismissedEvent);
+
+        // Send new employee to all players' TalentMarkets in the game
+        GameEvent<ArrayList<Employee>> talentsAddedEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+        talentsAddedEvent.setPayload(new ArrayList<>(List.of(employee)));
+        messagingService.broadcastEvent(talentsAddedEvent);
+    }
+
     public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
-        if (projectEmployeeMap.isEmployeeAssignedToProject(employee)) {
-            projectEmployeeMap.getProjectEmployeesMap().forEach((project, _) -> {
+        if (projectsEmployeesMap.isEmployeeAssignedToAnyProject(employee)) {
+            projectsEmployeesMap.getProjectEmployeesMap().forEach((project, _) -> {
                 if (project.getStartedAt() == 0) {
                     return;
                 }
                 applyStatusEffectForProjectType(employee, project);
                 applyStatusEffectForProjectDomain(employee, project);
-                game.getMessagingService().sendEmployeeUpdate(player, employee);
+                messagingService.sendEmployeeUpdate(player, employee);
             });
         }
     }

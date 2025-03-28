@@ -98,7 +98,7 @@ public class Project {
 
     /**
      * Initializes a project with a random project type, domain, volume, and deadline.
-     * Any attributes that are set before calling this method alter the way the project is initialized.
+     * Any attributes set before calling this method alter the way the project is initialized.
      */
     public Project initialize() {
         // Assign random risk level, if not already set

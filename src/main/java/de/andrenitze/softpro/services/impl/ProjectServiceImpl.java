@@ -11,6 +11,7 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import lombok.Getter;
@@ -18,7 +19,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
@@ -48,22 +49,21 @@ public class ProjectServiceImpl implements ProjectService {
     static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
     @Getter private ArrayList<Project> projects = new ArrayList<>();
     @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
+
     @Getter private final AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
-    private final ProjectEmployeeMappingImpl mappingService;
+    private final ProjectEmployeeMappingService projectEmployeeService;
     private final MessagingServiceImpl messagingService;
     private final GamePlayerServiceImpl playerService;
 
     @Autowired
-    public ProjectServiceImpl(MessagingServiceImpl messagingService,
-                              SkillServiceImpl skillService,
-                              AccountingServiceImpl accountingService,
-                              @Qualifier("projectEmployeeMapping") ProjectEmployeeMappingImpl projectEmployeeMapping,
-                              @Qualifier("gamePlayerServiceImpl") GamePlayerServiceImpl playerService) {
-        this.messagingService = messagingService;
-        this.skillService = skillService;
+    public ProjectServiceImpl(AccountingServiceImpl accountingService, SkillServiceImpl skillService,
+                              ProjectEmployeeMappingService projectEmployeeService, MessagingServiceImpl messagingService,
+                              @Lazy GamePlayerServiceImpl playerService) {
         this.accountingService = accountingService;
-        this.mappingService = projectEmployeeMapping;
+        this.skillService = skillService;
+        this.projectEmployeeService = projectEmployeeService;
+        this.messagingService = messagingService;
         this.playerService = playerService;
     }
 
@@ -75,7 +75,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         // For all projects that are started AND have employees assigned
-        Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = mappingService.getProjectEmployeesMap().entrySet().iterator();
+        Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeeService.getProjectEmployeesMap().entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
@@ -90,7 +90,7 @@ public class ProjectServiceImpl implements ProjectService {
                 // Finish the project if completed
                 if (project.isCompleted()) {
                     // Remove all status effects on employees related to this project
-                    mappingService.getProjectEmployeesMap().get(project).forEach(employee -> {
+                    projectEmployeeService.getProjectEmployeesMap().get(project).forEach(employee -> {
                         employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_DOMAIN);
                         employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_TYPE);
                     });
@@ -423,7 +423,7 @@ public class ProjectServiceImpl implements ProjectService {
     private int getNumberOfParallelProjectsForEmployee(Employee employee) {
         int numberOfProjects = 0;
 
-        for (Map.Entry<Project, ArrayList<Employee>> entry : mappingService.getProjectEmployeesMap().entrySet()) {
+        for (Map.Entry<Project, ArrayList<Employee>> entry : projectEmployeeService.getProjectEmployeesMap().entrySet()) {
             ArrayList<Employee> employees = entry.getValue();
             Project project = entry.getKey();
 
@@ -497,8 +497,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         // Remove any employees assigned to this project
-        if (mappingService.getProjectEmployeesMap().containsKey(project)) {
-            mappingService.getProjectEmployeesMap().get(project).clear();
+        if (projectEmployeeService.getProjectEmployeesMap().containsKey(project)) {
+            projectEmployeeService.getProjectEmployeesMap().get(project).clear();
         }
 
         // Remove player from project
@@ -515,7 +515,7 @@ public class ProjectServiceImpl implements ProjectService {
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
             getProjects().remove(project);
-            mappingService.getProjectEmployeesMap().remove(project);
+            projectEmployeeService.getProjectEmployeesMap().remove(project);
         }
 
         logger.debug("Project {} cancelled by player {}", project.getName(), player.getId());
@@ -592,7 +592,7 @@ public class ProjectServiceImpl implements ProjectService {
     public void addProject(Project project) {
         // Check if project id already exists, if not, add the project. Also, initialize the project employees map.
         if (getProjectById(project.getId()) == null && projects.add(project)) {
-            mappingService.getProjectEmployeesMap().put(project, new ArrayList<>());
+            projectEmployeeService.getProjectEmployeesMap().put(project, new ArrayList<>());
         }
     }
 
@@ -614,7 +614,28 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStartedAt(startedAt);
     }
 
-    public void randomlyAssignComplianceProjects(int currentTick) {
+    @Override
+    public void initialize() {
+        setProjects(new ArrayList<>());
+
+        for (int i = 0; i < 100; i++) {
+            Project project = new Project().initialize();
+
+            // Set randomly negative publish dates to have some history of tenders
+            project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
+
+            // Initialize the project-employee map with empty employees list
+            projectEmployeeService.addProject(project, new ArrayList<>());
+        }
+    }
+
+    /**
+     * Generate random compliance projects for all players.
+     * Compliance projects are immediately assigned to players.
+     *
+     * @param tick  Current game tick
+     */
+    public void generateRandomComplianceProjects(int tick) {
         Player player = playerService.getRandomPlayer();
 
         // Only have one compliance project at a time
@@ -623,8 +644,8 @@ public class ProjectServiceImpl implements ProjectService {
             // Generate a new compliance project
             Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.LOW, false);
 
-            project.setPublishedAt(currentTick);
-            project.setAcquiredAt(currentTick); // Immediately acquired: Frontend will show it as "acquired"
+            project.setPublishedAt(tick);
+            project.setAcquiredAt(tick); // Immediately acquired: Frontend will show it as "acquired"
             project.addParty(player); // Add the player as involved party (also important for frontend)
             project.setDeadline(0);
             // Select a name from a list of predefined names
@@ -632,13 +653,13 @@ public class ProjectServiceImpl implements ProjectService {
             getProjects().add(project);
 
             // Add to project-employee map
-            mappingService.addProject(project, new ArrayList<>());
+            projectEmployeeService.addProject(project, new ArrayList<>());
 
             // Immediately assign the project to all players
             GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
             newProjectEvent.setPayload(project);
             logger.debug("New compliance project spawned for all players: {}", project.getName());
-            messagingService.broadcastToAllPlayers(getGson().toJson(newProjectEvent));
+            messagingService.broadcast(getGson().toJson(newProjectEvent));
         }
     }
 
@@ -669,7 +690,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Add status effect with decreased productivity for all employees in the project
         for (Employee employee : player.getEmployees()) {
-            if (mappingService.getProjectEmployeesMap().containsKey(project) && mappingService.getProjectEmployeesMap().get(project).contains(employee)) {
+            if (projectEmployeeService.getProjectEmployeesMap().containsKey(project) && projectEmployeeService.getProjectEmployeesMap().get(project).contains(employee)) {
                 employee.addStatusEffect(new StatusEffect(
                         StatusEffectType.PRODUCTIVITY, 0.1f,
                         "Estimating project", estimationDurationInDays));
@@ -694,7 +715,7 @@ public class ProjectServiceImpl implements ProjectService {
         // Send PROJECT_UPDATED to all players (-> important for tenders!)
         GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdatedEvent.setPayload(project);
-        messagingService.broadcastToAllPlayers(getGson().toJson(projectUpdatedEvent));
+        messagingService.broadcast(getGson().toJson(projectUpdatedEvent));
 
         // Send PROJECT_RECEIVED event to the player
         GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
@@ -751,7 +772,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
         GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
         tendersRemovedEvent.setPayload(staleTenders);
-        messagingService.broadcastToAllPlayers(getGson().toJson(tendersRemovedEvent));
+        messagingService.broadcast(getGson().toJson(tendersRemovedEvent));
     }
 
     public void createProblemsInProjects(int tick, int level) {
@@ -762,11 +783,9 @@ public class ProjectServiceImpl implements ProjectService {
                 // For now, with a fixed chance for a problem to occur,
                 // (can be adjusted later depending on project volume, risk level, etc.)
                 double problemSpawnProbability = 0.01;
-                int maxUnsolvedProblemsPerProject = level; // In higher levels, more problems can occur
-
                 // but not more than a certain number problems per project
                 if (RANDOM.nextFloat() <= problemSpawnProbability
-                        && project.getUnsolvedProblems().size() < maxUnsolvedProblemsPerProject) {
+                        && project.getUnsolvedProblems().size() < level) { // Higher level -> more problems
                     // Take all problems of the project
                     List<Problem> occurredProblems = project.getProblems();
 
@@ -853,13 +872,13 @@ public class ProjectServiceImpl implements ProjectService {
             addProject(project);
 
             // Initialize project-employee map
-            mappingService.getProjectEmployeesMap().put(project, new ArrayList<>(2));
+            projectEmployeeService.getProjectEmployeesMap().put(project, new ArrayList<>(2));
 
             // Inform players about the new tender
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
             newTenderEvent.setPayload(project);
 
-            messagingService.broadcastToAllPlayers(getGson().toJson(newTenderEvent));
+            messagingService.broadcast(getGson().toJson(newTenderEvent));
         }
     }
 
