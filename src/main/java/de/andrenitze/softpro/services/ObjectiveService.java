@@ -9,5 +9,4 @@ import java.util.Map;
 public interface ObjectiveService {
     Map<Player, List<Objective>> getNewObjectives(int currentTick);
     boolean areThereObjectivesUpdates(Player player);
-
 }

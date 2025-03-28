@@ -27,7 +27,7 @@ class GameTest {
         project = new Project().initialize();
 
         WebSocket mockWebSocket = mock(WebSocket.class);
-        game.addPlayer(mockWebSocket, player);
+        game.addPlayerToLobby(mockWebSocket, player);
 
         game.getProjectService().addProject(project);
     }
@@ -47,11 +47,11 @@ class GameTest {
     }
 
     @Test
-    void testAddPlayer() {
+    void testAddPlayerToLobby() {
         WebSocket mockWebSocket = mock(WebSocket.class);
         Player testPlayer = new Player("TestPlayer", "TestCompany");
 
-        game.addPlayer(mockWebSocket, testPlayer);
+        game.addPlayerToLobby(mockWebSocket, testPlayer);
 
         assertTrue(game.getPlayerService().getPlayers().containsKey(mockWebSocket), "Player should be added to the game");
         assertEquals(testPlayer, game.getPlayerService().getPlayers().get(mockWebSocket), "The correct player should be associated with the WebSocket");

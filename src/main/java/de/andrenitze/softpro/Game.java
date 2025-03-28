@@ -57,10 +57,8 @@ public class Game {
     @Setter private ObjectiveServiceImpl objectiveService;
 
     public static final int GAME_SPEED_IN_MILLISECONDS = 200;
-    public static final int STALE_TENDERS_KILL_DAYS = 548;
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
-    public static final String RESTORE_LOST_DATA = "Restore lost data";
-    public static final int BACKUP_BLUES_LEVEL = 2;
+
     @Getter private int tick = 0;
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
@@ -251,7 +249,15 @@ public class Game {
         accountingService.processMonthlyPayments(currentDate, playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
         messagingService.sendNewAccountingEntries(accountingService.getNewAccountingEntries(lifeCycleService.getTick()));
         employeeService.simulateEmployeeLives(lifeCycleService.getTick());
-        processNewObjectives(lifeCycleService.getTick());
+
+        Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycleService.getTick());
+        for (Map.Entry<Player, List<Objective>> entry : newObjectivesMap.entrySet()) {
+            Player player = entry.getKey();
+            List<Objective> allObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
+            GameEvent<List<Objective>> gameEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
+            gameEvent.setPayload(allObjectives);
+            messagingService.sendEventToPlayer(player, gameEvent);
+        }
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
         checkGameOverConditions();
@@ -263,16 +269,6 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20 && lifeCycleService.isRunning()) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
-    }
-
-    public void processNewObjectives(int currentTick) {
-        Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(currentTick);
-        newObjectivesMap.forEach((player, _) -> {
-            GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-            List<Objective> allObjectives = player.getObjectivesUntilThisTick(currentTick);
-            objectivesUpdatedEvent.setPayload(allObjectives);
-            messagingService.sendEventToPlayer(player, objectivesUpdatedEvent);
-        });
     }
 
     private void sendStoryElements() {
@@ -466,6 +462,7 @@ public class Game {
     }
 
     void shutdownAndAwaitTermination(ExecutorService pool) {
+        logger.debug("shutdownAndAwaitTermination() is called.");
         if (pool == null) {
             return;
         }
@@ -484,7 +481,7 @@ public class Game {
         }
     }
 
-    public void addPlayer(WebSocket key, Player value) {
+    public void addPlayerToLobby(WebSocket key, Player value) {
         logger.debug("Adding player {} to game.", value.getId());
         try {
             if (playerService.hasWebSocket(key)) {

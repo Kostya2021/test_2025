@@ -26,7 +26,6 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static de.andrenitze.softpro.Game.STALE_TENDERS_KILL_DAYS;
 import static de.andrenitze.softpro.Game.calculateXP;
 import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
@@ -37,6 +36,7 @@ import static java.lang.Math.*;
 @Primary
 public class ProjectServiceImpl implements ProjectService {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    public static final int STALE_TENDERS_KILL_DAYS = 548;
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
     public static final int BASE_PRODUCTIVITY_VALUE = 1000; // How much value one person (FTE) can produce in one day

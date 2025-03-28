@@ -232,7 +232,6 @@ public class GameServer extends WebSocketServer {
      * @param player Player         The player to be added to the game
      */
     private void createGame(WebSocket webSocket, Player player) {
-        // Create a new game instance with isolated context
         logger.debug("Creating new game instance for player {}", player.getId());
         AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
         Game game = gameContext.getBean(Game.class);
@@ -254,12 +253,8 @@ public class GameServer extends WebSocketServer {
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
-
-        logLobbyState();
-        game.addPlayer(webSocket, player); // -> Player is now in game and in lobby at the same time
-        logLobbyState();
+        game.addPlayerToLobby(webSocket, player); // -> Player is now in game and in lobby at the same time
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
-
         prepareForNextLevel(player, game);
 
         // Send updated player state to the client
@@ -661,17 +656,21 @@ public class GameServer extends WebSocketServer {
         Game.GameOverData data = event.getGameOverData();
         logger.debug("🚨 Global listener received GameOverEvent from game.");
         logger.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
-        movePlayerBackToLobby(data.game(), data.player());
+        try {
+        movePlayerBackToLobby(data.game(), data.player(), data.webSocket());
+        } catch (Exception e) {
+            logger.error("Error while handling game over event: {}", e.getMessage());
+        }
         saveGameOverStats(data.webSocket(), data.player(), data.stats());
         checkAndBroadcastHighScore(data.stats());
+
     }
 
     // Move a single player back to the lobby after game over
-    public void movePlayerBackToLobby(Game game, Player player) {
+    public void movePlayerBackToLobby(Game game, Player player, WebSocket webSocket) {
         LobbyPlayerService gamePlayerService = game.getPlayerService();
 
         // Move player from game to lobby
-        WebSocket webSocket = gamePlayerService.getWebSocket(player);
         gamePlayerService.removePlayer(player);
         lobbyPlayerService.addPlayer(webSocket, player);
 
