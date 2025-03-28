@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.net.ConnectException;
@@ -55,6 +54,7 @@ public class Game {
     @Getter private ProjectEmployeeMappingImpl projectEmployeeService;
     @Setter @Getter private GameLifeCycleService lifeCycleService;
     @Setter private ObjectiveServiceImpl objectiveService;
+    private LevelConsequencesService levelConsequencesService;
 
     public static final int GAME_SPEED_IN_MILLISECONDS = 200;
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
@@ -63,7 +63,6 @@ public class Game {
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
     private ArrayList<StoryElement> storyElements; // Level-specific
-    private LevelConsequencesService levelConsequencesService;
 
     /**
      * Creates a new Game instance.
@@ -436,49 +435,28 @@ public class Game {
 
     public void removePlayer(WebSocket key) {
         playerService.removePlayer(key);
-
-        PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
-        eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
+        closeGameIfNoPlayersLeft();
     }
 
-    @EventListener
-    public void closeGameIfNoPlayersLeft(PlayersChangedEvent event) {
-        int numberOfPlayers = event.getPlayers().size();
-
-        // Close game session if this was the last player
+    public void closeGameIfNoPlayersLeft() {
+        int numberOfPlayers = playerService.getPlayers().size();
         if (numberOfPlayers == 0) {
-            // Stop the game loop to make sure the thread can be interrupted
             logger.debug("Game {} has no players left. Closing game...", this.hashCode());
+            shutdownGameLoop(gameLoop);
 
-            // Fire event for GameServer to handle
+            // After game loop is shut down, fire event for GameServer to handle context clean-up, high-score etc.
             GlobalGameEmptyEvent globalGameEmptyEvent = new GlobalGameEmptyEvent(this, this);
             eventPublisher.publishGameEmptyEvent(globalGameEmptyEvent);
-
-            // Stop the game loop asynchronously (no guarantees)
-            shutdownAndAwaitTermination(gameLoop);
         } else {
             logger.debug("Game {} has {} player(s). Keeping game instance alive.", this.hashCode(), numberOfPlayers);
         }
     }
 
-    void shutdownAndAwaitTermination(ExecutorService pool) {
-        logger.debug("shutdownAndAwaitTermination() is called.");
+    void shutdownGameLoop(ExecutorService pool) {
         if (pool == null) {
             return;
         }
-
-        pool.shutdown();
-        try {
-            if (!pool.awaitTermination(2, TimeUnit.SECONDS)) {
-                pool.shutdownNow();
-                if (!pool.awaitTermination(2, TimeUnit.SECONDS)) {
-                    logger.error("Pool did not terminate");
-                }
-            }
-        } catch (InterruptedException ie) {
-            pool.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
+        pool.shutdownNow();
     }
 
     public void addPlayerToLobby(WebSocket key, Player value) {

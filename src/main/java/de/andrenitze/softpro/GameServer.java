@@ -253,6 +253,7 @@ public class GameServer extends WebSocketServer {
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
+        logger.debug("Added new game context {} to {} existing gameContexts.", gameContext.hashCode(), gameContexts.size());
         game.addPlayerToLobby(webSocket, player); // -> Player is now in game and in lobby at the same time
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
         prepareForNextLevel(player, game);
@@ -352,7 +353,9 @@ public class GameServer extends WebSocketServer {
 
         // Remove disconnected client from running game
         for (Game game : gameContexts.values()) {
+            logger.debug("Checking game {} for disconnected client", game.hashCode());
             if (game.getPlayerService().hasWebSocket(webSocket)) {
+                logger.debug("Removing player from game {}", game.hashCode());
                 game.removePlayer(webSocket);
 
                 // Don't search any further
@@ -409,7 +412,7 @@ public class GameServer extends WebSocketServer {
 
             player.setReady(true);
             logLobbyState();
-            startReadyGame();
+            startReadyGames();
             logLobbyState();
             broadcastLobbyState();
         } catch (Exception e) {
@@ -463,7 +466,7 @@ public class GameServer extends WebSocketServer {
      * Start all games that have the required amount of players who are ready.
      * Also, move players out of the lobby.
      */
-    private void startReadyGame() {
+    private void startReadyGames() {
         for (Map.Entry<WebSocket, Player> player : lobbyPlayerService.getPlayers().entrySet()) {
             if (player.getValue().isReady()) {
                 lobbyPlayerService.removePlayer(player.getKey()); // On game start, player is removed from lobby
@@ -521,17 +524,15 @@ public class GameServer extends WebSocketServer {
     }
 
     private List<GameOverStats> getAnonymizedHighScores(List<GameOverStats> highScores) {
-        List<GameOverStats> anonymizedHighScores = new ArrayList<>();
-        for (GameOverStats highScore : highScores) {
+        return highScores.stream().map(highScore -> {
             GameOverStats anonymizedHighScore = new GameOverStats();
             anonymizedHighScore.setPlayerName(highScore.getPlayerName());
             anonymizedHighScore.setDeliveredProjects(highScore.getDeliveredProjects());
             anonymizedHighScore.setProjectsVolume(highScore.getProjectsVolume());
             anonymizedHighScore.setFinishedAt(highScore.getFinishedAt());
             anonymizedHighScore.setSurvivedDays(highScore.getSurvivedDays());
-            anonymizedHighScores.add(anonymizedHighScore);
-        }
-        return anonymizedHighScores;
+            return anonymizedHighScore;
+        }).toList();
     }
 
     private List<GameOverStats> getAnonymizedDailyHighScores() {
