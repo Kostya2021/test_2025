@@ -21,21 +21,11 @@ public class GamePlayerServiceImpl extends BasePlayerService {
     @Getter private final ConcurrentHashMap<WebSocket, Player> players;
     @Getter private final ConcurrentHashMap<WebSocket, Player> lobby;
     private final TalentMarket talentMarket;
-    private final ProjectServiceImpl projectService;
-    private final ProjectEmployeeMappingImpl projectEmployeeMapping;
-    private final MessagingServiceImpl messagingService;
 
-    public GamePlayerServiceImpl(TalentMarket talentMarket,
-                                 @Lazy ProjectServiceImpl projectService,
-                                 ProjectEmployeeMappingImpl projectEmployeeMapping,
-                                 MessagingServiceImpl messagingService
-    ) {
+    public GamePlayerServiceImpl(TalentMarket talentMarket) {
         this.players = new ConcurrentHashMap<>();
         this.lobby = new ConcurrentHashMap<>();
         this.talentMarket = talentMarket;
-        this.projectService = projectService;
-        this.projectEmployeeMapping = projectEmployeeMapping;
-        this.messagingService = messagingService;
     }
 
     @Override

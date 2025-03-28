@@ -22,7 +22,7 @@ class GameTest {
 
     @BeforeEach
     void setUp() {
-        game = new Game(mock(GameLifeCycleService.class), mock(GamePlayerServiceImpl.class), mock(SkillServiceImpl.class));
+        game = new Game(mock(GamePlayerServiceImpl.class), mock(SkillServiceImpl.class), mock(GameLifeCycleService.class));
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();
 

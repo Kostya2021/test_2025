@@ -83,7 +83,9 @@ public class Game {
                 EmployeeServiceImpl employeeService,
                 GameEventHandler eventHandler,
                 GameEventPublisher eventPublisher,
-                LevelConsequencesService levelConsequencesService) {
+                LevelConsequencesService levelConsequencesService,
+                GameLifeCycleService lifeCycleService,
+                ProjectEmployeeMappingImpl projectEmployeeMapping) {
         EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
         this.talentMarket = new TalentMarket(employeeIdGenerator);
         this.talentMarket.clear();
@@ -97,6 +99,8 @@ public class Game {
         this.eventHandler = eventHandler;
         this.eventPublisher = eventPublisher;
         this.levelConsequencesService = levelConsequencesService;
+        this.lifeCycleService = lifeCycleService;
+        this.projectEmployeeService = projectEmployeeMapping;
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -105,10 +109,10 @@ public class Game {
     }
 
     // Mandatory services are injected here
-    public Game(GameLifeCycleService lifeCycleService, GamePlayerServiceImpl playerService, SkillServiceImpl skillService) {
-        this.lifeCycleService = lifeCycleService;
+    public Game(GamePlayerServiceImpl playerService, SkillServiceImpl skillService, GameLifeCycleService lifeCycleService) {
         this.playerService = playerService;
         this.skillService = skillService;
+        this.lifeCycleService = lifeCycleService;
     }
 
     public void start() {

@@ -81,11 +81,9 @@ public class AccountingServiceImpl implements AccountingService {
 
     public List<AccountingEntry> getNewAccountingEntries(int gameTick) {
         List<AccountingEntry> newEntries = new ArrayList<>();
-        playerService.getPlayers().forEach((_, player) -> {
-            newEntries.addAll(getAllEntriesByPlayer(player.getId()).stream()
-                    .filter(entry -> entry.getDay() == gameTick)
-                    .toList());
-        });
+        playerService.getPlayers().forEach((_, player) -> newEntries.addAll(getAllEntriesByPlayer(player.getId()).stream()
+                .filter(entry -> entry.getDay() == gameTick)
+                .toList()));
         return newEntries;
     }
 }

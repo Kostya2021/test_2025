@@ -59,16 +59,14 @@ public class ObjectiveServiceImpl implements ObjectiveService {
     }
 
     public boolean areThereObjectivesUpdates(Player player) {
+        try {
         List<Project> projects = projectService.getProjects();
         Map<Project, ArrayList<Employee>> projectEmployeesMap = projectEmployeeService.getProjectEmployeesMap();
-
         boolean objectivesUpdated = false;
-
         for (Objective objective : player.getObjectivesUntilThisTick(lifeCycleService.getTick())) {
             if (objective.isCompleted()) {
                 continue;
             }
-
             boolean wasUpdated = checkObjective(objective, player, projects, projectEmployeesMap, skillService);
             if (wasUpdated) {
                 objectivesUpdated = true;
@@ -76,6 +74,10 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         }
 
         return objectivesUpdated;
+        } catch (Exception e) {
+            logger.error("Error in ObjectiveServiceImpl.areThereObjectivesUpdates: {}", e.getMessage());
+            return false;
+        }
     }
 
     private boolean checkObjective(Objective objective, Player player, List<Project> projects,

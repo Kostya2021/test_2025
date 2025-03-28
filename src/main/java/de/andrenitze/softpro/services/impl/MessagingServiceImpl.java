@@ -106,9 +106,7 @@ public class MessagingServiceImpl implements MessagingService {
         if (!newEntries.isEmpty()) {
             GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
             newAccountingEntriesEvent.setPayload(newEntries);
-            playerService.getPlayers().forEach((_, player) -> {
-                sendEventToPlayer(player, newAccountingEntriesEvent);
-            });
+            playerService.getPlayers().forEach((_, player) -> sendEventToPlayer(player, newAccountingEntriesEvent));
         }
     }
 }

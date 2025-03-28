@@ -31,10 +31,12 @@ public class GameConfig {
                      GameEventHandler eventHandler,
                      TalentMarket talentMarket,
                      GameEventPublisher eventPublisher,
-                     LevelConsequencesService levelConsequencesService) {
+                     LevelConsequencesService levelConsequencesService,
+                     GameLifeCycleService lifeCycleService,
+                     ProjectEmployeeMappingImpl projectEmployeeMapping) {
         return new Game(skillService, accountingService, messagingService, playerService, talentMarket,
                 projectService, employeeService, eventHandler, eventPublisher,
-                levelConsequencesService);
+                levelConsequencesService, lifeCycleService, projectEmployeeMapping);
     }
 
     @Bean
@@ -82,12 +84,8 @@ public class GameConfig {
     @Bean
     @Scope("prototype")
     @Primary
-    public GamePlayerServiceImpl playerService(TalentMarket talentMarket,
-                                               ProjectServiceImpl projectService,
-                                               ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
-                                               MessagingServiceImpl messagingService
-    ) {
-        return new GamePlayerServiceImpl(talentMarket, projectService, projectEmployeeMappingImpl, messagingService);
+    public GamePlayerServiceImpl playerService(TalentMarket talentMarket) {
+        return new GamePlayerServiceImpl(talentMarket);
     }
 
     @Bean
