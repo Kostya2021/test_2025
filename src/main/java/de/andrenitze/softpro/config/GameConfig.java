@@ -76,9 +76,8 @@ public class GameConfig {
     public ProjectServiceImpl projectService(MessagingServiceImpl messagingService,
                                              SkillServiceImpl skillService,
                                              AccountingServiceImpl accountingService,
-                                             ProjectEmployeeMappingImpl projectEmployeeMapping,
-                                             @Lazy GamePlayerServiceImpl playerService) {
-        return new ProjectServiceImpl(accountingService, skillService, projectEmployeeMapping, messagingService, playerService);
+                                             ProjectEmployeeMappingImpl projectEmployeeMapping) {
+        return new ProjectServiceImpl(accountingService, skillService, projectEmployeeMapping, messagingService);
     }
 
     @Bean

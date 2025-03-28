@@ -236,31 +236,25 @@ public class Game {
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
-        logger.debug("1");
-        //projectService.conductWorkOnAllProjects(lifeCycleService.getTick(), getLevel(), currentDate, projectEmployeeMapping.getProjectEmployeesMap());
-        //projectService.cancelOverdueProjects(lifeCycleService.getTick(), getLevel());
-        //projectService.randomlySpawnProjectTenders(lifeCycleService.getTick(), getLevel());
-        //projectService.evaluateTenderProcesses(lifeCycleService.getTick());
-        logger.debug("1.5");
+        projectService.conductWorkOnAllProjects(lifeCycleService.getTick(), getLevel(), currentDate);
+        projectService.cancelOverdueProjects(lifeCycleService.getTick(), getLevel());
+        projectService.evaluateTenderProcesses(lifeCycleService.getTick());
         // Things not to do in the first level
         // The "level" param in the other methods are used for a similar decision and might be removed in the future.
         if (getLevel() != 1) {
-            projectService.generateRandomComplianceProjects(lifeCycleService.getTick());
-            projectService.generateRandomComplianceProjects(lifeCycleService.getTick());
+            projectService.randomlySpawnProjectTenders(lifeCycleService.getTick(), getLevel(), playerService.getRandomPlayer());
+            projectService.generateRandomComplianceProjects(lifeCycleService.getTick(), playerService.getRandomPlayer());
             projectService.removeStaleTenders(lifeCycleService.getTick());
             projectService.startStaleProjects(lifeCycleService.getTick());
         }
-        logger.debug("2");
         projectService.createProblemsInProjects(lifeCycleService.getTick(), getLevel());
         accountingService.processMonthlyPayments(currentDate, playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
         messagingService.sendNewAccountingEntries(accountingService.getNewAccountingEntries(lifeCycleService.getTick()));
-        //employeeService.simulateEmployeeLives();
-        logger.debug("3");
+        employeeService.simulateEmployeeLives(lifeCycleService.getTick());
         processNewObjectives(lifeCycleService.getTick());
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
         checkGameOverConditions();
-        logger.debug("4");
 
         long endTime = System.nanoTime();
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;

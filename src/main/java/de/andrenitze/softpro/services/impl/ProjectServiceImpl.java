@@ -6,30 +6,28 @@ import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.projects.*;
-import de.andrenitze.softpro.events.GameEvent;
-import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.domains.projects.*;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
-import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import lombok.Getter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static de.andrenitze.softpro.Game.*;
+import static de.andrenitze.softpro.Game.STALE_TENDERS_KILL_DAYS;
+import static de.andrenitze.softpro.Game.calculateXP;
 import static de.andrenitze.softpro.GameServer.*;
 import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
@@ -54,21 +52,17 @@ public class ProjectServiceImpl implements ProjectService {
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
     private final MessagingServiceImpl messagingService;
-    private final GamePlayerServiceImpl playerService;
 
     @Autowired
     public ProjectServiceImpl(AccountingServiceImpl accountingService, SkillServiceImpl skillService,
-                              ProjectEmployeeMappingService projectEmployeeService, MessagingServiceImpl messagingService,
-                              @Lazy GamePlayerServiceImpl playerService) {
+                              ProjectEmployeeMappingService projectEmployeeService, MessagingServiceImpl messagingService) {
         this.accountingService = accountingService;
         this.skillService = skillService;
         this.projectEmployeeService = projectEmployeeService;
         this.messagingService = messagingService;
-        this.playerService = playerService;
     }
 
-    public void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate, ConcurrentMap<Project,
-            ArrayList<Employee>> projectEmployeesMap) {
+    public void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate) {
         // No work on weekends
         if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
             return;
@@ -635,9 +629,7 @@ public class ProjectServiceImpl implements ProjectService {
      *
      * @param tick  Current game tick
      */
-    public void generateRandomComplianceProjects(int tick) {
-        Player player = playerService.getRandomPlayer();
-
+    public void generateRandomComplianceProjects(int tick, Player player) {
         // Only have one compliance project at a time
         if (getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
                 RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
@@ -830,11 +822,10 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
-    public void randomlySpawnProjectTenders(int tick, int level) {
+    public void randomlySpawnProjectTenders(int tick, int level, Player player) {
         // Don't spawn new projects in level 1 before the first mission is completed
         // There is only one player in level 1. Check if their first mission is completed.
-        Player p = playerService.getRandomPlayer();
-        if (level == 1 && p.getMissions().getFirst().isNotCompleted()) {
+        if (player.getMissions().getFirst().isNotCompleted()) {
             return;
         }
 
@@ -853,10 +844,10 @@ public class ProjectServiceImpl implements ProjectService {
                     project.setTenderProcess(false);
                 } else {
                     // Find the project type and domain where one employee has the most experience
-                    Employee bestEmployee = p.getEmployees().stream().max(Comparator.
+                    Employee bestEmployee = player.getEmployees().stream().max(Comparator.
                             comparing(Employee::getExperience)).orElse(null);
                     if (bestEmployee == null) {
-                        logger.error("No employee found for player {}.", p.getId());
+                        logger.error("No employee found for player {}.", player.getId());
                         return;
                     }
                     String domain = bestEmployee.getDomainOfExpertise();
@@ -871,13 +862,12 @@ public class ProjectServiceImpl implements ProjectService {
             project.setPublishedAt(tick);
             addProject(project);
 
-            // Initialize project-employee map
+            // Initialize project-employee map with empty employees list for this project
             projectEmployeeService.getProjectEmployeesMap().put(project, new ArrayList<>(2));
 
             // Inform players about the new tender
             GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
             newTenderEvent.setPayload(project);
-
             messagingService.broadcast(getGson().toJson(newTenderEvent));
         }
     }

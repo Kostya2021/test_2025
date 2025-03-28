@@ -5,16 +5,13 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * Service für die Verwaltung von Projekten.
  */
 public interface ProjectService {
-    void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate, ConcurrentMap<Project,
-            ArrayList<Employee>> projectEmployeesMap);
+    void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate);
     int calculateEmployeeEarnedValue(Employee employee, Project project, int tick, float onboardingFactor);
     void cancelProject(Player player, Project project, String cancelledBy, int tick, int level);
     void cancelOverdueProjects(int tick, int level);
@@ -27,4 +24,5 @@ public interface ProjectService {
     void conductTeamEstimation(int projectId, Player player, int tick);
     void startProject(Project project, int startedAt);
     void initialize();
+    void randomlySpawnProjectTenders(int tick, int level, Player player);
 }
