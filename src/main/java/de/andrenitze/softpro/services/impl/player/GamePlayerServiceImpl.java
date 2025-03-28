@@ -2,12 +2,8 @@ package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.TalentMarket;
-import de.andrenitze.softpro.services.impl.MessagingServiceImpl;
-import de.andrenitze.softpro.services.impl.ProjectEmployeeMappingImpl;
-import de.andrenitze.softpro.services.impl.ProjectServiceImpl;
 import lombok.Getter;
 import org.java_websocket.WebSocket;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

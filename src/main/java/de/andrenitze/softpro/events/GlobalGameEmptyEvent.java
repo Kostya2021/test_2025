@@ -6,7 +6,7 @@ import org.springframework.context.ApplicationEvent;
 
 @Getter
 public class GlobalGameEmptyEvent extends ApplicationEvent {
-    private final Game game;
+    private final transient Game game;
 
     public GlobalGameEmptyEvent(Object source, Game game) {
         super(source);

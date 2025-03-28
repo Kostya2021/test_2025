@@ -11,7 +11,7 @@ import static de.andrenitze.softpro.Main.logger;
 
 @Getter
 public class PlayersChangedEvent extends ApplicationEvent {
-    private final Map<WebSocket, Player> players;
+    private final transient Map<WebSocket, Player> players;
 
     public PlayersChangedEvent(Object source, Map<WebSocket, Player> players) {
         super(source);

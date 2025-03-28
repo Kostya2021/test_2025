@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.Main.logger;
 
@@ -160,7 +159,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
                 .filter(project -> project.isCompleted()
                         && project.getCompletedAt() > previousObjective.getCompletedAt()
                         && project.playerWasInvolved(player))
-                .collect(Collectors.toList());
+                .toList();
 
         if (objective.getCompletedSteps() != relevantProjects.size()) {
             objective.setCompletedSteps(relevantProjects.size());
@@ -265,7 +264,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
                 .filter(project -> project.isCompleted()
                         && project.getCompletedAt() > mission.getEarliestOccurrence()
                         && project.playerWasInvolved(player))
-                .collect(Collectors.toList());
+                .toList();
 
         if (objective.getCompletedSteps() != relevantProjects.size()) {
             objective.setCompletedSteps(relevantProjects.size());
