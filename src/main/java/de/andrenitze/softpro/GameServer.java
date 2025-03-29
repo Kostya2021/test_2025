@@ -16,6 +16,7 @@ import de.andrenitze.softpro.services.DecisionService;
 import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.GamePlayerService;
 import de.andrenitze.softpro.services.impl.ObjectiveServiceImpl;
+import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
 import lombok.Getter;
 import lombok.Setter;
@@ -49,7 +50,7 @@ import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
 public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final GameFactory gameFactory;
-    private final GamePlayerService lobbyPlayerService;
+    private final LobbyPlayerServiceImpl lobbyPlayerService;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -78,7 +79,7 @@ public class GameServer extends WebSocketServer {
      */
     @Autowired
     public GameServer(GameFactory gameFactory,
-                      GamePlayerService lobbyPlayerService) {
+                      LobbyPlayerServiceImpl lobbyPlayerService) {
         super(new InetSocketAddress(DEFAULT_PORT));
         this.gameFactory = gameFactory;
         this.lobbyPlayerService = lobbyPlayerService;
@@ -254,7 +255,7 @@ public class GameServer extends WebSocketServer {
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         logger.debug("Added new game context {} to {} existing gameContexts.", gameContext.hashCode(), gameContexts.size());
-        game.addPlayerToLobby(webSocket, player); // -> Player is now in game and in lobby at the same time
+        game.addPlayerToGame(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
         prepareForNextLevel(player, game);
     }
@@ -347,6 +348,8 @@ public class GameServer extends WebSocketServer {
         }
 
         // Remove disconnected client from running game
+        // TODO Vielleicht wieder die alte Prüfung mit Spielern einführen, vorher das Player-adden fixen
+        // Dann fährt sich das spiel auch von selbst korrekt herunter und wir müssen das nicht hier separat machen.
         gameContexts.entrySet().removeIf(entry -> {
             Game game = entry.getValue();
             if (game.getPlayerService().getPlayers().isEmpty()) {

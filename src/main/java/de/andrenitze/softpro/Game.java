@@ -459,22 +459,22 @@ public class Game {
         pool.shutdownNow();
     }
 
-    public void addPlayerToLobby(WebSocket key, Player value) {
-        logger.debug("Adding player {} to game.", value.getId());
+    public void addPlayerToGame(WebSocket webSocket, Player player) {
+        logger.debug("Adding player {} to game.", player.getId());
         try {
-            if (playerService.hasWebSocket(key)) {
+            if (playerService.hasWebSocket(webSocket)) {
                 logger.warn("Player already exists in game. Ignoring request to add player.");
                 return;
             } else if (playerService.getPlayers().size() >= MAX_NUMBER_OF_PLAYERS_PER_GAME) {
                 logger.warn("Game is full. Cannot add player.");
                 return;
-            } else if (playerService.isPlayerInAnyGame(value)) {
+            } else if (playerService.isPlayerInAnyGame(player)) {
                 logger.warn("Player is already in another game. Cannot add player.");
                 return;
             }
 
-            playerService.addPlayer(key, value);
-            logger.debug("Added player {} to game.", value.getId());
+            playerService.addPlayer(webSocket, player);
+            logger.debug("Added player {} to game.", player.getId());
 
             PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
             eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
