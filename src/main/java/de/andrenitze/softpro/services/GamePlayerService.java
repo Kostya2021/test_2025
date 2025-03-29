@@ -14,6 +14,6 @@ public interface GamePlayerService {
     boolean hasWebSocket(WebSocket conn);
     WebSocket getWebSocket(Player player);
     ConcurrentHashMap<WebSocket, Player> getPlayers();
-    void removePlayer(Player player);
+    boolean removePlayer(Player player);
     Player removePlayer(WebSocket webSocket);
 }

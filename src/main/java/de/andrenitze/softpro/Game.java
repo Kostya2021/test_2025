@@ -216,8 +216,6 @@ public class Game {
     }
 
     private void progressGameTime() {
-        logger.debug("progressGameTime()");
-
         LocalDate currentDate;
         if (lifeCycleService.isPaused()) {
             return;
@@ -415,8 +413,13 @@ public class Game {
     }
 
     public void removePlayer(Player player) {
-        playerService.removePlayer(player);
-        closeGameIfNoPlayersLeft();
+        boolean removed = playerService.removePlayer(player);
+        if (removed) {
+            logger.debug("Player {} removed from game.", player.getId());
+            closeGameIfNoPlayersLeft();
+        } else {
+            logger.warn("Player could not be removed from game.");
+        }
     }
 
     public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats, Game game) {}
@@ -446,14 +449,14 @@ public class Game {
     public void closeGameIfNoPlayersLeft() {
         int numberOfPlayers = playerService.getPlayers().size();
         if (numberOfPlayers == 0) {
-            logger.debug("Game {} has no players left. Closing game...", this.hashCode());
+            logger.debug("I ({}) have no players left. Closing...", this.hashCode());
             shutdownGameLoop(gameLoop);
 
             // After game loop is shut down, fire event for GameServer to handle context clean-up, high-score etc.
             GlobalGameEmptyEvent globalGameEmptyEvent = new GlobalGameEmptyEvent(this, this);
             eventPublisher.publishGameEmptyEvent(globalGameEmptyEvent);
         } else {
-            logger.debug("Game {} has {} player(s). Keeping game instance alive.", this.hashCode(), numberOfPlayers);
+            logger.debug("I ({}) have {} player(s). Staying alive.", this.hashCode(), numberOfPlayers);
         }
     }
 

@@ -46,10 +46,12 @@ public abstract class BasePlayerService implements GamePlayerService {
     }
 
     @Override
-    public void removePlayer(Player player) {
+    public boolean removePlayer(Player player) {
         WebSocket webSocket = getWebSocket(player);
-        if (webSocket != null) {
-            removePlayer(webSocket);
+        if (webSocket == null) {
+            return false;
         }
+        players.remove(webSocket);
+        return true;
     }
 }

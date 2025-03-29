@@ -333,32 +333,24 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
-        logger.debug("Connection {} closed", webSocket.getRemoteSocketAddress());
+        logger.debug("Connection closed: {} - Reason: {} - Remote: {}", webSocket.getRemoteSocketAddress(), reason, remote);
         removeDisconnectedClient(webSocket);
+        broadcastLobbyState();
     }
 
     private void removeDisconnectedClient(WebSocket webSocket) {
-        // Remove disconnected clients from lobby
         Player player = lobbyPlayerService.removePlayer(webSocket);
         if (player != null) {
-            logger.info("Player '{}' disconnected. New number of players in lobby: {}",
-                    player.getId(),
-                    lobbyPlayerService.getPlayers().size());
-        }
+            logger.debug("Removed player {} from lobby", player.getId());
 
-        // Go through game contexts and remove the player from the game
-        for (Map.Entry<AnnotationConfigApplicationContext, Game> entry : gameContexts.entrySet()) {
-            Game game = entry.getValue();
-            if (game.getPlayerService().hasWebSocket(webSocket)) {
-                logger.debug("Removing WebSocket {} from game {}...", webSocket.getRemoteSocketAddress(), game.hashCode());
-                game.removePlayer(player);
-
-                // A player can only be in one game instance, so stop searching
-                break;
+            // Go through game contexts, find the corresponding game and remove player references from the game
+            for (Map.Entry<AnnotationConfigApplicationContext, Game> entry : gameContexts.entrySet()) {
+                Game game = entry.getValue();
+                if (game.getPlayerService().hasWebSocket(webSocket)) {
+                    game.removePlayer(player);
+                }
             }
         }
-
-        broadcastLobbyState();
     }
 
     @Override
@@ -407,9 +399,7 @@ public class GameServer extends WebSocketServer {
             }
 
             player.setReady(true);
-            logLobbyState();
             startReadyGames();
-            logLobbyState();
             broadcastLobbyState();
         } catch (Exception e) {
             logger.debug(e.getMessage());
@@ -653,16 +643,6 @@ public class GameServer extends WebSocketServer {
                 highScore.getProjectsVolume() < highScoreCandidate.getProjectsVolume());
     }
 
-    @EventListener
-    public void handleGameOverEvent(GlobalGameOverEvent event) {
-        Game.GameOverData data = event.getGameOverData();
-        logger.debug("🚨 Global listener received GameOverEvent from game.");
-        logger.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
-        movePlayerBackToLobby(data.game(), data.player(), data.webSocket());
-        saveGameOverStats(data.webSocket(), data.player(), data.stats());
-        checkAndBroadcastHighScore(data.stats());
-    }
-
     // Move a single player back to the lobby after game over
     public void movePlayerBackToLobby(Game game, Player player, WebSocket webSocket) {
         GamePlayerService gamePlayerService = game.getPlayerService();
@@ -676,12 +656,21 @@ public class GameServer extends WebSocketServer {
     }
 
     @EventListener
+    public void handleGameOverEvent(GlobalGameOverEvent event) {
+        Game.GameOverData data = event.getGameOverData();
+        logger.debug("🚨 Global listener received GameOverEvent from game.");
+        logger.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
+        movePlayerBackToLobby(data.game(), data.player(), data.webSocket());
+        saveGameOverStats(data.webSocket(), data.player(), data.stats());
+        checkAndBroadcastHighScore(data.stats());
+    }
+
+    @EventListener
     public void handleEmptyGameEvent(GlobalGameEmptyEvent event) {
         logger.info("🚨 Global listener received GameEmptyEvent from game.");
         Game game = event.getGame();
-        logger.debug("Running games: {} | Game contexts: {}", gameContexts.values().stream().filter(Game::isRunning).count(), gameContexts.size());
         logger.debug("Game {} is empty. Removing...", game.hashCode());
         removeGame(game);
-        logger.debug("Running games: {} | Game contexts: {}", gameContexts.values().stream().filter(Game::isRunning).count(), gameContexts.size());
+        logLobbyState();
     }
 }
