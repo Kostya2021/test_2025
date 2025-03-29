@@ -61,7 +61,7 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public AccountingServiceImpl accountingService(@Lazy MessagingService messagingService, @Lazy LobbyPlayerService playerService) {
+    public AccountingServiceImpl accountingService(@Lazy MessagingService messagingService, @Lazy GamePlayerService playerService) {
         return new AccountingServiceImpl(messagingService, playerService);
     }
 

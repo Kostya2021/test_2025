@@ -8,8 +8,8 @@ import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.EmployeeService;
+import de.andrenitze.softpro.services.GamePlayerService;
 import de.andrenitze.softpro.services.MessagingService;
-import de.andrenitze.softpro.services.LobbyPlayerService;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,12 +23,12 @@ import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZA
 public class EmployeeServiceImpl implements EmployeeService {
     @Setter private MessagingService messagingService;
     private final ProjectEmployeeMappingImpl projectsEmployeesMap;
-    private final LobbyPlayerService playerService;
+    private final GamePlayerService playerService;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
 
     @Autowired
     public EmployeeServiceImpl(@Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectsEmployeesMap,
-                               LobbyPlayerService playerService) {
+                               GamePlayerService playerService) {
         this.projectsEmployeesMap = projectsEmployeesMap;
         this.messagingService = null;
         this.playerService = playerService;

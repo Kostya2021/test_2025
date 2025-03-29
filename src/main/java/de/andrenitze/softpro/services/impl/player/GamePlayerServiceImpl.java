@@ -25,11 +25,6 @@ public class GamePlayerServiceImpl extends BasePlayerService {
     }
 
     @Override
-    public void addPlayer(WebSocket key, Player value) {
-        players.put(key, value);
-    }
-
-    @Override
     public Player getPlayer(WebSocket websocket) {
         return players.get(websocket);
     }
@@ -47,11 +42,6 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         players.forEach((_, player) -> talentMarket.generateFirstEmployees().forEach(
                 employee -> player.addEmployee(employee, 0)
         ));
-    }
-
-    @Override
-    public Player removePlayer(WebSocket webSocket) {
-        return players.remove(webSocket);
     }
 
     public boolean isPlayerInAnyGame(Player player) {

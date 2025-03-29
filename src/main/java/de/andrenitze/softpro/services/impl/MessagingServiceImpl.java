@@ -7,8 +7,8 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.services.GamePlayerService;
 import de.andrenitze.softpro.services.MessagingService;
-import de.andrenitze.softpro.services.LobbyPlayerService;
 import lombok.Setter;
 import org.java_websocket.WebSocket;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,10 +21,10 @@ import static de.andrenitze.softpro.Main.logger;
 
 @Setter
 public class MessagingServiceImpl implements MessagingService {
-    private LobbyPlayerService playerService;
+    private GamePlayerService playerService;
 
     @Autowired
-    public MessagingServiceImpl(LobbyPlayerService playerService) {
+    public MessagingServiceImpl(GamePlayerService playerService) {
         this.playerService = playerService;
     }
 

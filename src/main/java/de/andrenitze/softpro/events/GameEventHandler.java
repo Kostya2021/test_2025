@@ -14,7 +14,10 @@ import de.andrenitze.softpro.services.*;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +33,7 @@ public class GameEventHandler {
     public static final String EMPLOYEE_ID = "employeeId";
     public static final String PROJECT_ID = "projectId";
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private final LobbyPlayerService playerService;
+    private final GamePlayerService playerService;
     private final EmployeeService employeeService;
     private final TalentMarket talentMarket;
     private final ProjectService projectService;
@@ -40,7 +43,7 @@ public class GameEventHandler {
     private final ProjectEmployeeMappingService projectEmployeeService;
 
     public GameEventHandler(MessagingService messagingService,
-                            LobbyPlayerService playerService,
+                            GamePlayerService playerService,
                             EmployeeService employeeService,
                             TalentMarket talentMarket,
                             ProjectService projectService,

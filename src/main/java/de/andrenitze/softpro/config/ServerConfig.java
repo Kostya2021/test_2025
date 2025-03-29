@@ -2,7 +2,7 @@ package de.andrenitze.softpro.config;
 
 import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
-import de.andrenitze.softpro.services.LobbyPlayerService;
+import de.andrenitze.softpro.services.GamePlayerService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -29,7 +29,7 @@ public class ServerConfig {
     }
 
     @Bean
-    public LobbyPlayerService lobbyPlayerService() {
+    public GamePlayerService lobbyPlayerService() {
         return new LobbyPlayerServiceImpl();
     }
 
