@@ -414,6 +414,11 @@ public class Game {
         return goStats;
     }
 
+    public void removePlayer(Player player) {
+        playerService.removePlayer(player);
+        closeGameIfNoPlayersLeft();
+    }
+
     public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats, Game game) {}
 
     public static float calculateXP(Project project) {

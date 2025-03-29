@@ -254,7 +254,7 @@ public class GameServer extends WebSocketServer {
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
-        logger.debug("Added new game context {} to {} existing gameContexts.", gameContext.hashCode(), gameContexts.size());
+        logger.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
         game.addPlayerToGame(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
         prepareForNextLevel(player, game);
@@ -339,7 +339,6 @@ public class GameServer extends WebSocketServer {
 
     private void removeDisconnectedClient(WebSocket webSocket) {
         // Remove disconnected clients from lobby
-        logger.debug("Removing WebSocket {} from lobby and game...", webSocket.getRemoteSocketAddress());
         Player player = lobbyPlayerService.removePlayer(webSocket);
         if (player != null) {
             logger.info("Player '{}' disconnected. New number of players in lobby: {}",
@@ -347,18 +346,17 @@ public class GameServer extends WebSocketServer {
                     lobbyPlayerService.getPlayers().size());
         }
 
-        // Remove disconnected client from running game
-        // TODO Vielleicht wieder die alte Prüfung mit Spielern einführen, vorher das Player-adden fixen
-        // Dann fährt sich das spiel auch von selbst korrekt herunter und wir müssen das nicht hier separat machen.
-        gameContexts.entrySet().removeIf(entry -> {
+        // Go through game contexts and remove the player from the game
+        for (Map.Entry<AnnotationConfigApplicationContext, Game> entry : gameContexts.entrySet()) {
             Game game = entry.getValue();
-            if (game.getPlayerService().getPlayers().isEmpty()) {
-                logger.debug("Game {} is empty. Removing...", game.hashCode());
-                removeGame(game);
-                return true;
+            if (game.getPlayerService().hasWebSocket(webSocket)) {
+                logger.debug("Removing WebSocket {} from game {}...", webSocket.getRemoteSocketAddress(), game.hashCode());
+                game.removePlayer(player);
+
+                // A player can only be in one game instance, so stop searching
+                break;
             }
-            return false;
-        });
+        }
 
         broadcastLobbyState();
     }

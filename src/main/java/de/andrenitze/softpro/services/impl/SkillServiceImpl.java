@@ -96,6 +96,9 @@ public class SkillServiceImpl implements SkillService {
                 FileReader reader = new FileReader(file);
                 Type type = new TypeToken<HashMap<String, Skill>>() {}.getType();
                 HashMap<String, Skill> skills = GameServer.getGson().fromJson(reader, type);
+                if (skills == null) {
+                    skills = new HashMap<>();
+                }
                 playersSkills.put(player, skills);
                 reader.close();
                 logger.debug("Skills for player {} loaded from {}", player.getId(), SKILLS_DIRECTORY + player.getId() + JSON);
