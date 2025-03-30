@@ -99,7 +99,7 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public MessagingServiceImpl messagingService(@Lazy GamePlayerServiceImpl playerService) {
+    public MessagingServiceImpl messagingService(GamePlayerServiceImpl playerService) {
         return new MessagingServiceImpl(playerService);
     }
 

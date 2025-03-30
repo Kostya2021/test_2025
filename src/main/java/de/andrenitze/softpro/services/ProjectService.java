@@ -15,7 +15,7 @@ public interface ProjectService {
     int calculateEmployeeEarnedValue(Employee employee, Project project, int tick, float onboardingFactor);
     void cancelProject(Player player, Project project, String cancelledBy, int tick, int level);
     void cancelOverdueProjects(int tick, int level);
-    void setProjects(List<Object> objects);
+    void setProjects(List<Project> projects);
     void addProject(Project project);
     void assignProjectToPlayer(Player player, Project project, int tick);
     List<Project> getProjects();

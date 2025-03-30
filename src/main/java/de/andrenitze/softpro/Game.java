@@ -114,6 +114,8 @@ public class Game {
 
     public void start() {
         logger.debug("start()'ing game loop with {} players.", playerService.getPlayers().size());
+        logger.debug("There are {} tenders in the game.", projectService.getProjects().size());
+
         // CHeck if there is at least one player in this game instance
         if (playerService.getPlayers().isEmpty()) {
             logger.error("No players in this game. Cannot start.");
@@ -122,9 +124,14 @@ public class Game {
 
         // Start the round for all players
         lifeCycleService.run();
-        messagingService.setPlayerService(playerService);
         messagingService.broadcastEvent(EventType.ROUND_STARTED);
         messagingService.broadcastInitialState();
+
+        // Broadcast the initial state of the game to all players
+        GameEvent<List<Project>> newTendersEvent = new GameEvent<>(EventType.TENDERS_ADDED);
+        newTendersEvent.setPayload(projectService.getProjects());
+        logger.debug("Sending {} tenders to players.", newTendersEvent.getPayload().size());
+        messagingService.broadcastEvent(newTendersEvent);
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -147,12 +154,12 @@ public class Game {
     /**
      * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
      */
-    public void prepareNextLevel() {
+    public void prepareNextLevelForPlayer() {
         // Get next level from getPlayersService().getPlayers(). Highest level wins, but all players in one instance should have the same level.
-        int nextLevel = 0;
-        for (Player player : playerService.getPlayers().values()) {
-            if (player.getLevel() > nextLevel) {
-                nextLevel = player.getLevel();
+        int nextLevel = 1;
+        for (Player somePlayerInTheGame : playerService.getPlayers().values()) {
+            if (somePlayerInTheGame.getLevel() > nextLevel) {
+                nextLevel = somePlayerInTheGame.getLevel();
             }
         }
         setLevel(nextLevel);
@@ -165,13 +172,8 @@ public class Game {
             // Send talent market to players at once
             GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcast(GameServer.getGson().toJson(employeeEvent));
+            messagingService.broadcastEvent(employeeEvent);
         }
-
-        // Send all tenders at once
-        GameEvent<List<Project>> projectEvent = new GameEvent<>(EventType.TENDERS_ADDED);
-        projectEvent.setPayload(projectService.getProjects());
-        messagingService.broadcast(GameServer.getGson().toJson(projectEvent));
 
         // Logic for decisions and their consequences
         // Beware: Decisions from previous levels might have consequences in other levels
@@ -186,20 +188,20 @@ public class Game {
         }
 
         // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
-        playerService.getPlayers().forEach((_, player) -> {
-            logger.debug("Checking for permanent status effects for player {}", player.getId());
-            if (skillService.playerHasSkill(player, TEAM_SPIRIT)) {
-                logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
-                player.getEmployees().forEach(employee -> {
+        playerService.getPlayers().forEach((_, somePlayerInTheGame) -> {
+            logger.debug("Checking for permanent status effects for player {}", somePlayerInTheGame.getId());
+            if (skillService.playerHasSkill(somePlayerInTheGame, TEAM_SPIRIT)) {
+                logger.debug("Player {} has the skill {}", somePlayerInTheGame.getId(), TEAM_SPIRIT);
+                somePlayerInTheGame.getEmployees().forEach(employee -> {
                     logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
                     employee.addComplexStatusEffect(TEAM_SPIRIT);
                 });
             }
         });
 
-        playerService.getPlayers().forEach((_, player) -> {
-            if (player.getDecisionsByLevel(getLevel()).isEmpty()) {
-                logger.warn("Player {} has no decisions for level {}", player.getId(), getLevel());
+        playerService.getPlayers().forEach((_, somePlayerInTheGame ) -> {
+            if (somePlayerInTheGame.getDecisionsByLevel(getLevel()).isEmpty()) {
+                logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), getLevel());
             }
         });
     }

@@ -236,9 +236,13 @@ public class GameServer extends WebSocketServer {
         logger.debug("Creating new game instance for player {}", player.getId());
         AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
         Game game = gameContext.getBean(Game.class);
+
+        // Get the PlayerService instance from the game context
+        GamePlayerService playerService = game.getPlayerService();
+
         game.setEventHandler(new GameEventHandler(
                 game.getMessagingService(),
-                game.getPlayerService(),
+                playerService,
                 game.getEmployeeService(),
                 game.getTalentMarket(),
                 game.getProjectService(),
@@ -251,12 +255,14 @@ public class GameServer extends WebSocketServer {
                 game.getSkillService(),
                 game.getProjectEmployeeService()));
         game.setLifeCycleService(gameContext.getBean(GameLifeCycleService.class));
+        game.getMessagingService().setPlayerService(playerService);
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         logger.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
+        game.prepareNextLevelForPlayer();
         game.addPlayerToGame(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
-        logger.debug("New game {} (level {}) created for player {}", this.hashCode(), player.getLevel(), player.getId());
+        logger.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), player.getLevel(), player.getId());
         prepareForNextLevel(player, game);
     }
 
@@ -274,6 +280,9 @@ public class GameServer extends WebSocketServer {
         player.initializeObjectives();
         player.initializeFunds();
         player.setXp(0);
+
+        // Initialize the projects
+        game.getProjectService().setProjects(new ArrayList<>());
 
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);
@@ -298,28 +307,34 @@ public class GameServer extends WebSocketServer {
             employee.setAge(22);
             employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
-            // Increase XP in one random project domain and project type (exclude "COMPLIANCE"!)
-            ProjectType type;
-            do {
-                type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
-            } while (type == ProjectType.COMPLIANCE);
-            String domain = type.getRandomDomain();
+            // List all non-compliance project types
+            List<ProjectType> nonComplianceTypes = Arrays.stream(ProjectType.values())
+                    .filter(projectType -> projectType != ProjectType.COMPLIANCE)
+                    .toList();
 
-            employee.addXp(type, domain, 400);
+            // Increase XP in one random project domain and project type
+            ProjectType randomType = nonComplianceTypes.get(RANDOM.nextInt(nonComplianceTypes.size()));
+            String domain = randomType.getRandomDomain();
+            employee.addXp(randomType, domain, 400);
             player.addEmployee(employee);
 
             // Generate a friendly low-risk project matching the player's skill
-            Project perfectProject = new Project(type, domain, RiskLevel.LOW, false);
+            Project perfectProject = new Project(randomType, domain, RiskLevel.LOW, false);
             game.getProjectService().addProject(perfectProject);
 
             // Generate two more random non-compliance projects
             for (int i = 0; i < 2; i++) {
-                Project project = new Project(ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)],
-                        type.getRandomDomain(),
+                randomType = nonComplianceTypes.get(RANDOM.nextInt(nonComplianceTypes.size()));
+                Project project = new Project(randomType,
+                        randomType.getRandomDomain(),
                         RiskLevel.LOW,
                         false);
                 game.getProjectService().addProject(project);
             }
+
+            logger.debug("Generated 3 projects for player {}. Now {} projects in game.",
+                    player.getId(),
+                    game.getProjectService().getProjects().size());
         }
 
         if (player.getLevel() == 2) {
@@ -391,12 +406,6 @@ public class GameServer extends WebSocketServer {
             List<Decision> decisions = playerReadyEvent.getPayload().decisions();
             player.setDecisions(level, decisions);
             decisionService.saveDecisionsAsync(player.getId().toString(), player.getLevel(), player.getDecisionsByLevel(level));
-
-            for (Game game : gameContexts.values()) {
-                if (game.getPlayerService().hasWebSocket(webSocket)) {
-                    game.prepareNextLevel();
-                }
-            }
 
             player.setReady(true);
             startReadyGames();
@@ -495,12 +504,15 @@ public class GameServer extends WebSocketServer {
         // Calculate how many games are currently running (gameLoop.isRunning = true)
         short runningGames = (short) gameContexts.values().stream().filter(Game::isRunning).count();
 
-        broadcast("{\"type\": \""+EventType.UPDATE_LOBBY+"\", \"payload\": { " +
-                "\"runningGames\": " + runningGames +
-                ", \"players\": " + playersList +
-                ", \"dailyHighScores\": " + gson.toJson(anonymizedDailyHighScores) +
-                ", \"monthlyHighScores\": " + gson.toJson(anonymizedMonthlyHighScores) +
-                ", \"quarterlyHighScores\": " + gson.toJson(anonymizedQuarterlyHighScores) + "}}");
+        GameEvent<Map<String, Object>> updateLobbyEvent = new GameEvent<>(EventType.UPDATE_LOBBY);
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("runningGames", runningGames);
+                payload.put("players", playersList);
+                payload.put("dailyHighScores", anonymizedDailyHighScores);
+                payload.put("monthlyHighScores", anonymizedMonthlyHighScores);
+                payload.put("quarterlyHighScores", anonymizedQuarterlyHighScores);
+                updateLobbyEvent.setPayload(payload);
+                broadcast(gson.toJson(updateLobbyEvent));
         logLobbyState();
     }
 

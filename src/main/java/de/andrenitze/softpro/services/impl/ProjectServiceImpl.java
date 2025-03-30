@@ -14,6 +14,7 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
 import lombok.Getter;
+import lombok.Setter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +46,7 @@ public class ProjectServiceImpl implements ProjectService {
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
     static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
-    @Getter private ArrayList<Project> projects = new ArrayList<>();
+    @Getter @Setter private List<Project> projects = new ArrayList<>();
     @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
     @Getter private final AccountingServiceImpl accountingService;
@@ -60,6 +61,9 @@ public class ProjectServiceImpl implements ProjectService {
         this.skillService = skillService;
         this.projectEmployeeService = projectEmployeeService;
         this.messagingService = messagingService;
+
+        // Initialize the projects list
+        setProjects(new ArrayList<>());
     }
 
     public void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate) {
@@ -575,17 +579,10 @@ public class ProjectServiceImpl implements ProjectService {
         return scheduleOverrunPercentage > 100 && progressPercentage < 50;
     }
 
-    public void setProjects(List<Object> objects) {
-        for (Object object : objects) {
-            if (object instanceof Project project) {
-                projects.add(project);
-            }
-        }
-    }
-
     public void addProject(Project project) {
         // Check if project id already exists, if not, add the project. Also, initialize the project employees map.
-        if (getProjectById(project.getId()) == null && projects.add(project)) {
+        if (getProjectById(project.getId()) == null) {
+            projects.add(project);
             projectEmployeeService.getProjectEmployeesMap().put(project, new ArrayList<>());
         }
     }

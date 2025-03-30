@@ -72,13 +72,11 @@ public class MessagingServiceImpl implements MessagingService {
      * @param eventType The type of the event to broadcast.
      */
     public void broadcastEvent(EventType eventType) {
-        logger.debug("Broadcasting event of type {} to {} players.", eventType, playerService.getPlayers().size());
         GameEvent<Void> event = new GameEvent<>(eventType);
         broadcast(gson.toJson(event));
     }
 
     public void broadcastEvent(GameEvent<?> gameEvent) {
-        logger.debug("Broadcasting event of type {} to {} players.", gameEvent.getType(), playerService.getPlayers().size());
         broadcast(gson.toJson(gameEvent));
     }
 

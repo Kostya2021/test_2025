@@ -34,8 +34,8 @@ public class StoryElementsLoader {
     private void loadStoryElementsFromYamlFile(int level) {
         try {
             StoryElements extractedStoryElements = mapper.readValue(getFileFromResourceAsStream(level), StoryElements.class);
-            levelStoryElements.put(level, extractedStoryElements.getStoryElements());
-            logger.debug("Loaded {} story elements for level {}", extractedStoryElements.getStoryElements().size(), level);
+            levelStoryElements.put(level, extractedStoryElements.getElements());
+            logger.debug("Loaded {} story elements for level {}", extractedStoryElements.getElements().size(), level);
         } catch (IOException e) {
             logger.error("Error while loading story elements from yaml file: {}", e.getMessage());
         }
