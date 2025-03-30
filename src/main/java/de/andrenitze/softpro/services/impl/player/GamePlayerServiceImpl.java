@@ -23,7 +23,7 @@ public class GamePlayerServiceImpl extends BasePlayerService {
 
         // Generate first employees for all players (necessary for Level 2)
         getPlayers().forEach((_, player) -> talentMarket.generateFirstEmployees().forEach(
-                employee -> player.addEmployee(employee, 0)
+                player::addEmployee
         ));
     }
 

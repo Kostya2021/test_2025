@@ -30,7 +30,7 @@ public class LevelConsequencesService {
                 Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
                 freeEmployee.setSalary(0, 0);
                 freeEmployee.setSatisfaction(0.7f);
-                player.addEmployee(freeEmployee, 0);
+                player.addEmployee(freeEmployee);
             } else if (option == 3) {
                 player.getEmployees().forEach(employee -> {
                     employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.8f, "Spontaneous work organization");

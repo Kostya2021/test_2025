@@ -1,10 +1,10 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.Objectives;
-import de.andrenitze.softpro.domains.decisions.Decision;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -247,9 +247,10 @@ public class Player {
         }
     }
 
-    public void addEmployee(Employee employee, int currentTick) {
-        // Set the hiring "date"
-        employee.setHiredAt(currentTick);
+    public void addEmployee(Employee employee) {
+        if (employee.getHiredAt() == -1) {
+            employee.setHiredAt(0); // Set the hiredAt to 0 if not set
+        }
 
         // Set the XP before hiring to calculate utilization
         int projectExperienceInDays = employee.getProjectExperience().values().stream().mapToInt(Integer::intValue).sum();

@@ -64,7 +64,8 @@ public class TalentMarket {
     public Employee hireTalent(Player player, int talentId, int currentTick) {
         for (Employee employee : talents.values()) {
             if (employee.getId() == talentId) {
-                player.addEmployee(employee, currentTick);
+                employee.setHiredAt(currentTick);
+                player.addEmployee(employee);
                 removeTalent(employee);
                 return employee;
             }
