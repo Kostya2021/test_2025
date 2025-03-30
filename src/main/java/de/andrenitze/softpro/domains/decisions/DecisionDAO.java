@@ -2,7 +2,10 @@ package de.andrenitze.softpro.domains.decisions;
 
 import javax.sql.DataSource;
 import java.net.ConnectException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,15 +20,19 @@ public class DecisionDAO {
 
     public void saveDecisions(String playerId, int level, List<Decision> decisions) throws SQLException {
         String sql = "INSERT INTO Decisions (decisionId, level, selectedOption, playerId) VALUES (?, ?, ?, ?)";
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(2, level);
+            stmt.setString(4, playerId);
             for (Decision decision : decisions) {
                 stmt.setInt(1, decision.getDecisionId());
-                stmt.setInt(2, level);
                 stmt.setInt(3, decision.getOptionId());
-                stmt.setString(4, playerId);
-                stmt.executeUpdate();
+                stmt.addBatch();
             }
+            stmt.executeBatch();
+        } catch (SQLException e) {
+            throw new SQLException("Error while saving decisions", e);
         }
     }
 
@@ -55,7 +62,7 @@ public class DecisionDAO {
                             rs.getInt("vote_count"),
                             rs.getDouble("percentage")
                     );
-                    groupedDistributions.computeIfAbsent(decisionId, k -> new ArrayList<>()).add(distribution);
+                    groupedDistributions.computeIfAbsent(decisionId, _ -> new ArrayList<>()).add(distribution);
                 }
             }
         } catch (SQLException e) {

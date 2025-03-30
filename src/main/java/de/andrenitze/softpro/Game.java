@@ -62,7 +62,7 @@ public class Game {
     @Getter private int tick = 0;
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
-    private ArrayList<StoryElement> storyElements; // Level-specific
+    private List<StoryElement> storyElements; // Level-specific
 
     /**
      * Creates a new Game instance.

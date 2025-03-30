@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
 
 import static de.andrenitze.softpro.Main.logger;
 
@@ -50,7 +49,7 @@ public class AccountingServiceImpl implements AccountingService {
     public List<AccountingEntry> getAllEntriesByPlayer(UUID playerId) {
         return entries.stream()
                 .filter(e -> e.getPlayerId().equals(playerId))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players, int gameTick, int gameLevel) {

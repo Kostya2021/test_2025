@@ -29,7 +29,7 @@ public class Objective {
     private String failureMessage;
 
     public boolean isCompleted() {
-        return ((completedSteps == totalSteps));
+        return (completedSteps == totalSteps);
     }
 
     public void setCompleted(int currentTick) {

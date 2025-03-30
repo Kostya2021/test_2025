@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.Main.logger;
@@ -40,7 +41,7 @@ public class StoryElementsLoader {
         }
     }
 
-    public ArrayList<StoryElement> getStoryElementsForLevel(int level) {
+    public List<StoryElement> getStoryElementsForLevel(int level) {
         loadStoryElementsFromYamlFile(level);
         return levelStoryElements.getOrDefault(level, new ArrayList<>());
     }
