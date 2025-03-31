@@ -275,6 +275,16 @@ public class Game {
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
 
+        // For all projects in the game...
+        projectService.getProjects().forEach(project -> {
+            // If the project was completed in this tick...
+            if (project.isCompleted() && project.getCompletedAt() == lifeCycleService.getTick()) {
+                for (Player player : project.getInvolvedPlayers()) {
+                    messagingService.sendProjectUpdateToPlayer(player, project);
+                }
+            }
+        });
+
         // For all players in the game...
         playerService.getPlayers().forEach((_, player) -> {
             // Send any new accounting entries

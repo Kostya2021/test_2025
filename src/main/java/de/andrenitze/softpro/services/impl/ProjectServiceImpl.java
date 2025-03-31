@@ -147,13 +147,6 @@ public class ProjectServiceImpl implements ProjectService {
             float xp = calculateXP(project);
             player.addXp((int) xp);
 
-            GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
-            playerUpdateEvent.setPayload(player);
-            messagingService.sendToPlayer(player, gson.toJson(playerUpdateEvent));
-
-            // Send project update to player
-            messagingService.sendProjectUpdateToPlayer(player, project);
-
             // After project completion, send gained XP of employees to player
             for (Employee employee : employees) {
                 messagingService.sendEmployeeUpdate(player, employee);
