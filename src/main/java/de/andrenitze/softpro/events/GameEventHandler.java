@@ -29,6 +29,7 @@ public class GameEventHandler {
     public static final String PARTY_CLIENT = "client";
     public static final String EMPLOYEE_ID = "employeeId";
     public static final String PROJECT_ID = "projectId";
+    public static final String STARTED_AT = "startedAt";
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final GamePlayerService playerService;
     private final EmployeeService employeeService;
@@ -175,13 +176,13 @@ public class GameEventHandler {
 
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.STATE_UPDATED);
         playerUpdateEvent.setPayload(player);
-        messagingService.sendMessageToPlayer(player, GameServer.getGson().toJson(playerUpdateEvent));
+        messagingService.sendToPlayer(player, playerUpdateEvent);
 
         GameEvent<ArrayList<Integer>> employeeHiredEvent = new GameEvent<>(EventType.TALENTS_REMOVED);
         ArrayList<Integer> employeeList = new ArrayList<>();
         employeeList.add(employee.getId());
         employeeHiredEvent.setPayload(employeeList);
-        messagingService.broadcast(GameServer.getGson().toJson(employeeHiredEvent));
+        messagingService.broadcast(employeeHiredEvent);
     }
 
     private void handleRiskAssessmentRequestedEvent(WebSocket websocket, String message) {
@@ -209,11 +210,9 @@ public class GameEventHandler {
     }
 
     private void handleProjectStartedEvent(String message) {
-        Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
-        GameEvent<HashMap<String, Integer>> projectStartedEvent = GameServer.getGson().fromJson(message, payloadType);
-
-        int projectId = projectStartedEvent.getPayload().get(PROJECT_ID);
-        int startedAt = projectStartedEvent.getPayload().get("startedAt");
+        int projectId = parseIdByKey(message, PROJECT_ID);
+        int startedAt = parseIdByKey(message, STARTED_AT);
+        if (projectId == 0 || startedAt == 0) return;
 
         Project project = projectService.getProjectById(projectId);
         projectService.startProject(project, startedAt);
@@ -262,7 +261,7 @@ public class GameEventHandler {
             scheduler.schedule(() -> {
                 GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
                 effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE));
-                messagingService.sendMessageToPlayer(playerService.getPlayer(websocket), GameServer.getGson().toJson(effectDisabledEvent));
+                messagingService.sendToPlayer(playerService.getPlayer(websocket), effectDisabledEvent);
             }, GAME_SPEED_IN_MILLISECONDS * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
         } else if (effect.equals(TEAM_SPIRIT)) {
             for (Employee employee : playerService.getPlayer(websocket).getEmployees()) {

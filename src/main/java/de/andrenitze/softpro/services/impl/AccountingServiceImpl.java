@@ -13,7 +13,6 @@ import org.java_websocket.WebSocket;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 
 import static de.andrenitze.softpro.Main.logger;
@@ -46,9 +45,9 @@ public class AccountingServiceImpl implements AccountingService {
         entries.add(entry);
     }
 
-    public List<AccountingEntry> getAllEntriesByPlayer(UUID playerId) {
+    public List<AccountingEntry> getAllEntriesByPlayer(Player player) {
         return entries.stream()
-                .filter(e -> e.getPlayerId().equals(playerId))
+                .filter(e -> e.getPlayer().equals(player))
                 .toList();
     }
 
@@ -80,9 +79,15 @@ public class AccountingServiceImpl implements AccountingService {
 
     public List<AccountingEntry> getNewAccountingEntries(int gameTick) {
         List<AccountingEntry> newEntries = new ArrayList<>();
-        playerService.getPlayers().forEach((_, player) -> newEntries.addAll(getAllEntriesByPlayer(player.getId()).stream()
+        playerService.getPlayers().forEach((_, player) -> newEntries.addAll(getAllEntriesByPlayer(player).stream()
                 .filter(entry -> entry.getDay() == gameTick)
                 .toList()));
         return newEntries;
+    }
+
+    public List<AccountingEntry> getNewEntriesByPlayer(Player player, int tick) {
+        return entries.stream()
+                .filter(e -> e.getPlayer().equals(player) && e.getDay() == tick)
+                .toList();
     }
 }

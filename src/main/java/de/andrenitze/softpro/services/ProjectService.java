@@ -11,7 +11,7 @@ import java.util.List;
  * Service für die Verwaltung von Projekten.
  */
 public interface ProjectService {
-    void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate);
+    List<Project>  conductWorkOnAllProjects(int tick, int level, LocalDate currentDate);
     int calculateEmployeeEarnedValue(Employee employee, Project project, int tick, float onboardingFactor);
     void cancelProject(Player player, Project project, String cancelledBy, int tick, int level);
     void cancelOverdueProjects(int tick, int level);

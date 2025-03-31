@@ -92,6 +92,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private void applyStatusEffectForProjectType(Employee employee, Project project) {
         StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.7f, FAMILIARIZATION_WITH_NEW_TYPE);
+        newProjectTypeEffect.setTrigger(project);
         if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
             employee.addStatusEffect(newProjectTypeEffect);
         }
@@ -99,6 +100,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private void applyStatusEffectForProjectDomain(Employee employee, Project project) {
         StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.85f, FAMILIARIZATION_WITH_NEW_DOMAIN);
+        newProjectDomainEffect.setTrigger(project);
         if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
             employee.addStatusEffect(newProjectDomainEffect);
         }

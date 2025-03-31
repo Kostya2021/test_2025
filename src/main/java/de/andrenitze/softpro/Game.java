@@ -2,12 +2,14 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
+import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.domains.projects.ProjectSummary;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
@@ -59,7 +61,6 @@ public class Game {
     public static final int GAME_SPEED_IN_MILLISECONDS = 200;
     public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
 
-    @Getter private int tick = 0;
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
     private List<StoryElement> storyElements; // Level-specific
@@ -231,10 +232,22 @@ public class Game {
 
         long startTime = System.nanoTime();
 
-        // Execute the game logic each "tick".
-        // This is important because player interactions alter the state between ticks.
-        // Order is important, because some methods depend on the state of others (side effects may occur).
-        projectService.conductWorkOnAllProjects(lifeCycleService.getTick(), getLevel(), currentDate);
+        // Execute the game logic each "tick". Player interactions can alter the state between ticks.
+        // Order is important, because some methods depend on the state of others (side effects are likely).
+        List<Project> projectsWithChanges = projectService.conductWorkOnAllProjects(lifeCycleService.getTick(), getLevel(), currentDate);
+
+        for (Project project : projectsWithChanges) {
+            GameEvent<ProjectSummary> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+            ProjectSummary summary = projectService.getProjectSummary(project);
+            summary.setTick(lifeCycleService.getTick());
+            projectUpdatedEvent.setPayload(summary);
+
+            // Send update to all involved players
+            for (Player player : project.getInvolvedPlayers()) {
+                messagingService.sendToPlayer(player, projectUpdatedEvent);
+            }
+        }
+
         projectService.cancelOverdueProjects(lifeCycleService.getTick(), getLevel());
         projectService.evaluateTenderProcesses(lifeCycleService.getTick());
         // Things not to do in the first level
@@ -260,6 +273,17 @@ public class Game {
         }
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
+
+        // Send new accounting entries for player for this tick
+        playerService.getPlayers().forEach((_, player) -> {
+            List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycleService.getTick());
+            GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
+            accountingEntriesEvent.setPayload(newEntries);
+            if (!newEntries.isEmpty()) {
+                messagingService.sendToPlayer(player, accountingEntriesEvent);
+            }
+        });
+
         checkGameOverConditions();
 
         long endTime = System.nanoTime();
@@ -286,7 +310,7 @@ public class Game {
                 // Send the compiled list to the player
                 GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
                 newStoryElementEvent.setPayload(thisPlayersStoryElements);
-                messagingService.sendMessageToPlayer(player, GameServer.getGson().toJson(newStoryElementEvent));
+                messagingService.sendToPlayer(player, GameServer.getGson().toJson(newStoryElementEvent));
             }
         });
     }
@@ -329,7 +353,7 @@ public class Game {
                 List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
                 GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                 objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                messagingService.sendMessageToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
+                messagingService.sendToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
             }
         });
     }

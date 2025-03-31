@@ -239,6 +239,7 @@ public class GameServer extends WebSocketServer {
 
         // Get the PlayerService instance from the game context
         GamePlayerService playerService = game.getPlayerService();
+        GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
 
         game.setEventHandler(new GameEventHandler(
                 game.getMessagingService(),
@@ -246,15 +247,15 @@ public class GameServer extends WebSocketServer {
                 game.getEmployeeService(),
                 game.getTalentMarket(),
                 game.getProjectService(),
-                game.getLifeCycleService(),
+                lifeCycleService,
                 game.getSkillService(),
                 game.getProjectEmployeeService()));
         game.setObjectiveService(new ObjectiveServiceImpl(game.getPlayerService(),
-                game.getLifeCycleService(),
+                lifeCycleService,
                 game.getProjectService(),
                 game.getSkillService(),
                 game.getProjectEmployeeService()));
-        game.setLifeCycleService(gameContext.getBean(GameLifeCycleService.class));
+        game.setLifeCycleService(lifeCycleService);
         game.getMessagingService().setPlayerService(playerService);
 
         // Add the game context and game instance to the gameContexts map

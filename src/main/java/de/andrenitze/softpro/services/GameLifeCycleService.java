@@ -30,6 +30,9 @@ public class GameLifeCycleService {
     }
 
     public void nextTick() {
+        if (paused) {
+            return;
+        }
         tick++;
     }
 }

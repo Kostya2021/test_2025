@@ -7,10 +7,10 @@ import lombok.Setter;
 
 import java.util.*;
 
-import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
+import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
 public class Employee {
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
@@ -345,18 +345,6 @@ public class Employee {
         calculateSatisfaction();
     }
 
-    public void removeStatusEffectsByDescription(String description) {
-        statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getDescription().equals(description);
-            if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
-                calculateSatisfaction();
-            }
-            return toRemove;
-        });
-
-        logger.debug("Removed status effects with description {} from {}", description, getName());
-    }
-
     public void addComplexStatusEffect(String effect) {
         logger.debug("Applying {} to {}", effect, getName());
 
@@ -410,5 +398,15 @@ public class Employee {
         addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
 
         calculateSatisfaction();
+    }
+
+    public void removeStatusEffectsByTrigger(Object trigger) {
+        statusEffects.removeIf(effect -> {
+            if (effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
+                calculateSatisfaction();
+            }
+            return effect.getTrigger() == trigger;
+        });
+        logger.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
     }
 }

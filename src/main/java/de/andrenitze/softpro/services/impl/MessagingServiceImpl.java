@@ -31,21 +31,62 @@ public class MessagingServiceImpl implements MessagingService {
     public void sendFundsUpdateToPlayer(Player player) {
         GameEvent<Float> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
         newFundsEvent.setPayload(player.getFunds());
-        sendMessageToPlayer(player, gson.toJson(newFundsEvent));
+        sendToPlayer(player, gson.toJson(newFundsEvent));
     }
 
     public void sendProjectUpdateToPlayer(Player player, Project project) {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdateEvent.setPayload(project);
-        sendMessageToPlayer(player, gson.toJson(projectUpdateEvent));
+        sendToPlayer(player, gson.toJson(projectUpdateEvent));
     }
 
-    public void sendMessageToPlayer(Player player, String message) {
-        // Get the WebSocket connection of the player
-        WebSocket webSocket = getWebSocketByPlayer(playerService.getPlayers(), player);
+    public void sendEmployeeUpdate(Player player, Employee employee) {
+        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
+        employeeUpdateEvent.setPayload(employee);
+        sendToPlayer(player, GameServer.getGson().toJson(employeeUpdateEvent));
+    }
 
+    public void sendNewAccountingEntries(List<AccountingEntry> newEntries) {
+        if (!newEntries.isEmpty()) {
+            GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
+            newAccountingEntriesEvent.setPayload(newEntries);
+            playerService.getPlayers().forEach((_, player) -> sendToPlayer(player, newAccountingEntriesEvent));
+        }
+    }
+
+    public void broadcast(String message) {
+        playerService.getPlayers().forEach((webSocket, _) -> webSocket.send(message));
+    }
+
+    public void broadcast(EventType eventType) {
+        GameEvent<Void> event = new GameEvent<>(eventType);
+        broadcast(gson.toJson(event));
+    }
+
+    public void broadcast(GameEvent<?> gameEvent) {
+        broadcast(gson.toJson(gameEvent));
+    }
+
+    public void broadcastInitialState() {
+        playerService.getPlayers().forEach((_, player) -> {
+            GameEvent<Player> event = new GameEvent<>(EventType.STATE_UPDATED);
+            event.setPayload(player);
+            sendToPlayer(player, event);
+        });
+    }
+
+    public void sendToPlayer(Player player, GameEvent<?> gameEvent) {
+        sendToPlayer(player, gson.toJson(gameEvent));
+    }
+
+    public void sendToPlayer(Player player, String message) {
+        if (playerService.getPlayers() == null || !playerService.getPlayers().containsValue(player)) {
+            logger.debug("Player {} is not in the game. Not sending event.", player.getId());
+            return;
+        }
+
+        WebSocket webSocket = getWebSocketByPlayer(playerService.getPlayers(), player);
         if (webSocket != null) {
-            // Send a single message on that WebSocket connection
             webSocket.send(message);
         }
     }
@@ -55,60 +96,5 @@ public class MessagingServiceImpl implements MessagingService {
                 .stream()
                 .filter(key -> player.equals(map.get(key)))
                 .findFirst().orElse(null);
-    }
-
-    public void broadcast(String message) {
-        playerService.getPlayers().forEach((webSocket, _) -> webSocket.send(message));
-    }
-
-    public void sendEmployeeUpdate(Player player, Employee employee) {
-        GameEvent<Employee> employeeUpdateEvent = new GameEvent<>(EventType.EMPLOYEE_UPDATED);
-        employeeUpdateEvent.setPayload(employee);
-        sendMessageToPlayer(player, GameServer.getGson().toJson(employeeUpdateEvent));
-    }
-
-    /**
-     * Broadcasts a GameEvent of specified type (without payload) to all players in the Game instance.
-     * @param eventType The type of the event to broadcast.
-     */
-    public void broadcast(EventType eventType) {
-        GameEvent<Void> event = new GameEvent<>(eventType);
-        broadcast(gson.toJson(event));
-    }
-
-    /**
-     * Broadcasts a GameEvent to all players in the Game instance.
-     * @param gameEvent GameEvent with payload and type.
-     */
-    public void broadcast(GameEvent<?> gameEvent) {
-        broadcast(gson.toJson(gameEvent));
-    }
-
-    public void sendToPlayer(Player player, GameEvent<?> gameEvent) {
-        // Check if player is in the game
-        if (playerService.getPlayers() == null || !playerService.getPlayers().containsValue(player)) {
-            logger.debug("Player {} is not in the game. Not sending event.", player.getId());
-            return;
-        }
-        sendMessageToPlayer(player, gson.toJson(gameEvent));
-    }
-
-    /**
-     * Broadcasts the initial state of the game to all players.
-     */
-    public void broadcastInitialState() {
-        playerService.getPlayers().forEach((_, player) -> {
-            GameEvent<Player> event = new GameEvent<>(EventType.STATE_UPDATED);
-            event.setPayload(player);
-            sendToPlayer(player, event);
-        });
-    }
-
-    public void sendNewAccountingEntries(List<AccountingEntry> newEntries) {
-        if (!newEntries.isEmpty()) {
-            GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
-            newAccountingEntriesEvent.setPayload(newEntries);
-            playerService.getPlayers().forEach((_, player) -> sendToPlayer(player, newAccountingEntriesEvent));
-        }
     }
 }

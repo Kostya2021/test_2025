@@ -10,7 +10,6 @@ import de.andrenitze.softpro.events.GameEvent;
  * Service for communication with players over WebSocket.
  */
 public interface MessagingService {
-    void sendMessageToPlayer(Player player, String message);
     void broadcast(String message);
     void broadcast(GameEvent<?> gameEvent);
     void sendFundsUpdateToPlayer(Player player);

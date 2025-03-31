@@ -15,7 +15,7 @@ import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
 import lombok.Getter;
 import lombok.Setter;
-import org.json.JSONObject;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,61 +66,51 @@ public class ProjectServiceImpl implements ProjectService {
         setProjects(new ArrayList<>());
     }
 
-    public void conductWorkOnAllProjects(int tick, int level, LocalDate currentDate) {
+    public List<Project> conductWorkOnAllProjects(int tick, int level, LocalDate currentDate) {
+        List<Project> projectsWithChanges = new ArrayList<>();
+
         // No work on weekends
         if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
-            return;
+            return projectsWithChanges;
         }
 
-        // For all projects that are started AND have employees assigned
+        // For all projects...
         Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeeService.getProjectEmployeesMap().entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
             Project project = entry.getKey();
             ArrayList<Employee> employees = entry.getValue();
 
-            // Only process started projects with assigned employees
+            // ...which have started and have employees assigned:
             if (project.getStartedAt() != 0 && !employees.isEmpty()) {
                 addEarnedValueForEachEmployee(project, employees, tick);
 
-                var projectObject = new JSONObject();
-
-                // Finish the project if completed
                 if (project.isCompleted()) {
-                    // Remove all status effects on employees related to this project
-                    projectEmployeeService.getProjectEmployeesMap().get(project).forEach(employee -> {
-                        employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_DOMAIN);
-                        employee.removeStatusEffectsByDescription(FAMILIARIZATION_WITH_NEW_TYPE);
-                    });
+                    handleProjectCompletion(project, employees, tick, level);
 
-                    // Send reward
-                    handleProjectCompletion(project, employees, tick, level, projectObject);
-
-                    // Remove the project from employees map, so that employees are unassigned
-                    project.setEarnedValue(project.getTotalValue());
+                    // Remove the project from the employees map to avoid memory leaks
                     iterator.remove();
-
-                    projectObject.put("completedAt", tick);
                 }
 
-                // Build a small custom event to just send new project progress and success metrics
-                projectObject.put("id", project.getId());
-                projectObject.put("earnedValue", project.getEarnedValue());
-                projectObject.put("tick", tick);
-
-                GameEvent<JSONObject> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                projectUpdatedEvent.setPayload(projectObject);
-
-                // Send update to all involved players
-                for (Player player : project.getInvolvedPlayers()) {
-                    messagingService.sendToPlayer(player, projectUpdatedEvent);
-                }
+                // We assume that under the conditions above at least the earned value changed.
+                // So add the project to the list of projects with changes
+                projectsWithChanges.add(project);
             }
         }
+        return projectsWithChanges;
     }
 
-    private void handleProjectCompletion(Project project, ArrayList<Employee> employees, int currentTick, int level, JSONObject projectObject) {
+    private void handleProjectCompletion(Project project, ArrayList<Employee> employees, int currentTick, int level) {
         for (Player player : project.getInvolvedPlayers()) {
+            // Remove all status effects on employees related to this project
+            projectEmployeeService.getProjectEmployeesMap().get(project).forEach(
+                    employee -> employee.removeStatusEffectsByTrigger(project)
+            );
+
+            // Make sure that earned value equals the total value
+            project.setEarnedValue(project.getTotalValue());
+
+            // Calculate profit
             int profit = (int) round(project.getTotalValue() * ProjectServiceImpl.PROFIT_MARGIN);
 
             float overduePenaltyMultiplier = 1;
@@ -132,7 +122,6 @@ public class ProjectServiceImpl implements ProjectService {
                 if (level == 1) {
                     penalty = 0;
                 }
-                projectObject.put("penalty", penalty);
 
                 project.setPenalty(penalty);
                 logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
@@ -143,7 +132,6 @@ public class ProjectServiceImpl implements ProjectService {
                 profit = (int) (profit * overduePenaltyMultiplier);
             }
 
-            projectObject.put("profit", profit);
             project.setProfit(profit);
             // Don't win or lose anything in level 1 or if it's a compliance project
             if (level == 1 || project.getType() == ProjectType.COMPLIANCE) {
@@ -160,10 +148,12 @@ public class ProjectServiceImpl implements ProjectService {
             float xp = calculateXP(project);
             player.addXp((int) xp);
 
-            GameEvent<Player> playerUpdateEvent = new GameEvent<>();
-            playerUpdateEvent.setType(EventType.PLAYER_UPDATED);
+            GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
-            messagingService.sendMessageToPlayer(player, gson.toJson(playerUpdateEvent));
+            messagingService.sendToPlayer(player, gson.toJson(playerUpdateEvent));
+
+            // Send project update to player
+            messagingService.sendProjectUpdateToPlayer(player, project);
 
             // After project completion, send gained XP of employees to player
             for (Employee employee : employees) {
@@ -172,10 +162,10 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         // Calculate project result quality (0-100)
-        calculateProjectQuality(project, employees, projectObject);
+        calculateProjectQuality(project, employees);
     }
 
-    private void calculateProjectQuality(Project project, ArrayList<Employee> employees, JSONObject projectObject) {
+    private void calculateProjectQuality(Project project, ArrayList<Employee> employees) {
         HashMap<Employee, Integer> projectExperience = new HashMap<>();
         Integer totalDaysWorkedOnProject = 0;
         var skillMultipliers = new HashMap<Employee, Float>();
@@ -216,7 +206,6 @@ public class ProjectServiceImpl implements ProjectService {
         logger.debug("Project overall quality: {}/100", projectQuality);
 
         project.setQuality(projectQuality);
-        projectObject.put("quality", projectQuality);
     }
 
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees, int currentTick) {
@@ -508,7 +497,7 @@ public class ProjectServiceImpl implements ProjectService {
         projectCancelledEvent.setPayload(project);
 
         // Notify the player
-        messagingService.sendMessageToPlayer(player, gson.toJson(projectCancelledEvent));
+        messagingService.sendToPlayer(player, gson.toJson(projectCancelledEvent));
 
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
@@ -661,7 +650,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Notify involved players about forced start
         project.getInvolvedPlayers().forEach(player ->
-                messagingService.sendMessageToPlayer(player, getGson().toJson(projectStartedEvent)));
+                messagingService.sendToPlayer(player, getGson().toJson(projectStartedEvent)));
     }
 
     public void conductTeamEstimation(int projectId, Player player, int tick) {
@@ -781,7 +770,7 @@ public class ProjectServiceImpl implements ProjectService {
                         project.getInvolvedPlayers().forEach(player -> {
                             GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                             projectUpdatedEvent.setPayload(project);
-                            messagingService.sendMessageToPlayer(player, getGson().toJson(projectUpdatedEvent));
+                            messagingService.sendToPlayer(player, getGson().toJson(projectUpdatedEvent));
                         });
                     }
                 }
@@ -886,5 +875,13 @@ public class ProjectServiceImpl implements ProjectService {
         GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
         riskAssessedConfirmation.setPayload(project);
         messagingService.sendToPlayer(player, riskAssessedConfirmation);
+    }
+
+    @NotNull
+    public ProjectSummary getProjectSummary(Project project) {
+        ProjectSummary projectSummary = new ProjectSummary();
+        projectSummary.setId(project.getId());
+        projectSummary.setEarnedValue(project.getEarnedValue());
+        return projectSummary;
     }
 }
