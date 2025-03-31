@@ -301,4 +301,13 @@ public class Player {
         }
         return null;
     }
+
+    /**
+     * Returns a hash of the player based on some specific attributes.
+     *
+     * @return The hash of the player.
+     */
+    public int getHash() {
+        return Objects.hash(this.funds, this.employees, this.missions, this.xp, this.xpLevel, this.skillPoints, this.level);
+    }
 }

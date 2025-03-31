@@ -65,6 +65,7 @@ public class Game {
     private ScheduledExecutorService gameLoop;
     private List<StoryElement> storyElements; // Level-specific
 
+
     /**
      * Creates a new Game instance.
      * <p>
@@ -274,13 +275,25 @@ public class Game {
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
 
-        // Send new accounting entries for player for this tick
+        // For all players in the game...
         playerService.getPlayers().forEach((_, player) -> {
+            // Send any new accounting entries
             List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycleService.getTick());
             GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
             accountingEntriesEvent.setPayload(newEntries);
             if (!newEntries.isEmpty()) {
                 messagingService.sendToPlayer(player, accountingEntriesEvent);
+            }
+
+            // Compare old player hash to new one
+            int newPlayerHash = player.getHash();
+            Integer oldPlayerHash = playerService.getHashForPlayer(player);
+            if (oldPlayerHash == null || oldPlayerHash != newPlayerHash) {
+                logger.debug("Player {} has changed. Sending new state.", player.getId());
+                GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
+                playerUpdateEvent.setPayload(player);
+                messagingService.sendToPlayer(player, playerUpdateEvent);
+                playerService.updateHashForPlayer(player, newPlayerHash);
             }
         });
 

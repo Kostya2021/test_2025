@@ -142,7 +142,6 @@ public class ProjectServiceImpl implements ProjectService {
             AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
-            messagingService.sendFundsUpdateToPlayer(player);
 
             // Calculate player's XP gained in this project
             float xp = calculateXP(project);

@@ -5,13 +5,16 @@ import de.andrenitze.softpro.TalentMarket;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
 @Service
 public class GamePlayerServiceImpl extends BasePlayerService {
     private final TalentMarket talentMarket;
+    private final Map<Player, Integer> playerHashes = new HashMap<>();
 
     public GamePlayerServiceImpl(TalentMarket talentMarket) {
         this.talentMarket = talentMarket;
@@ -37,5 +40,13 @@ public class GamePlayerServiceImpl extends BasePlayerService {
             return null;
         }
         return playerList.get(RANDOM.nextInt(playerList.size()));
+    }
+
+    public Integer getHashForPlayer(Player player) {
+        return playerHashes.get(player);
+    }
+
+    public void updateHashForPlayer(Player player, int newPlayerHash) {
+        playerHashes.put(player, newPlayerHash);
     }
 }
