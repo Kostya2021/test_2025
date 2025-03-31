@@ -507,7 +507,7 @@ public class GameServer extends WebSocketServer {
         GameEvent<Map<String, Object>> updateLobbyEvent = new GameEvent<>(EventType.UPDATE_LOBBY);
                 Map<String, Object> payload = new HashMap<>();
                 payload.put("runningGames", runningGames);
-                payload.put("players", playersList);
+                payload.put("players", lobbyPlayerService.getPlayers().values());
                 payload.put("dailyHighScores", anonymizedDailyHighScores);
                 payload.put("monthlyHighScores", anonymizedMonthlyHighScores);
                 payload.put("quarterlyHighScores", anonymizedQuarterlyHighScores);

@@ -113,7 +113,7 @@ public class ProjectServiceImpl implements ProjectService {
 
                 // Send update to all involved players
                 for (Player player : project.getInvolvedPlayers()) {
-                    messagingService.sendEventToPlayer(player, projectUpdatedEvent);
+                    messagingService.sendToPlayer(player, projectUpdatedEvent);
                 }
             }
         }
@@ -700,16 +700,6 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Add the project to the project-employee map
         addProject(project);
-
-        // Send PROJECT_UPDATED to all players (-> important for tenders!)
-        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-        projectUpdatedEvent.setPayload(project);
-        messagingService.broadcast(getGson().toJson(projectUpdatedEvent));
-
-        // Send PROJECT_RECEIVED event to the player
-        GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
-        projectReceivedEvent.setPayload(project);
-        messagingService.sendMessageToPlayer(player, getGson().toJson(projectReceivedEvent));
     }
 
     public void evaluateTenderProcesses(int tick) {
@@ -895,6 +885,6 @@ public class ProjectServiceImpl implements ProjectService {
 
         GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
         riskAssessedConfirmation.setPayload(project);
-        messagingService.sendEventToPlayer(player, riskAssessedConfirmation);
+        messagingService.sendToPlayer(player, riskAssessedConfirmation);
     }
 }

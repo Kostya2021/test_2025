@@ -68,19 +68,23 @@ public class MessagingServiceImpl implements MessagingService {
     }
 
     /**
-     * Broadcasts an event of specified type (without payload) to all players.
+     * Broadcasts a GameEvent of specified type (without payload) to all players in the Game instance.
      * @param eventType The type of the event to broadcast.
      */
-    public void broadcastEvent(EventType eventType) {
+    public void broadcast(EventType eventType) {
         GameEvent<Void> event = new GameEvent<>(eventType);
         broadcast(gson.toJson(event));
     }
 
-    public void broadcastEvent(GameEvent<?> gameEvent) {
+    /**
+     * Broadcasts a GameEvent to all players in the Game instance.
+     * @param gameEvent GameEvent with payload and type.
+     */
+    public void broadcast(GameEvent<?> gameEvent) {
         broadcast(gson.toJson(gameEvent));
     }
 
-    public void sendEventToPlayer(Player player, GameEvent<?> gameEvent) {
+    public void sendToPlayer(Player player, GameEvent<?> gameEvent) {
         // Check if player is in the game
         if (playerService.getPlayers() == null || !playerService.getPlayers().containsValue(player)) {
             logger.debug("Player {} is not in the game. Not sending event.", player.getId());
@@ -96,7 +100,7 @@ public class MessagingServiceImpl implements MessagingService {
         playerService.getPlayers().forEach((_, player) -> {
             GameEvent<Player> event = new GameEvent<>(EventType.STATE_UPDATED);
             event.setPayload(player);
-            sendEventToPlayer(player, event);
+            sendToPlayer(player, event);
         });
     }
 
@@ -104,7 +108,7 @@ public class MessagingServiceImpl implements MessagingService {
         if (!newEntries.isEmpty()) {
             GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
             newAccountingEntriesEvent.setPayload(newEntries);
-            playerService.getPlayers().forEach((_, player) -> sendEventToPlayer(player, newAccountingEntriesEvent));
+            playerService.getPlayers().forEach((_, player) -> sendToPlayer(player, newAccountingEntriesEvent));
         }
     }
 }

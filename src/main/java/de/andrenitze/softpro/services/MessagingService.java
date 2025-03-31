@@ -12,11 +12,11 @@ import de.andrenitze.softpro.events.GameEvent;
 public interface MessagingService {
     void sendMessageToPlayer(Player player, String message);
     void broadcast(String message);
+    void broadcast(GameEvent<?> gameEvent);
     void sendFundsUpdateToPlayer(Player player);
     void sendProjectUpdateToPlayer(Player player, Project project);
     void sendEmployeeUpdate(Player player, Employee employee);
-    void broadcastEvent(EventType eventType);
-    void broadcastEvent(GameEvent<?> gameEvent);
-    void sendEventToPlayer(Player player, GameEvent<?> gameEvent);
+    void broadcast(EventType eventType);
+    void sendToPlayer(Player player, GameEvent<?> gameEvent);
     void broadcastInitialState();
 }

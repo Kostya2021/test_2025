@@ -1,7 +1,5 @@
 package de.andrenitze.softpro.events;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.Player;
@@ -9,7 +7,6 @@ import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.domains.projects.ProjectPartyExclusionStrategy;
 import de.andrenitze.softpro.services.*;
 import org.java_websocket.WebSocket;
 
@@ -106,13 +103,20 @@ public class GameEventHandler {
 
                     if (project.hasNoTenderProcess()) {
                         projectService.assignProjectToPlayer(player, project, gameTick);
+
+                        // Notify all players about the (now unavailable) tender
+                        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                        projectUpdatedEvent.setPayload(project);
+                        messagingService.broadcast(projectUpdatedEvent);
+
+                        // Notify player about the new project
+                        GameEvent<Project> projectReceivedEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+                        projectReceivedEvent.setPayload(project);
+                        messagingService.sendToPlayer(player, projectReceivedEvent);
                     } else {
-                        Gson gson = new GsonBuilder()
-                                .setExclusionStrategies(new ProjectPartyExclusionStrategy())
-                                .create();
                         GameEvent<Project> tenderUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
                         tenderUpdatedEvent.setPayload(project);
-                        messagingService.broadcast(gson.toJson(tenderUpdatedEvent));
+                        messagingService.broadcast(tenderUpdatedEvent);
                     }
                     break;
                 }

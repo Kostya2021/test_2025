@@ -124,14 +124,14 @@ public class Game {
 
         // Start the round for all players
         lifeCycleService.run();
-        messagingService.broadcastEvent(EventType.ROUND_STARTED);
+        messagingService.broadcast(EventType.ROUND_STARTED);
         messagingService.broadcastInitialState();
 
         // Broadcast the initial state of the game to all players
         GameEvent<List<Project>> newTendersEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         newTendersEvent.setPayload(projectService.getProjects());
         logger.debug("Sending {} tenders to players.", newTendersEvent.getPayload().size());
-        messagingService.broadcastEvent(newTendersEvent);
+        messagingService.broadcast(newTendersEvent);
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -143,7 +143,7 @@ public class Game {
             // Notify all clients of current time
             GameEvent<Integer> timerEvent = new GameEvent<>(EventType.TICK);
             timerEvent.setPayload(lifeCycleService.getTick());
-            messagingService.broadcastEvent(timerEvent);
+            messagingService.broadcast(timerEvent);
 
             progressGameTime();
         }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
@@ -172,7 +172,7 @@ public class Game {
             // Send talent market to players at once
             GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcastEvent(employeeEvent);
+            messagingService.broadcast(employeeEvent);
         }
 
         // Logic for decisions and their consequences
@@ -230,6 +230,7 @@ public class Game {
         currentDate = currentDate.plusDays(lifeCycleService.getTick());
 
         long startTime = System.nanoTime();
+
         // Execute the game logic each "tick".
         // This is important because player interactions alter the state between ticks.
         // Order is important, because some methods depend on the state of others (side effects may occur).
@@ -255,7 +256,7 @@ public class Game {
             List<Objective> allObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
             GameEvent<List<Objective>> gameEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
             gameEvent.setPayload(allObjectives);
-            messagingService.sendEventToPlayer(player, gameEvent);
+            messagingService.sendToPlayer(player, gameEvent);
         }
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
@@ -369,12 +370,12 @@ public class Game {
         // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
-        messagingService.sendEventToPlayer(player, gameOverEvent);
+        messagingService.sendToPlayer(player, gameOverEvent);
 
         // Update player one last time in this level to make sure, client is up-to-date
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
-        messagingService.sendEventToPlayer(player, playerUpdateEvent);
+        messagingService.sendToPlayer(player, playerUpdateEvent);
 
         // Fire game over event for GameServer to handle (save high-score etc.)
         GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);

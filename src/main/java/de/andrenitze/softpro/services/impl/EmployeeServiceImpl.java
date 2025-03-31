@@ -68,12 +68,12 @@ public class EmployeeServiceImpl implements EmployeeService {
         // Send employee dismissal confirmation
         GameEvent<Employee> employeeDismissedEvent = new GameEvent<>(EventType.EMPLOYEE_DISMISSED);
         employeeDismissedEvent.setPayload(employee);
-        messagingService.sendEventToPlayer(player, employeeDismissedEvent);
+        messagingService.sendToPlayer(player, employeeDismissedEvent);
 
         // Send new employee to all players' TalentMarkets in the game
         GameEvent<ArrayList<Employee>> talentsAddedEvent = new GameEvent<>(EventType.TALENTS_ADDED);
         talentsAddedEvent.setPayload(new ArrayList<>(List.of(employee)));
-        messagingService.broadcastEvent(talentsAddedEvent);
+        messagingService.broadcast(talentsAddedEvent);
     }
 
     public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
