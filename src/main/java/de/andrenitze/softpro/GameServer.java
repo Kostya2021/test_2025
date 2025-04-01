@@ -67,7 +67,10 @@ public class GameServer extends WebSocketServer {
             return field.getAnnotation(ToStringPlugin.Exclude.class) != null;
         }
     };
+
+    //private static final ExclusionStrategy strategy = new ProjectPartyExclusionStrategy();
     @Getter public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+    //@Getter public static final Gson gson = new GsonBuilder().create();
     @Getter private GameOverStats dailyHighScore;
     public static final Random RANDOM = new Random();
     private List<GameOverStats> dailyHighScores;

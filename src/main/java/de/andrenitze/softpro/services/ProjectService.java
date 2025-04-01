@@ -19,10 +19,11 @@ public interface ProjectService {
     void addProject(Project project);
     void assignProjectToPlayer(Player player, Project project, int tick);
     List<Project> getProjects();
-    void assessProjectRiskForPlayer(int projectId, Player player, int tick);
+    boolean assessProjectRiskForPlayer(int projectId, Player player, int tick);
     Project getProjectById(int projectId);
     void conductTeamEstimation(int projectId, Player player, int tick);
     void startProject(Project project, int startedAt);
     void initialize();
-    void randomlySpawnProjectTenders(int tick, int level, Player player);
+    void randomlySpawnTenders(int tick);
+    void randomlySpawnLevel1Tenders(int tick, Player player);
 }

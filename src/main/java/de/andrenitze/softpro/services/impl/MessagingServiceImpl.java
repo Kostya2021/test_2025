@@ -34,7 +34,7 @@ public class MessagingServiceImpl implements MessagingService {
         sendToPlayer(player, gson.toJson(newFundsEvent));
     }
 
-    public void sendProjectUpdateToPlayer(Player player, Project project) {
+    public void sendProjectUpdate(Player player, Project project) {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdateEvent.setPayload(project);
         sendToPlayer(player, gson.toJson(projectUpdateEvent));

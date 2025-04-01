@@ -29,6 +29,7 @@ import org.springframework.stereotype.Component;
 import java.net.ConnectException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -254,10 +255,13 @@ public class Game {
         // Things not to do in the first level
         // The "level" param in the other methods are used for a similar decision and might be removed in the future.
         if (getLevel() != 1) {
-            projectService.randomlySpawnProjectTenders(lifeCycleService.getTick(), getLevel(), playerService.getRandomPlayer());
-            projectService.generateRandomComplianceProjects(lifeCycleService.getTick(), playerService.getRandomPlayer());
-            projectService.removeStaleTenders(lifeCycleService.getTick());
+            projectService.randomlySpawnTenders(lifeCycleService.getTick());
+            projectService.generateRandomComplianceProjects(lifeCycleService.getTick());
+            notifyPlayersAboutStaleTenders();
             projectService.startStaleProjects(lifeCycleService.getTick());
+        } else {
+            // Generate player-specific (easy) tenders in level 1
+            projectService.randomlySpawnLevel1Tenders(lifeCycleService.getTick(), playerService.getRandomPlayer());
         }
         projectService.createProblemsInProjects(lifeCycleService.getTick(), getLevel());
         accountingService.processMonthlyPayments(currentDate, playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
@@ -275,36 +279,61 @@ public class Game {
         checkObjectivesCriteriaAndSendRewards();
         sendStoryElements();
 
-        // For all projects in the game...
-        projectService.getProjects().forEach(project -> {
-            // If the project was completed in this tick...
-            if (project.isCompleted() && project.getCompletedAt() == lifeCycleService.getTick()) {
-                for (Player player : project.getInvolvedPlayers()) {
-                    messagingService.sendProjectUpdateToPlayer(player, project);
-                }
-            }
-        });
+        // Send updates for all projects which have been completed or cancelled in this tick
+        projectService.getProjects().stream()
+                .filter(project -> project.isCompleted() && project.getCompletedAt() == lifeCycleService.getTick() ||
+                        project.getCancelledAt() == lifeCycleService.getTick())
+                .forEach(project -> project.getInvolvedPlayers().forEach(player -> {
+                    messagingService.sendProjectUpdate(player, project);
+                    projectEmployeeService.getEmployeesByProject(project).forEach(employee ->
+                            messagingService.sendEmployeeUpdate(player, employee)
+                    );
+                }));
+
+        // Send project tenders published in this tick
+        projectService.getProjects().stream()
+                .filter(project -> project.getPublishedAt() == lifeCycleService.getTick())
+                .forEach(project -> {
+                    // Broadcast new tenders
+                    GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
+                    newTenderEvent.setPayload(project);
+                    messagingService.broadcast(newTenderEvent);
+
+                    // If the tender is a compliance project, send individual events to all players
+                    if (project.getType() == ProjectType.COMPLIANCE) {
+                        project.getInvolvedPlayers().forEach(player -> {
+                            project.addParty(player); // Important for frontend
+
+                            // Immediately assign project (hence PROJECT_RECEIVED, not NEW_TENDER)
+                            GameEvent<Project> complianceProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+                            complianceProjectEvent.setPayload(project);
+                            messagingService.sendToPlayer(player, complianceProjectEvent);
+                            logger.debug("New compliance project spawned for all players: {}", project.getName());
+                        });
+                    }
+                });
+
+        // Send force-started project notification
+        projectService.getProjects().stream()
+                .filter(project -> project.getStartedAt() == lifeCycleService.getTick())
+                .forEach(project -> {
+                    GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
+                    HashMap<String, Integer> payload = new HashMap<>();
+                    payload.put("projectId", project.getId());
+                    payload.put("startedAt", project.getStartedAt());
+                    projectStartedEvent.setPayload(payload);
+
+                    // Notify involved players about forced start
+                    project.getInvolvedPlayers().forEach(player ->
+                            messagingService.sendToPlayer(player, projectStartedEvent));
+                });
+
 
         // For all players in the game...
         playerService.getPlayers().forEach((_, player) -> {
-            // Send any new accounting entries
-            List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycleService.getTick());
-            GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
-            accountingEntriesEvent.setPayload(newEntries);
-            if (!newEntries.isEmpty()) {
-                messagingService.sendToPlayer(player, accountingEntriesEvent);
-            }
-
-            // Compare old player hash to new one
-            int newPlayerHash = player.getHash();
-            Integer oldPlayerHash = playerService.getHashForPlayer(player);
-            if (oldPlayerHash == null || oldPlayerHash != newPlayerHash) {
-                logger.debug("Player {} has changed. Sending new state.", player.getId());
-                GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
-                playerUpdateEvent.setPayload(player);
-                messagingService.sendToPlayer(player, playerUpdateEvent);
-                playerService.updateHashForPlayer(player, newPlayerHash);
-            }
+            sendAnyNewAccountingEntries(player);
+            sendAnyProjectChanges();
+            sendAnyPlayerChanges(player);
         });
 
         checkGameOverConditions();
@@ -315,6 +344,55 @@ public class Game {
         // If time elapsed is more than 20 ms and game is not currently shutting down
         if (timeElapsedInMilliseconds >= 20 && lifeCycleService.isRunning()) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+        }
+    }
+
+    private void notifyPlayersAboutStaleTenders() {
+        // Notify players about stale tenders
+        List<Project> staleTenders = projectService.getStaleTenders(lifeCycleService.getTick());
+        GameEvent<List<Project>> staleTendersEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
+        staleTendersEvent.setPayload(staleTenders);
+        messagingService.broadcast(staleTendersEvent);
+    }
+
+    /**
+     * Go through all projects and compare their hashes to find out if something significant has changed.
+     */
+    private void sendAnyProjectChanges() {
+        // Compare old project hash to new one
+        playerService.getPlayers().forEach((_, player) -> projectService.getProjectsByPlayer(player).forEach(project -> {
+            int newProjectHash = project.hashCode();
+            int oldProjectHash = projectService.getHashForProject(project);
+            if (oldProjectHash != newProjectHash) {
+                logger.debug("Project '{}' has changed since last tick. Sending new state.", project.getName());
+                GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                projectUpdateEvent.setPayload(project);
+                messagingService.sendToPlayer(player, projectUpdateEvent);
+                projectService.updateHashForProject(project, newProjectHash);
+            }
+        }));
+    }
+
+    private void sendAnyPlayerChanges(Player player) {
+        // Compare old player hash to new one
+        int newPlayerHash = player.hashCode();
+        Integer oldPlayerHash = playerService.getHashForPlayer(player);
+        if (oldPlayerHash == null || oldPlayerHash != newPlayerHash) {
+            logger.debug("Player '{}' has changed since last tick. Sending new state.", player.getId());
+            GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
+            playerUpdateEvent.setPayload(player);
+            messagingService.sendToPlayer(player, playerUpdateEvent);
+            playerService.updateHashForPlayer(player, newPlayerHash);
+        }
+    }
+
+    private void sendAnyNewAccountingEntries(Player player) {
+        // Send any new accounting entries
+        List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycleService.getTick());
+        GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
+        accountingEntriesEvent.setPayload(newEntries);
+        if (!newEntries.isEmpty()) {
+            messagingService.sendToPlayer(player, accountingEntriesEvent);
         }
     }
 

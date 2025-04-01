@@ -9,8 +9,6 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.projects.*;
-import de.andrenitze.softpro.events.EventType;
-import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
 import lombok.Getter;
@@ -28,7 +26,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.calculateXP;
-import static de.andrenitze.softpro.GameServer.*;
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
 import static java.lang.Math.*;
@@ -52,15 +50,14 @@ public class ProjectServiceImpl implements ProjectService {
     @Getter private final AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
-    private final MessagingServiceImpl messagingService;
+    private final Map<Project, Integer> projectHashes = new HashMap<>();
 
     @Autowired
     public ProjectServiceImpl(AccountingServiceImpl accountingService, SkillServiceImpl skillService,
-                              ProjectEmployeeMappingService projectEmployeeService, MessagingServiceImpl messagingService) {
+                              ProjectEmployeeMappingService projectEmployeeService) {
         this.accountingService = accountingService;
         this.skillService = skillService;
         this.projectEmployeeService = projectEmployeeService;
-        this.messagingService = messagingService;
 
         // Initialize the projects list
         setProjects(new ArrayList<>());
@@ -146,11 +143,6 @@ public class ProjectServiceImpl implements ProjectService {
             // Calculate player's XP gained in this project
             float xp = calculateXP(project);
             player.addXp((int) xp);
-
-            // After project completion, send gained XP of employees to player
-            for (Employee employee : employees) {
-                messagingService.sendEmployeeUpdate(player, employee);
-            }
         }
 
         // Calculate project result quality (0-100)
@@ -462,7 +454,6 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStartedAt() > 0) {
             // Update funds
             player.subtractFunds(cancellationPenalty);
-            messagingService.sendFundsUpdateToPlayer(player);
 
             // Add accounting entry
             accountingService.addEntry(new AccountingEntry(
@@ -482,14 +473,6 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Remove player from project
         project.removeParty(player);
-
-        // Create a project update event to notify the player (cancelledAt, penalty and more...)
-        GameEvent<Project> projectCancelledEvent = new GameEvent<>();
-        projectCancelledEvent.setType(EventType.PROJECT_UPDATED);
-        projectCancelledEvent.setPayload(project);
-
-        // Notify the player
-        messagingService.sendToPlayer(player, gson.toJson(projectCancelledEvent));
 
         // If the project was acquired but not started completely remove it from the game.
         if (project.getAcquiredAt() > 0 && project.getStartedAt() == 0) {
@@ -607,7 +590,7 @@ public class ProjectServiceImpl implements ProjectService {
      *
      * @param tick  Current game tick
      */
-    public void generateRandomComplianceProjects(int tick, Player player) {
+    public void generateRandomComplianceProjects(int tick) {
         // Only have one compliance project at a time
         if (getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
                 RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
@@ -616,7 +599,6 @@ public class ProjectServiceImpl implements ProjectService {
 
             project.setPublishedAt(tick);
             project.setAcquiredAt(tick); // Immediately acquired: Frontend will show it as "acquired"
-            project.addParty(player); // Add the player as involved party (also important for frontend)
             project.setDeadline(0);
             // Select a name from a list of predefined names
             project.setName(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size())));
@@ -624,25 +606,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             // Add to project-employee map
             projectEmployeeService.addProject(project, new ArrayList<>());
-
-            // Immediately assign the project to all players
-            GameEvent<Project> newProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
-            newProjectEvent.setPayload(project);
-            logger.debug("New compliance project spawned for all players: {}", project.getName());
-            messagingService.broadcast(getGson().toJson(newProjectEvent));
         }
-    }
-
-    private void notifyInvolvedPlayers(Project project) {
-        GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
-        HashMap<String, Integer> payload = new HashMap<>();
-        payload.put("projectId", project.getId());
-        payload.put("startedAt", project.getStartedAt());
-        projectStartedEvent.setPayload(payload);
-
-        // Notify involved players about forced start
-        project.getInvolvedPlayers().forEach(player ->
-                messagingService.sendToPlayer(player, getGson().toJson(projectStartedEvent)));
     }
 
     public void conductTeamEstimation(int projectId, Player player, int tick) {
@@ -669,9 +633,6 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Calculate the estimation and add it to the project
         project.estimateProgress(tick);
-
-        // Send project update to player
-        messagingService.sendProjectUpdateToPlayer(player, project);
     }
 
     public void assignProjectToPlayer(Player player, Project project, int tick) {
@@ -710,9 +671,10 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
-    public void removeStaleTenders(int tick) {
-        // Remove tenders that have been on the market for a long time and store them in a separate array
+    public List<Project> getStaleTenders(int tick) {
         List<Project> staleTenders = new ArrayList<>();
+
+        // Remove tenders that have been on the market for a long time
         for (Iterator<Project> iterator = getProjects().iterator(); iterator.hasNext();) {
             Project project = iterator.next();
             if (project.getEarnedValue() == 0 &&
@@ -726,13 +688,7 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
 
-        // Send an update to the clients, if there are any stale tenders
-        if (staleTenders.isEmpty()) {
-            return;
-        }
-        GameEvent<List<Project>> tendersRemovedEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
-        tendersRemovedEvent.setPayload(staleTenders);
-        messagingService.broadcast(getGson().toJson(tendersRemovedEvent));
+        return staleTenders;
     }
 
     public void createProblemsInProjects(int tick, int level) {
@@ -755,15 +711,7 @@ public class ProjectServiceImpl implements ProjectService {
                         // Add the problem to the project
                         problem.setOccurredAt(tick);
                         project.addProblem(problem);
-
-                        // Inform all involved players about the new problem
                         logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
-
-                        project.getInvolvedPlayers().forEach(player -> {
-                            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                            projectUpdatedEvent.setPayload(project);
-                            messagingService.sendToPlayer(player, getGson().toJson(projectUpdatedEvent));
-                        });
                     }
                 }
             }
@@ -783,60 +731,51 @@ public class ProjectServiceImpl implements ProjectService {
                 if (daysPassed >= max(30, project.getScheduledDuration() / 10)) {
                     // Start the project and inform involved players
                     startProject(project, tick - 1);
-                    notifyInvolvedPlayers(project);
                     logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
                 }
             }
         }
     }
 
-    public void randomlySpawnProjectTenders(int tick, int level, Player player) {
-        // Don't spawn new projects in level 1 before the first mission is completed
-        // There is only one player in level 1. Check if their first mission is completed.
+    /**
+     * Spawn easy and small project tenders for level 1.
+     * @param tick     Current game tick
+     * @param player   The player to spawn the project for
+     */
+    public void randomlySpawnLevel1Tenders(int tick, Player player) {
+        // Don't spawn tenders until first mission is completed
         if (player.getMissions().getFirst().isNotCompleted()) {
             return;
         }
 
-        if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
-            // Generate a new project
-            Project project;
-
-            // For level 1, make sure that it's only easy and small projects
-            if (level == 1) {
-                // 25% chance for a perfect project
-                if (RANDOM.nextFloat() <= 0.75) {
-                    // Low-risk, small projects
-                    project = new Project(RiskLevel.LOW).initialize();
-
-                    // No tender process for level 1
-                    project.setTenderProcess(false);
-                } else {
-                    // Find the project type and domain where one employee has the most experience
-                    Employee bestEmployee = player.getEmployees().stream().max(Comparator.
-                            comparing(Employee::getExperience)).orElse(null);
-                    if (bestEmployee == null) {
-                        logger.error("No employee found for player {}.", player.getId());
-                        return;
-                    }
-                    String domain = bestEmployee.getDomainOfExpertise();
-                    ProjectType type = ProjectType.getTypeByDomain(domain);
-
-                    project = new Project(type, domain, RiskLevel.LOW, false);
-                }
-            } else {
-                project = new Project().initialize();
+        Project project;
+        // 25% chance for a perfect project
+        if (RANDOM.nextFloat() <= 0.75) {
+            // Low-risk, small projects
+            project = new Project(RiskLevel.LOW).initialize();
+        } else {
+            // Find the project type and domain where one employee has the most experience
+            Employee bestEmployee = player.getEmployees().stream().max(Comparator.
+                    comparing(Employee::getExperience)).orElse(null);
+            if (bestEmployee == null) {
+                logger.error("No employee found for player {}.", player.getId());
+                return;
             }
+            String domain = bestEmployee.getDomainOfExpertise();
+            ProjectType type = ProjectType.getTypeByDomain(domain);
 
+            project = new Project(type, domain, RiskLevel.LOW, false);
+        }
+        project.setTenderProcess(false);
+        project.setPublishedAt(tick);
+        addProject(project);
+    }
+
+    public void randomlySpawnTenders(int tick) {
+        if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
+            Project project = new Project().initialize();
             project.setPublishedAt(tick);
             addProject(project);
-
-            // Initialize project-employee map with empty employees list for this project
-            projectEmployeeService.getProjectEmployeesMap().put(project, new ArrayList<>(2));
-
-            // Inform players about the new tender
-            GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
-            newTenderEvent.setPayload(project);
-            messagingService.broadcast(getGson().toJson(newTenderEvent));
         }
     }
 
@@ -844,11 +783,11 @@ public class ProjectServiceImpl implements ProjectService {
         problemGenerator.loadProblemsByLevel(level);
     }
 
-    public void assessProjectRiskForPlayer(int projectId, Player player, int tick) {
+    public boolean assessProjectRiskForPlayer(int projectId, Player player, int tick) {
         Project project = getProjectById(projectId);
         if (project == null) {
             logger.error("Project with ID {} could not be found.", projectId);
-            return;
+            return false;
         }
 
         // Deduct funds from player
@@ -862,11 +801,7 @@ public class ProjectServiceImpl implements ProjectService {
                 "Project risk assessment")
         );
         player.subtractFunds(riskAssessmentCost);
-        messagingService.sendFundsUpdateToPlayer(player);
-
-        GameEvent<Project> riskAssessedConfirmation = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
-        riskAssessedConfirmation.setPayload(project);
-        messagingService.sendToPlayer(player, riskAssessedConfirmation);
+        return true;
     }
 
     @NotNull
@@ -875,5 +810,24 @@ public class ProjectServiceImpl implements ProjectService {
         projectSummary.setId(project.getId());
         projectSummary.setEarnedValue(project.getEarnedValue());
         return projectSummary;
+    }
+
+    public int getHashForProject(Project project) {
+        return projectHashes.getOrDefault(project, 0);
+    }
+
+    public void updateHashForProject(Project project, int newProjectHash) {
+        // Update the hash for the project
+        projectHashes.put(project, newProjectHash);
+    }
+
+    public List<Project> getProjectsByPlayer(Player player) {
+        List<Project> playerProjects = new ArrayList<>();
+        for (Project project : getProjects()) {
+            if (project.getInvolvedPlayers().contains(player)) {
+                playerProjects.add(project);
+            }
+        }
+        return playerProjects;
     }
 }

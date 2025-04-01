@@ -357,4 +357,10 @@ public class Project {
     public void removeParty(Player player) {
         this.involvedParties.remove(player);
     }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, totalValue, earnedValue, tenderProcess, deadline, involvedParties,
+                acquiredAt, startedAt, completedAt, quality, risk, type, domain, progressEstimates);
+    }
 }

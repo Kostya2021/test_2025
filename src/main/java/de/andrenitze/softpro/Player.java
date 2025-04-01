@@ -307,7 +307,8 @@ public class Player {
      *
      * @return The hash of the player.
      */
-    public int getHash() {
+    @Override
+    public int hashCode() {
         return Objects.hash(this.funds, this.employees, this.missions, this.xp, this.xpLevel, this.skillPoints, this.level);
     }
 }
