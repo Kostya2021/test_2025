@@ -344,7 +344,7 @@ public class Game {
     }
 
     private void sendAnyNewStoryElements(Player player) {
-        List<StoryElement> newStoryElements = storyService.getStoryElementsForPlayer(player, lifeCycleService.getTick());
+        List<StoryElement> newStoryElements = storyService.getNewStoryElementsForPlayer(player, lifeCycleService.getTick());
         if (!newStoryElements.isEmpty()) {
             GameEvent<List<StoryElement>> storyEvent = new GameEvent<>(EventType.STORY_ELEMENTS_ADDED);
             storyEvent.setPayload(newStoryElements);

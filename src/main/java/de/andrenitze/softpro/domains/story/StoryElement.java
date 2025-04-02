@@ -27,7 +27,7 @@ public class StoryElement {
     private int earliestOccurrence = 1;
 
     /**
-     * Line will be shown after the referenced objective is completed.
+     * Story line will be shown after the referenced objective is completed.
      */
     private int afterObjective;
 

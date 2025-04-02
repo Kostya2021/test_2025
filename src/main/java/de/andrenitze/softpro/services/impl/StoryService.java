@@ -6,65 +6,56 @@ import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class StoryService {
+    /**
+     * Loaded at level start, stays the same throughout the level.
+     */
     private List<StoryElement> storyElements;
-    private final Map<Player, Set<StoryElement>> sentStoryElements = new HashMap<>();
+
+    /**
+     * Map to keep track of sent elements for each player to not send them again.
+      */
+    private final Map<String, Set<Integer>> sentStoryElementIds = new ConcurrentHashMap<>();
 
     public void loadStory(int level) {
         this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(level);
     }
 
-    public List<StoryElement> getStoryElementsForPlayer(Player player, int currentTick) {
-        List<StoryElement> relevantStoryElements = getRelevantStoryElements(currentTick);
-        List<StoryElement> playerStoryElements = new ArrayList<>();
 
-        if (relevantStoryElements.isEmpty()) {
-            return playerStoryElements;
+    public List<StoryElement> getNewStoryElementsForPlayer(Player player, int currentTick) {
+        List<StoryElement> newStoryElements = new ArrayList<>();
+        String playerId = player.getId().toString();
+        Set<Integer> sentElementIds = sentStoryElementIds.computeIfAbsent(playerId, _ -> new HashSet<>());
+
+        for (StoryElement element : storyElements) {
+            if (!sentElementIds.contains(element.getId()) &&
+                    isElementRelevantForPlayer(element, player, currentTick)) {
+
+                element.setSent(true);
+                newStoryElements.add(element);
+
+                sentElementIds.add(element.getId());
+            }
+        }
+        return newStoryElements;
+    }
+
+    private boolean isElementRelevantForPlayer(StoryElement element, Player player, int currentTick) {
+        if (element.getEarliestOccurrence() > currentTick && element.getAfterObjective() == 0) {
+            return false;
         }
 
-        playerStoryElements = getPlayerStoryElements(relevantStoryElements, player);
-        markStoryElementsAsSent(player, playerStoryElements);
-
-        return playerStoryElements;
-    }
-
-    private List<StoryElement> getRelevantStoryElements(int currentTick) {
-        List<StoryElement> relevantStoryElements = new ArrayList<>();
-        this.storyElements.forEach(element -> {
-            if (element.getEarliestOccurrence() <= currentTick || element.getAfterObjective() != 0) {
-                relevantStoryElements.add(element);
-            }
-        });
-        return relevantStoryElements;
-    }
-
-    private List<StoryElement> getPlayerStoryElements(List<StoryElement> relevantStoryElements, Player player) {
-        List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
-        Set<StoryElement> sentElements = sentStoryElements.getOrDefault(player, new HashSet<>());
-
-        relevantStoryElements.forEach(storyElement -> {
-            if (!sentElements.contains(storyElement)) {
-                ArrayList<Objective> completedObjectives = (ArrayList<Objective>) player.getCompletedObjectives();
-                if (storyElement.getAfterObjective() != 0) {
-                    completedObjectives.forEach(objective -> {
-                        if (storyElement.getAfterObjective() == objective.getId()) {
-                            thisPlayersStoryElements.add(storyElement);
-                        }
-                    });
-                } else {
-                    thisPlayersStoryElements.add(storyElement);
+        if (element.getAfterObjective() != 0) {
+            for (Objective objective : player.getCompletedObjectives()) {
+                if (element.getAfterObjective() == objective.getId()) {
+                    return true;
                 }
             }
-        });
-        return thisPlayersStoryElements;
+            return false;
+        }
+
+        return true;
     }
-
-    private void markStoryElementsAsSent(Player player, List<StoryElement> storyElements) {
-        Set<StoryElement> sentElements = sentStoryElements.getOrDefault(player, new HashSet<>());
-        sentElements.addAll(storyElements);
-        sentStoryElements.put(player, sentElements);
-    }
-
-
 }
