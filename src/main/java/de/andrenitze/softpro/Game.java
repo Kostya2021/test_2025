@@ -6,13 +6,11 @@ import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectSummary;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.story.StoryElement;
-import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.*;
@@ -28,7 +26,6 @@ import org.springframework.stereotype.Component;
 
 import java.net.ConnectException;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,13 +35,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
+import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.MAX_NUMBER_OF_PLAYERS_PER_GAME;
 import static java.time.LocalDate.now;
 
 @Component
 @Scope("prototype")
 public class Game {
-    public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    @Getter private StoryService storyService;
     @Getter private GamePlayerServiceImpl playerService;
     @Getter private SkillServiceImpl skillService;
     @Getter private AccountingServiceImpl accountingService;
@@ -64,8 +62,6 @@ public class Game {
 
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
-    private List<StoryElement> storyElements; // Level-specific
-
 
     /**
      * Creates a new Game instance.
@@ -78,16 +74,15 @@ public class Game {
                 AccountingServiceImpl accountingService,
                 MessagingServiceImpl messagingService,
                 GamePlayerServiceImpl playerService,
-                TalentMarket talentMarket,
                 ProjectServiceImpl projectService,
                 EmployeeServiceImpl employeeService,
                 GameEventHandler eventHandler,
                 GameEventPublisher eventPublisher,
                 LevelConsequencesService levelConsequencesService,
                 GameLifeCycleService lifeCycleService,
-                ProjectEmployeeMappingImpl projectEmployeeMapping) {
-        EmployeeIdGenerator employeeIdGenerator = new EmployeeIdGenerator();
-        this.talentMarket = new TalentMarket(employeeIdGenerator);
+                ProjectEmployeeMappingImpl projectEmployeeMapping,
+                StoryService storyService) {
+        this.talentMarket = new TalentMarket();
         this.talentMarket.clear();
 
         this.skillService = skillService;
@@ -101,6 +96,7 @@ public class Game {
         this.levelConsequencesService = levelConsequencesService;
         this.lifeCycleService = lifeCycleService;
         this.projectEmployeeService = projectEmployeeMapping;
+        this.storyService = storyService;
 
         // Don't initialize the talent market for level 1
         if (level != 1) {
@@ -109,7 +105,8 @@ public class Game {
     }
 
     // Mandatory services are injected here
-    public Game(GamePlayerServiceImpl playerService, SkillServiceImpl skillService, GameLifeCycleService lifeCycleService) {
+    public Game(StoryService storyService, GamePlayerServiceImpl playerService, SkillServiceImpl skillService, GameLifeCycleService lifeCycleService) {
+        this.storyService = storyService;
         this.playerService = playerService;
         this.skillService = skillService;
         this.lifeCycleService = lifeCycleService;
@@ -214,10 +211,9 @@ public class Game {
 
         // Load problems for the level
         projectService.loadProblems(i);
-    }
 
-    public void loadStory(int level) {
-        this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(level);
+        // Load story elements for the level
+        storyService.loadStory(i);
     }
 
     private void progressGameTime() {
@@ -277,7 +273,6 @@ public class Game {
             messagingService.sendToPlayer(player, gameEvent);
         }
         checkObjectivesCriteriaAndSendRewards();
-        sendStoryElements();
 
         // Send updates for all projects which have been completed or cancelled in this tick
         projectService.getProjects().stream()
@@ -334,6 +329,7 @@ public class Game {
             sendAnyNewAccountingEntries(player);
             sendAnyProjectChanges();
             sendAnyPlayerChanges(player);
+            sendAnyNewStoryElements(player);
         });
 
         checkGameOverConditions();
@@ -344,6 +340,15 @@ public class Game {
         // If time elapsed is more than 20 ms and game is not currently shutting down
         if (timeElapsedInMilliseconds >= 20 && lifeCycleService.isRunning()) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+        }
+    }
+
+    private void sendAnyNewStoryElements(Player player) {
+        List<StoryElement> newStoryElements = storyService.getStoryElementsForPlayer(player, lifeCycleService.getTick());
+        if (!newStoryElements.isEmpty()) {
+            GameEvent<List<StoryElement>> storyEvent = new GameEvent<>(EventType.STORY_ELEMENTS_ADDED);
+            storyEvent.setPayload(newStoryElements);
+            messagingService.sendToPlayer(player, storyEvent);
         }
     }
 
@@ -394,57 +399,6 @@ public class Game {
         if (!newEntries.isEmpty()) {
             messagingService.sendToPlayer(player, accountingEntriesEvent);
         }
-    }
-
-    private void sendStoryElements() {
-        // Check if there's a story element for today
-        List<StoryElement> relevantStoryElements = getRelevantStoryElements();
-
-        if (relevantStoryElements.isEmpty()) {
-            return;
-        }
-
-        playerService.getPlayers().forEach((_, player) -> {
-            List<StoryElement> thisPlayersStoryElements = getPlayerStoryElements(relevantStoryElements, player);
-
-            if (!thisPlayersStoryElements.isEmpty()) {
-                // Send the compiled list to the player
-                GameEvent<List<StoryElement>> newStoryElementEvent = new GameEvent<>(EventType.NEW_STORY_ELEMENT);
-                newStoryElementEvent.setPayload(thisPlayersStoryElements);
-                messagingService.sendToPlayer(player, GameServer.getGson().toJson(newStoryElementEvent));
-            }
-        });
-    }
-
-    private List<StoryElement> getRelevantStoryElements() {
-        List<StoryElement> relevantStoryElements = new ArrayList<>();
-        this.storyElements.forEach(element -> {
-            // Relevant = Has not been sent AND (is scheduled earliest for this tick OR has an objective precondition)
-            if (!element.isSent() && (element.getEarliestOccurrence() == lifeCycleService.getTick() ||
-                    element.getAfterObjective() != 0)) {
-                relevantStoryElements.add(element);
-            }
-        });
-        return relevantStoryElements;
-    }
-
-    private List<StoryElement> getPlayerStoryElements(List<StoryElement> relevantStoryElements, Player player) {
-        List<StoryElement> thisPlayersStoryElements = new ArrayList<>();
-        relevantStoryElements.forEach(storyElement -> {
-            // Check if there are any required objectives before sending
-            ArrayList<Objective> completedObjectives = (ArrayList<Objective>) player.getCompletedObjectives();
-            if (storyElement.getAfterObjective() != 0) {
-                completedObjectives.forEach(objective -> {
-                    if (storyElement.getAfterObjective() == objective.getId()) {
-                        thisPlayersStoryElements.add(storyElement);
-                        storyElement.setSent(true);
-                    }
-                });
-            } else {
-                thisPlayersStoryElements.add(storyElement);
-            }
-        });
-        return thisPlayersStoryElements;
     }
 
     private void checkObjectivesCriteriaAndSendRewards() {
@@ -593,30 +547,6 @@ public class Game {
             return;
         }
         pool.shutdownNow();
-    }
-
-    public void addPlayerToGame(WebSocket webSocket, Player player) {
-        logger.debug("Adding player {} to game.", player.getId());
-        try {
-            if (playerService.hasWebSocket(webSocket)) {
-                logger.warn("Player already exists in game. Ignoring request to add player.");
-                return;
-            } else if (playerService.getPlayers().size() >= MAX_NUMBER_OF_PLAYERS_PER_GAME) {
-                logger.warn("Game is full. Cannot add player.");
-                return;
-            } else if (playerService.isPlayerInAnyGame(player)) {
-                logger.warn("Player is already in another game. Cannot add player.");
-                return;
-            }
-
-            playerService.addPlayer(webSocket, player);
-            logger.debug("Added player {} to game.", player.getId());
-
-            PlayersChangedEvent playersChangedEvent = new PlayersChangedEvent(this, playerService.getPlayers());
-            eventPublisher.publishPlayersChangedEvent(playersChangedEvent);
-        } catch (Exception e) {
-            logger.error("Could not add player to game: {}", e.getMessage());
-        }
     }
 
     // Forwarding the method for the GameServer

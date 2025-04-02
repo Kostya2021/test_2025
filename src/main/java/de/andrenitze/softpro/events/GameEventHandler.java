@@ -31,7 +31,7 @@ public class GameEventHandler {
     public static final String PROJECT_ID = "projectId";
     public static final String STARTED_AT = "startedAt";
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private final GamePlayerService playerService;
+    private final PlayerService playerService;
     private final EmployeeService employeeService;
     private final TalentMarket talentMarket;
     private final ProjectService projectService;
@@ -41,7 +41,7 @@ public class GameEventHandler {
     private final ProjectEmployeeMappingService projectEmployeeService;
 
     public GameEventHandler(MessagingService messagingService,
-                            GamePlayerService playerService,
+                            PlayerService playerService,
                             EmployeeService employeeService,
                             TalentMarket talentMarket,
                             ProjectService projectService,

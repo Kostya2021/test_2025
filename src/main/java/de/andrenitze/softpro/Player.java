@@ -309,6 +309,18 @@ public class Player {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(this.funds, this.employees, this.missions, this.xp, this.xpLevel, this.skillPoints, this.level);
+        return Objects.hash(this.funds, this.missions, this.xp, this.xpLevel, this.skillPoints, this.level);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Player player)) return false;
+        return Float.compare(player.funds, funds) == 0 &&
+                xp == player.xp &&
+                xpLevel == player.xpLevel &&
+                skillPoints == player.skillPoints &&
+                Objects.equals(id, player.id) &&
+                Objects.equals(missions, player.missions);
     }
 }

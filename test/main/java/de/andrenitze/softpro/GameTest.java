@@ -6,6 +6,7 @@ import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.SkillServiceImpl;
+import de.andrenitze.softpro.services.impl.StoryService;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,12 +23,12 @@ class GameTest {
 
     @BeforeEach
     void setUp() {
-        game = new Game(mock(GamePlayerServiceImpl.class), mock(SkillServiceImpl.class), mock(GameLifeCycleService.class));
+        game = new Game(mock(StoryService.class), mock(GamePlayerServiceImpl.class), mock(SkillServiceImpl.class), mock(GameLifeCycleService.class));
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();
 
         WebSocket mockWebSocket = mock(WebSocket.class);
-        game.addPlayerToGame(mockWebSocket, player);
+        game.getPlayerService().addPlayer(mockWebSocket, player);
 
         game.getProjectService().addProject(project);
     }
@@ -51,7 +52,7 @@ class GameTest {
         WebSocket mockWebSocket = mock(WebSocket.class);
         Player testPlayer = new Player("TestPlayer", "TestCompany");
 
-        game.addPlayerToGame(mockWebSocket, testPlayer);
+        game.getPlayerService().addPlayer(mockWebSocket, testPlayer);
 
         assertTrue(game.getPlayerService().getPlayers().containsKey(mockWebSocket), "Player should be added to the game");
         assertEquals(testPlayer, game.getPlayerService().getPlayers().get(mockWebSocket), "The correct player should be associated with the WebSocket");

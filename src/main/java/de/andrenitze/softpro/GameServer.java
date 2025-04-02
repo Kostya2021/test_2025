@@ -14,7 +14,7 @@ import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.DecisionService;
 import de.andrenitze.softpro.services.GameLifeCycleService;
-import de.andrenitze.softpro.services.GamePlayerService;
+import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.ObjectiveServiceImpl;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
@@ -41,6 +41,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -67,12 +68,9 @@ public class GameServer extends WebSocketServer {
             return field.getAnnotation(ToStringPlugin.Exclude.class) != null;
         }
     };
-
-    //private static final ExclusionStrategy strategy = new ProjectPartyExclusionStrategy();
     @Getter public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
-    //@Getter public static final Gson gson = new GsonBuilder().create();
     @Getter private GameOverStats dailyHighScore;
-    public static final Random RANDOM = new Random();
+    public static final Random RANDOM = new SecureRandom();
     private List<GameOverStats> dailyHighScores;
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
@@ -241,7 +239,7 @@ public class GameServer extends WebSocketServer {
         Game game = gameContext.getBean(Game.class);
 
         // Get the PlayerService instance from the game context
-        GamePlayerService playerService = game.getPlayerService();
+        PlayerService playerService = game.getPlayerService();
         GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
 
         game.setEventHandler(new GameEventHandler(
@@ -265,7 +263,12 @@ public class GameServer extends WebSocketServer {
         gameContexts.put(gameContext, game);
         logger.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
         game.prepareNextLevelForPlayer();
-        game.addPlayerToGame(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
+        try {
+            game.getPlayerService().addPlayer(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
+        } catch (Exception e) {
+            logger.error("Could not add player to game: {}", e.getMessage());
+            return;
+        }
         logger.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), player.getLevel(), player.getId());
         prepareForNextLevel(player, game);
     }
@@ -290,14 +293,6 @@ public class GameServer extends WebSocketServer {
 
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);
-
-        // Load problems for the next level
-        game.getProjectService().loadProblems(game.getLevel());
-
-        // Load story elements for the next level
-        // game.getLevel() is "1", because game has not been completely initialized
-        // player.getLevel() is "2" already, because player has completed all objectives
-        game.loadStory(player.getLevel());
 
         logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
 
@@ -581,7 +576,6 @@ public class GameServer extends WebSocketServer {
     }
 
     public void addPlayerToLobby(WebSocket webSocket, Player player) {
-        logger.debug("Adding player {} to lobby", player.getId());
         lobbyPlayerService.addPlayer(webSocket, player);
         createGame(webSocket, player);
 
@@ -661,7 +655,7 @@ public class GameServer extends WebSocketServer {
 
     // Move a single player back to the lobby after game over
     public void movePlayerBackToLobby(Game game, Player player, WebSocket webSocket) {
-        GamePlayerService gamePlayerService = game.getPlayerService();
+        PlayerService gamePlayerService = game.getPlayerService();
 
         // Move player from game to lobby
         gamePlayerService.removePlayer(player);

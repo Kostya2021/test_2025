@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Service for managing players in the lobby or in games.
  */
-public interface GamePlayerService {
+public interface PlayerService {
     void addPlayer(WebSocket key, Player value);
     Player getPlayer(WebSocket websocket);
     boolean hasWebSocket(WebSocket conn);

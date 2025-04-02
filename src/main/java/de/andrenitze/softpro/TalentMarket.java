@@ -20,8 +20,8 @@ public class TalentMarket {
     private final Map<Integer, Employee> talents = new HashMap<>();
     public final EmployeeIdGenerator employeeIdGenerator;
 
-    public TalentMarket(EmployeeIdGenerator employeeIdGenerator) {
-        this.employeeIdGenerator = employeeIdGenerator;
+    public TalentMarket() {
+        this.employeeIdGenerator = new EmployeeIdGenerator();
     }
 
     public void initialize() {

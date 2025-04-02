@@ -29,14 +29,14 @@ public class GameConfig {
                      MessagingServiceImpl messagingService,
                      GamePlayerServiceImpl playerService,
                      GameEventHandler eventHandler,
-                     TalentMarket talentMarket,
                      GameEventPublisher eventPublisher,
                      LevelConsequencesService levelConsequencesService,
                      GameLifeCycleService lifeCycleService,
-                     ProjectEmployeeMappingImpl projectEmployeeMapping) {
-        return new Game(skillService, accountingService, messagingService, playerService, talentMarket,
+                     ProjectEmployeeMappingImpl projectEmployeeMapping,
+                     StoryService storyService) {
+        return new Game(skillService, accountingService, messagingService, playerService,
                 projectService, employeeService, eventHandler, eventPublisher,
-                levelConsequencesService, lifeCycleService, projectEmployeeMapping);
+                levelConsequencesService, lifeCycleService, projectEmployeeMapping, storyService);
     }
 
     @Bean
@@ -47,8 +47,8 @@ public class GameConfig {
 
     @Bean
     @Scope("singleton")
-    public TalentMarket talentMarket(EmployeeIdGenerator employeeIdGenerator) {
-        TalentMarket market = new TalentMarket(employeeIdGenerator);
+    public TalentMarket talentMarket() {
+        TalentMarket market = new TalentMarket();
         market.clear();
         return market;
     }
@@ -61,7 +61,7 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public AccountingServiceImpl accountingService(@Lazy MessagingService messagingService, @Lazy GamePlayerService playerService) {
+    public AccountingServiceImpl accountingService(@Lazy MessagingService messagingService, @Lazy PlayerService playerService) {
         return new AccountingServiceImpl(messagingService, playerService);
     }
 
@@ -150,5 +150,11 @@ public class GameConfig {
     @Scope("prototype")
     public GameLifeCycleService lifeCycleService() {
         return new GameLifeCycleService();
+    }
+
+    @Bean
+    @Scope("prototype")
+    public StoryService storyService() {
+        return new StoryService();
     }
 }

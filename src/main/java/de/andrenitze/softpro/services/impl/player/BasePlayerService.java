@@ -1,20 +1,14 @@
-// Java
 package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.Player;
-import de.andrenitze.softpro.services.GamePlayerService;
+import de.andrenitze.softpro.services.PlayerService;
 import org.java_websocket.WebSocket;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class BasePlayerService implements GamePlayerService {
-    private final ConcurrentHashMap<WebSocket, Player> players = new ConcurrentHashMap<>();
-
-    @Override
-    public void addPlayer(WebSocket webSocket, Player player) {
-        players.put(webSocket, player);
-    }
+public abstract class BasePlayerService implements PlayerService {
+    protected final ConcurrentHashMap<WebSocket, Player> players = new ConcurrentHashMap<>();
 
     @Override
     public Player getPlayer(WebSocket websocket) {

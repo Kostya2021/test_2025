@@ -5,8 +5,8 @@ import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.services.AccountingService;
-import de.andrenitze.softpro.services.GamePlayerService;
 import de.andrenitze.softpro.services.MessagingService;
+import de.andrenitze.softpro.services.PlayerService;
 import lombok.Setter;
 import org.java_websocket.WebSocket;
 
@@ -20,9 +20,9 @@ import static de.andrenitze.softpro.Main.logger;
 public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();
     @Setter private MessagingService messagingService;
-    @Setter private GamePlayerService playerService;
+    @Setter private PlayerService playerService;
 
-    public AccountingServiceImpl(MessagingService messagingService, GamePlayerService playerService) {
+    public AccountingServiceImpl(MessagingService messagingService, PlayerService playerService) {
         this.messagingService = messagingService;
         this.playerService = playerService;
     }

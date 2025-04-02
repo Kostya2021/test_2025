@@ -16,10 +16,6 @@ public class GameEventPublisher implements ApplicationEventPublisherAware {
         this.publisher = publisher;
     }
 
-    public void publishPlayersChangedEvent(PlayersChangedEvent playersChangedEvent) {
-        publisher.publishEvent(playersChangedEvent);
-    }
-
     public void publishGameOverEvent(GameOverEvent gameOverEvent) {
         publisher.publishEvent(gameOverEvent);
     }
