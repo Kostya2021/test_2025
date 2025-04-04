@@ -277,12 +277,8 @@ public class Game {
         projectService.getProjects().stream()
                 .filter(project -> project.isCompleted() && project.getCompletedAt() == lifeCycleService.getTick() ||
                         project.getCancelledAt() == lifeCycleService.getTick())
-                .forEach(project -> project.getInvolvedPlayers().forEach(player -> {
-                    messagingService.sendProjectUpdate(player, project);
-                    projectEmployeeService.getEmployeesByProject(project).forEach(employee ->
-                            messagingService.sendEmployeeUpdate(player, employee)
-                    );
-                }));
+                .forEach(project -> project.getInvolvedPlayers().forEach(player ->
+                        messagingService.sendProjectUpdate(player, project)));
 
         // Send project tenders published in this tick
         projectService.getProjects().stream()
