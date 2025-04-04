@@ -87,7 +87,8 @@ public class ObjectiveServiceImpl implements ObjectiveService {
             case OBJECTIVE_11 -> checkObjective11(player, projects, objective);
             case OBJECTIVE_12 -> checkObjective12(player, projectEmployeesMap, objective);
             case OBJECTIVE_13 -> checkObjective13(player, projectEmployeesMap, objective);
-            case OBJECTIVE_14, OBJECTIVE_15 -> checkObjective14And15(player, objective);
+            case OBJECTIVE_14 -> checkObjective14(player, projects, objective);
+            case OBJECTIVE_15 -> checkObjective15(player, objective);
             case OBJECTIVE_16 -> checkObjective16(player, skillService, objective);
             case OBJECTIVE_17 -> checkObjective17(player, projects, objective);
             case OBJECTIVE_210 -> checkObjective210(player, skillService, objective);
@@ -103,7 +104,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
 
     private boolean checkObjective11(Player player, List<Project> projects, Objective objective) {
         if (projects.stream().anyMatch(project -> project.getInvolvedPlayers().contains(player))) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 11 completed.");
             return true;
         }
@@ -112,7 +113,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
 
     private boolean checkObjective12(Player player, Map<Project, ArrayList<Employee>> projectEmployeesMap, Objective objective) {
         if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().getFirst()))) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 12 completed.");
             return true;
         }
@@ -122,16 +123,25 @@ public class ObjectiveServiceImpl implements ObjectiveService {
     private boolean checkObjective13(Player player, Map<Project, ArrayList<Employee>> projectEmployeesMap, Objective objective) {
         if (projectEmployeesMap.values().stream().anyMatch(employees -> employees.contains(player.getEmployees().getFirst()))
                 && projectEmployeesMap.keySet().stream().anyMatch(project -> project.getStartedAt() != 0)) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 13 completed.");
             return true;
         }
         return false;
     }
 
-    private boolean checkObjective14And15(Player player, Objective objective) {
+    private boolean checkObjective14(Player player, List<Project> projects, Objective objective) {
+        if (projects.stream().anyMatch(project -> project.isCompleted() && project.playerWasInvolved(player))) {
+            objective.setCompletedAt(lifeCycleService.getTick());
+            logger.debug("Objective 14 completed.");
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkObjective15(Player player, Objective objective) {
         if (objective.getCompletedSteps() >= objective.getTotalSteps()) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             return true;
         } else if (player.getXp() != objective.getCompletedSteps()) {
             objective.setCompletedSteps(player.getXp());
@@ -143,7 +153,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
     private boolean checkObjective16(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("pmo") && skills.get("pmo").isUnlocked()) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 16 completed.");
             return true;
         }
@@ -168,7 +178,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         }
 
         if (objective.getCompletedSteps() >= objective.getTotalSteps()) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective {} completed.", objective.getId());
             return true;
         }
@@ -179,7 +189,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if ((skills.containsKey("team-spirit") && skills.get("team-spirit").isUnlocked()) ||
                 (skills.containsKey("crunch-mode") && skills.get("crunch-mode").isUnlocked())) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 210 completed.");
             return true;
         }
@@ -189,7 +199,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
     private boolean checkObjective220(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 220 completed.");
             return true;
         }
@@ -206,7 +216,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
                 SalaryHistoryEntry latestEntry = history.getLast();
 
                 if (latestEntry.salary() >= initialEntry.salary() * 1.1) {
-                    objective.setCompleted(lifeCycleService.getTick());
+                    objective.setCompletedAt(lifeCycleService.getTick());
                     logger.debug("Objective 222 completed: Employee received a 10% raise.");
                     return true;
                 }
@@ -223,7 +233,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
             if (statusEffects.stream().anyMatch(statusEffect ->
                     statusEffect.getType() == StatusEffectType.SATISFACTION
                             && statusEffect.getDescription().equals("Feels heard"))) {
-                objective.setCompleted(lifeCycleService.getTick());
+                objective.setCompletedAt(lifeCycleService.getTick());
                 logger.debug("Objective 223 completed: One-to-one with employee.");
                 return true;
             }
@@ -238,7 +248,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         }
 
         if (player.getEmployees().size() >= 5) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 230 completed.");
             return true;
         }
@@ -248,7 +258,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
     private boolean checkObjective231(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("team-lead") && skills.get("team-lead").isUnlocked()) {
-            objective.setCompleted(lifeCycleService.getTick());
+            objective.setCompletedAt(lifeCycleService.getTick());
             logger.debug("Objective 231 completed.");
             return true;
         }

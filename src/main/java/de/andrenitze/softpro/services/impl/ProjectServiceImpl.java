@@ -167,8 +167,8 @@ public class ProjectServiceImpl implements ProjectService {
 
             // Remember for average calculation
             skillMultipliers.put(employee, projectSkillMultiplier);
-            projectExperience.put(employee, employee.getExperienceInDaysByProject(project));
-            totalDaysWorkedOnProject += employee.getExperienceInDaysByProject(project);
+            projectExperience.put(employee, employee.getExperienceByProject(project));
+            totalDaysWorkedOnProject += employee.getExperienceByProject(project);
         }
 
         // Average of all employees' skills weighted by days worked in the project
@@ -225,7 +225,7 @@ public class ProjectServiceImpl implements ProjectService {
         // Rule #3: Adding people to a late software project makes it later (Brooks' law)
         if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
             float factor = calculateOnboardingFactor(project, employees);
-            logger.debug("Averaged onboarding factor (decreased productivity) for the whole team: {}", factor);
+            logger.debug("Averaged onboarding-induced productivity factor for the whole team: {}", factor);
             return factor;
         }
         return 1.0f; // No onboarding required (safe period or no new employees)
@@ -296,7 +296,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     private int applyRampUpFactor(Employee employee, Project project, int earnedValue) {
         // Rule #2: Productivity ramp-up for new staff
-        float experience = employee.getExperienceInDaysByProject(project);
+        float experience = employee.getExperienceByProject(project);
         if (experience < 30) {
             float rampUpProductivityFactor = (float)(1.022595 - 1.02502 * exp(-0.1399307 * experience));
             return (int)(earnedValue * rampUpProductivityFactor);
@@ -361,24 +361,25 @@ public class ProjectServiceImpl implements ProjectService {
 
     private float calculateOnboardingFactor(Project project, ArrayList<Employee> employees) {
         ArrayList<Float> onboardingFactors = new ArrayList<>();
-        // TODO Maybe the experience is not added correctly? Onboarding never seems to end for some reason...
         for (Employee employee : employees) {
-            // 10% of the project's scheduled duration
-            float onboardingDays = GameParameters.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
+            // Use deadline to calculate onboarding time.
+            int scheduledDuration = project.getScheduledDuration();
+            if (scheduledDuration <= 0) {
+                scheduledDuration = 90; // Default to 90 days if no deadline is set
+            }
+            int onboardingDays = (int) (GameParameters.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * scheduledDuration);
 
             // Calculate onboarding progress based on employee's experience
-            float onboardingProgress = employee.getExperienceInDaysByProject(project) / onboardingDays;
-            if (onboardingProgress >= 1) {
-                continue; // Onboarding completed. Ignore this employee for calculation.
-            }
+            float onboardingProgress = (float) employee.getExperienceByProject(project) / onboardingDays;
+            if (onboardingProgress >= 1) continue; // Onboarding completed. Ignore this employee for calculation.
 
             // Calculate productivity decrease factor
             float onboardingFactor = 1 - (1 - onboardingProgress) * GameParameters.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
             onboardingFactors.add(onboardingFactor);
 
-            logger.debug("{} is being on-boarded in project {}: {} productivity factor, {}/{} days",
+            logger.debug("{} is being onboarded in project {}: {} productivity factor, {}/{} days",
                     employee.getName(), project.getName(), onboardingFactor,
-                    employee.getExperienceInDaysByProject(project), onboardingDays);
+                    employee.getExperienceByProject(project), onboardingDays);
         }
 
         // If no employees are onboarding, return 1.0f (no productivity decrease)
@@ -387,8 +388,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         // Calculate the average onboarding factor
-        return onboardingFactors.stream()
-                .reduce(0f, Float::sum) / onboardingFactors.size();
+        return onboardingFactors.stream().reduce(0f, Float::sum) / onboardingFactors.size();
     }
 
     private int getNumberOfParallelProjectsForEmployee(Employee employee) {

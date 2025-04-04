@@ -3,6 +3,7 @@ package de.andrenitze.softpro.domains.projects;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.employees.Employee;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,17 +13,22 @@ import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.BASE_PRODUCTIVITY_VALUE;
 
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Project {
     // One Full Time Equivalent (FTE) can generate this amount of "value units" per day
     // This value will be modified by factors like skill, project risk, team fit, etc.
     public static final int PROJECT_VOLUME_MIN = 10000;
     private static int lastId = 1;
+    @EqualsAndHashCode.Include
     private final Integer id;
-    @Getter @Setter
+    @Getter
+    @Setter
+    @EqualsAndHashCode.Include
     private String name;
     @Getter
     private int totalValue;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int earnedValue;
     private final List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
     private boolean tenderProcess;
@@ -32,26 +38,35 @@ public class Project {
 
     // Deadline: In how many days the project has to be finished,
     // measured from the day the project was acquired. (0 = no deadline)
-    @Getter @Setter
+    @Getter
+    @Setter
     private int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
 
     // acquiredAt != 0 means the project has been acquired by a player
-    @Setter @Getter
+    @Setter
+    @Getter
     private int acquiredAt;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int startedAt;
-    @Setter @Getter
+    @Setter
+    @Getter
     private int completedAt = 0;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int quality;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int publishedAt;
-    @Getter @Setter
+    @Getter
+    @Setter
     private float penalty;
-    @Getter @Setter
+    @Getter
+    @Setter
     private float profit;
-    @Getter @Setter
+    @Getter
+    @Setter
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     @Getter
@@ -74,11 +89,14 @@ public class Project {
     private boolean hasBeenRiskAssessed = false;
     @Getter
     private final List<Problem> problems = new ArrayList<>();
-    @Getter @Setter
+    @Getter
+    @Setter
     private List<ProgressEstimate> progressEstimates = new ArrayList<>();
-    @Getter @Setter
+    @Getter
+    @Setter
     private int cancelledAt = 0;
-    @Getter @Setter
+    @Getter
+    @Setter
     private String cancelledBy;
 
     /**
@@ -255,7 +273,8 @@ public class Project {
     }
 
     public void addEarnedValue(int addedValue, int tick) {
-        setEarnedValue(Math.max(getEarnedValue() + addedValue, 0));
+        int newEarnedValue = Math.clamp(getEarnedValue() + addedValue, 0, getTotalValue());
+        setEarnedValue(newEarnedValue);
 
         if (isCompleted()) {
             setCompletedAt(tick);
@@ -294,7 +313,7 @@ public class Project {
                 + GameParameters.ASSIGNMENT_TIME_IN_DAYS;
         for (Employee employee : employees) {
             // Employee has no experience in this project and needs to be trained
-            if (employee.getExperienceInDaysByProject(this) <= safePeriodInDays) {
+            if (employee.getExperienceByProject(this) <= safePeriodInDays) {
                 return true;
             }
         }
@@ -356,11 +375,5 @@ public class Project {
 
     public void removeParty(Player player) {
         this.involvedParties.remove(player);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, name, totalValue, earnedValue, tenderProcess, deadline, involvedParties,
-                acquiredAt, startedAt, completedAt, quality, risk, type, domain, progressEstimates);
     }
 }

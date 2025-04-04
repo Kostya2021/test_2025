@@ -114,7 +114,6 @@ public class Game {
 
     public void start() {
         logger.debug("start()'ing game loop with {} players.", playerService.getPlayers().size());
-        logger.debug("There are {} tenders in the game.", projectService.getProjects().size());
 
         // CHeck if there is at least one player in this game instance
         if (playerService.getPlayers().isEmpty()) {
@@ -405,10 +404,14 @@ public class Game {
         playerService.getPlayers().forEach((_, player) -> {
             if (objectiveService.areThereObjectivesUpdates(player)) {
                 logger.debug("Sending updated objectives to player.");
+                try {
                 List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
                 GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                 objectivesUpdatedEvent.setPayload(allActiveObjectives);
                 messagingService.sendToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
+                } catch (Exception e) {
+                    logger.error("Error while sending updated objectives to player {}: {}", player.getId(), e.getMessage());
+                }
             }
         });
     }

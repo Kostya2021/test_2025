@@ -5,6 +5,7 @@ import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.beans.Transient;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
@@ -29,8 +30,8 @@ public class Employee {
     private String firstName;
     @Setter
     private String lastName;
-    @Getter
-    private final HashMap<Project, Integer> projectExperience;
+    @Getter(onMethod_=@Transient)
+    private final HashMap<Project, Integer> projectExperience; // projectId and days XP
     @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     @Getter
@@ -108,25 +109,23 @@ public class Employee {
         }
     }
 
-    public Integer getExperienceInDaysByProject(Project project) {
-        Integer experience = 0;
-        if (projectExperience.get(project) != null) {
-            experience = projectExperience.get(project);
-        }
-        return experience;
+    public Integer getExperienceByProject(Project project) {
+        return projectExperience.getOrDefault(project, 0);
     }
 
-    public void gainExperience(Project project, Integer newExperienceInDays) {
+    /**
+     * Employee gains experience in a project.
+     * XP in days is stored in projectExperience AND projectTypeExperience AND projectDomainExperience.
+     */
+    public void gainExperience(Project project, int newExperienceInDays) {
         // Don't gain experience in compliance projects
         if (project.getType() == ProjectType.COMPLIANCE) {
             return;
         }
 
         if (newExperienceInDays > 0) {
-            // Project-specific XP (= lower onboarding productivity)
-            int rampUpDays;
-            rampUpDays = this.projectExperience.computeIfAbsent(project, _ -> 0);
-            this.projectExperience.put(project, ++rampUpDays);
+            int existingExperience = this.projectExperience.computeIfAbsent(project, _ -> 0);
+            this.projectExperience.put(project, ++existingExperience);
 
             addXp(project.getType(), project.getDomain(), newExperienceInDays);
         }

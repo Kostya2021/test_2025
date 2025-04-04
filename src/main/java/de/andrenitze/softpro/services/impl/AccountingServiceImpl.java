@@ -32,7 +32,6 @@ public class AccountingServiceImpl implements AccountingService {
         }
 
         if (entry.getAmount() <= 0) {
-            logger.error("Tried to add an entry with a non-positive or zero amount.");
             return;
         }
 
