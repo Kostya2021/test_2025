@@ -85,7 +85,7 @@ public class GameOverStatsDAO {
             }
         } catch (SQLException e) {
             logger.error("Could not fetch high-score from database: {}", e.getMessage());
-            return null;
+            return List.of();
         }
         return highScores;
     }

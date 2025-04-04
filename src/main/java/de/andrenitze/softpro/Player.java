@@ -1,10 +1,10 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.Objectives;
-import de.andrenitze.softpro.domains.decisions.Decision;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,10 +15,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Player {
     static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
     static {
-        INITIAL_FUNDS.put(1, 100000f);
+        INITIAL_FUNDS.put(1, 10000f);
         INITIAL_FUNDS.put(2, 100000f);
         INITIAL_FUNDS.put(3, 100000f);
         INITIAL_FUNDS.put(4, 100000f);
@@ -36,8 +37,9 @@ public class Player {
         BANKRUPTCY_THRESHOLD.put(6, 0);
         BANKRUPTCY_THRESHOLD.put(7, 0);
     }
+    protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
 
-    @Getter
+    @Getter @EqualsAndHashCode.Include
     private final UUID id;
     @Getter
     private String name;
@@ -74,7 +76,7 @@ public class Player {
     @EqualsAndHashCode.Exclude
     private final Map<Integer, List<Decision>> decisions = new HashMap<>();
 
-    Player() {
+    public Player() {
         this(generatePlayerName(), generateCompanyName());
     }
 
@@ -235,7 +237,7 @@ public class Player {
 
     public void addXp(int newXP) {
         // Check if the new XP level exceeds an XP_LEVEL_THRESHOLD and increase the xpLevel if necessary
-        int xpToLevelUp = SkillsManager.XP_LEVEL_THRESHOLDS[this.xpLevel];
+        int xpToLevelUp = XP_LEVEL_THRESHOLDS[this.xpLevel];
 
         if (this.xp + newXP >= xpToLevelUp) {
             this.xp += newXP; // Add the new XP
@@ -246,9 +248,10 @@ public class Player {
         }
     }
 
-    public void addEmployee(Employee employee, int currentTick) {
-        // Set the hiring "date"
-        employee.setHiredAt(currentTick);
+    public void addEmployee(Employee employee) {
+        if (employee.getHiredAt() == -1) {
+            employee.setHiredAt(0); // Set the hiredAt to 0 if not set
+        }
 
         // Set the XP before hiring to calculate utilization
         int projectExperienceInDays = employee.getProjectExperience().values().stream().mapToInt(Integer::intValue).sum();
@@ -298,5 +301,16 @@ public class Player {
             }
         }
         return null;
+    }
+
+    public boolean hasChanged(Player player) {
+        if (player == null) return true;
+
+        return !Objects.equals(this.funds, player.getFunds()) ||
+                !Objects.equals(this.missions, player.getMissions()) ||
+                !Objects.equals(this.xp, player.getXp()) ||
+                !Objects.equals(this.xpLevel, player.getXpLevel()) ||
+                !Objects.equals(this.skillPoints, player.getSkillPoints()) ||
+                !Objects.equals(this.level, player.getLevel());
     }
 }

@@ -16,9 +16,9 @@ public enum EventType {
     PROJECT_UPDATED,
     PROJECT_STARTED,
     PLAYER_UPDATED,
-    NEW_STORY_ELEMENT,
+    STORY_ELEMENTS_ADDED,
     UPDATE_LOBBY,
-    T, // = Time Tick
+    TICK, // = Game time tick
     EMPLOYEE_UPDATED,
     EMPLOYEE_SALARY_UPDATED,
     PLAYER_NAME_UPDATED,

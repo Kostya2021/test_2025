@@ -8,6 +8,6 @@ import java.util.ArrayList;
 @Setter
 @Getter
 public class StoryElements {
-    private ArrayList<StoryElement> storyElements = new ArrayList<>();
+    private ArrayList<StoryElement> elements = new ArrayList<>();
 
 }

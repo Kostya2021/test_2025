@@ -1,28 +1,45 @@
 package de.andrenitze.softpro.domains.projects;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.employees.Employee;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
+import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.BASE_PRODUCTIVITY_VALUE;
 
-public class Project {
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+public class Project implements Serializable {
+    private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
+    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur,Byte,Zero,System,Cypher,Kernel,Logic,Protocol,Nexus,Mainframe,Quantum,Bit,Octet,Hex,Cluster,Cloud,Node,Stack".split(","));
+    private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen,Protocol,System,Bit,Stream,Array,Packet,Frame,Sync,Cache,Wire,Loop,Cipher,Source".split(","));
+    private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
+    private static final int PROJECT_NAME_SNIPPETS_SIZE = PROJECT_NAME_SNIPPETS.size();
+    private static final int PROJECT_NAME_SPACERS_SIZE = PROJECT_NAME_SPACERS.size();
+    private static final int PROJECT_NAME_SUFFIXES_SIZE = PROJECT_NAME_SUFFIXES.size();
     // One Full Time Equivalent (FTE) can generate this amount of "value units" per day
     // This value will be modified by factors like skill, project risk, team fit, etc.
     public static final int PROJECT_VOLUME_MIN = 10000;
+    @Serial
+    private static final long serialVersionUID = 1L;
     private static int lastId = 1;
+    @EqualsAndHashCode.Include
     private final Integer id;
-    @Getter @Setter
+    @Getter
+    @Setter
+    @EqualsAndHashCode.Include
     private String name;
     @Getter
     private int totalValue;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int earnedValue;
     private final List<EarnedValueHistoryEntry> earnedValueHistory = new ArrayList<>();
     private boolean tenderProcess;
@@ -32,37 +49,39 @@ public class Project {
 
     // Deadline: In how many days the project has to be finished,
     // measured from the day the project was acquired. (0 = no deadline)
-    @Getter @Setter
+    @Getter
+    @Setter
     private int deadline;
     private final ArrayList<Player> involvedParties = new ArrayList<>();
 
     // acquiredAt != 0 means the project has been acquired by a player
-    @Setter @Getter
+    @Setter
+    @Getter
     private int acquiredAt;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int startedAt;
-    @Setter @Getter
+    @Setter
+    @Getter
     private int completedAt = 0;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int quality;
-    @Getter @Setter
+    @Getter
+    @Setter
     private int publishedAt;
-    @Getter @Setter
+    @Getter
+    @Setter
     private float penalty;
-    @Getter @Setter
+    @Getter
+    @Setter
     private float profit;
-    @Getter @Setter
+    @Getter
+    @Setter
     private RiskLevel risk;
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     @Getter
     private ProjectType type;
-    private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
-    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur,Byte,Zero,System,Cypher,Kernel,Logic,Protocol,Nexus,Mainframe,Quantum,Bit,Octet,Hex,Cluster,Cloud,Node,Stack".split(","));
-    private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen,Protocol,System,Bit,Stream,Array,Packet,Frame,Sync,Cache,Wire,Loop,Cipher,Source".split(","));
-    private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
-    private static final int PROJECT_NAME_SNIPPETS_SIZE = PROJECT_NAME_SNIPPETS.size();
-    private static final int PROJECT_NAME_SPACERS_SIZE = PROJECT_NAME_SPACERS.size();
-    private static final int PROJECT_NAME_SUFFIXES_SIZE = PROJECT_NAME_SUFFIXES.size();
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
@@ -74,11 +93,14 @@ public class Project {
     private boolean hasBeenRiskAssessed = false;
     @Getter
     private final List<Problem> problems = new ArrayList<>();
-    @Getter @Setter
+    @Getter
+    @Setter
     private List<ProgressEstimate> progressEstimates = new ArrayList<>();
-    @Getter @Setter
+    @Getter
+    @Setter
     private int cancelledAt = 0;
-    @Getter @Setter
+    @Getter
+    @Setter
     private String cancelledBy;
 
     /**
@@ -98,7 +120,7 @@ public class Project {
 
     /**
      * Initializes a project with a random project type, domain, volume, and deadline.
-     * Any attributes that are set before calling this method alter the way the project is initialized.
+     * Any attributes set before calling this method alter the way the project is initialized.
      */
     public Project initialize() {
         // Assign random risk level, if not already set
@@ -176,7 +198,7 @@ public class Project {
         };
 
         // Generate random deadline, loosely based on project volume
-        return (int) (((float) getTotalValue() / Game.BASE_PRODUCTIVITY_VALUE) * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
+        return (int) (((float) getTotalValue() / BASE_PRODUCTIVITY_VALUE) * riskMultiplier * RANDOM.nextFloat(0.8f, 1.9f));
     }
 
     private static String generateDomain(ProjectType type) {
@@ -235,13 +257,13 @@ public class Project {
      * Several companies can be associated with the same project.
      * Several companies can take part in the tender process.
      * After the tender, several companies can work on the project together.
-     *
      */
     public void addParty(Player player) {
         if (!involvedParties.contains(player)) {
             involvedParties.add(player);
         }
     }
+
     public List<Player> getInvolvedPlayers() {
         return involvedParties;
     }
@@ -255,7 +277,8 @@ public class Project {
     }
 
     public void addEarnedValue(int addedValue, int tick) {
-        setEarnedValue(Math.max(getEarnedValue() + addedValue, 0));
+        int newEarnedValue = Math.clamp(getEarnedValue() + addedValue, 0, getTotalValue());
+        setEarnedValue(newEarnedValue);
 
         if (isCompleted()) {
             setCompletedAt(tick);
@@ -277,7 +300,7 @@ public class Project {
     }
 
     public boolean isCompleted() {
-        return (getTotalValue()-getEarnedValue() <= 0);
+        return (getTotalValue() - getEarnedValue() <= 0);
     }
 
     public boolean playerWasInvolved(Player player) {
@@ -294,7 +317,7 @@ public class Project {
                 + GameParameters.ASSIGNMENT_TIME_IN_DAYS;
         for (Employee employee : employees) {
             // Employee has no experience in this project and needs to be trained
-            if (employee.getExperienceInDaysByProject(this) <= safePeriodInDays) {
+            if (employee.getExperienceByProject(this) <= safePeriodInDays) {
                 return true;
             }
         }
@@ -356,5 +379,43 @@ public class Project {
 
     public void removeParty(Player player) {
         this.involvedParties.remove(player);
+    }
+
+    public boolean hasProgressChanged(Project other) {
+        return this.earnedValue != other.earnedValue ||
+                !Objects.equals(this.progressEstimates, other.progressEstimates);
+    }
+
+    public boolean hasStatusChanged(Project other) {
+        return this.startedAt != other.startedAt ||
+                this.completedAt != other.completedAt ||
+                this.cancelledAt != other.cancelledAt;
+    }
+
+    public boolean hasEconomyChanged(Project other) {
+        return this.totalValue != other.totalValue ||
+                Float.compare(this.penalty, other.penalty) != 0 ||
+                Float.compare(this.profit, other.profit) != 0;
+    }
+
+    public boolean hasMetaChanged(Project other) {
+        return this.tenderProcess != other.tenderProcess ||
+                this.tenderDeadlineInDays != other.tenderDeadlineInDays ||
+                this.deadline != other.deadline ||
+                this.acquiredAt != other.acquiredAt ||
+                this.quality != other.quality ||
+                this.publishedAt != other.publishedAt ||
+                !Objects.equals(this.risk, other.risk) ||
+                !Objects.equals(this.cancelledBy, other.cancelledBy) ||
+                !Objects.equals(this.problems, other.problems);
+    }
+
+    public boolean hasChanged(Project other) {
+        if (other == null) return true;
+
+        return hasProgressChanged(other)
+                || hasStatusChanged(other)
+                || hasEconomyChanged(other)
+                || hasMetaChanged(other);
     }
 }

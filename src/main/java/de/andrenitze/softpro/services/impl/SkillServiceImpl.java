@@ -1,7 +1,10 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.services.impl;
 
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.GameServer;
+import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.skills.Skill;
+import de.andrenitze.softpro.services.SkillService;
 
 import java.io.File;
 import java.io.FileReader;
@@ -13,19 +16,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.Main.logger;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
-public class SkillsManager {
+public class SkillServiceImpl implements SkillService {
     public static final String JSON = ".json";
     private final ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
 
-    protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
-
-    public SkillsManager() {
+    public SkillServiceImpl() {
         playersSkills = new ConcurrentHashMap<>();
-        logger.debug("SkillsManager initialized.");
 
         try {
             loadAllSkills();
@@ -34,37 +34,36 @@ public class SkillsManager {
         }
     }
 
-    public void unlockSkill(Player player, String skillId, int unlockSkillPoints) {
+    public void unlockSkill(Player player, String skillName, int unlockSkillPoints) {
         Skill skill = new Skill();
-        skill.setId(skillId);
+        skill.setId(skillName);
         skill.setUnlocked(true);
 
         player.setSkillPoints(player.getSkillPoints() - unlockSkillPoints);
 
         HashMap<String, Skill> skills = playersSkills.get(player);
-        skills.putIfAbsent(skillId, skill);
+        skills.putIfAbsent(skillName, skill);
         playersSkills.put(player, skills);
-        logger.debug("Player {} unlocked skill {}", player.getName(), skillId);
+        logger.debug("Player {} unlocked skill {}", player.getId(), skillName);
         saveSkills(player);
         addPermanentStatusEffectsToAllEmployees();
     }
 
-    public boolean playerHasSkill(Player player, String skillId) {
+    public boolean playerHasSkill(Player player, String skillName) {
         HashMap<String, Skill> skills = playersSkills.get(player);
         if (skills == null) {
-            logger.debug("Player {} has no skills registered.", player.getName());
             return false;
         }
 
-        Skill skill = skills.get(skillId);
+        Skill skill = skills.get(skillName);
         return skill != null && skill.isUnlocked();
     }
 
-    void addPlayer(Player player) {
+    public void addPlayer(Player player) {
         if (playersSkills.containsKey(player)) {
-            logger.debug("Player {} already exists in the skillsManager. No override will occur.", player.getName());
+            logger.debug("Player {} already exists in the skillsManager. No override will occur.", player.getId());
         } else {
-            logger.debug("Adding new player {} to the skillsManager.", player.getName());
+            logger.debug("Adding new player {} to the skillsManager.", player.getId());
             loadSkills(player);
         }
         playersSkills.putIfAbsent(player, new HashMap<>());
@@ -74,7 +73,7 @@ public class SkillsManager {
         return playersSkills.get(player);
     }
 
-    private void saveSkills(Player player) {
+    public void saveSkills(Player player) {
         try {
             File directory = new File(SKILLS_DIRECTORY);
             if (!directory.exists() && !directory.mkdirs()) {
@@ -83,25 +82,27 @@ public class SkillsManager {
             FileWriter writer = new FileWriter(SKILLS_DIRECTORY + player.getId() + JSON);
             GameServer.getGson().toJson(playersSkills.get(player), writer);
             writer.close();
-            logger.debug("Skills for player {} saved to {}", player.getName(), SKILLS_DIRECTORY + player.getId() + JSON);
+            logger.debug("Skills for player saved to {}", SKILLS_DIRECTORY + player.getId() + JSON);
         } catch (IOException e) {
             logger.error("Failed to save skills for player {}: {}", player.getId(), e.getMessage());
         }
     }
 
-    private void loadSkills(Player player) {
+    public void loadSkills(Player player) {
         try {
             File file = new File(SKILLS_DIRECTORY + player.getId() + JSON);
             if (file.exists()) {
                 FileReader reader = new FileReader(file);
                 Type type = new TypeToken<HashMap<String, Skill>>() {}.getType();
                 HashMap<String, Skill> skills = GameServer.getGson().fromJson(reader, type);
+                if (skills == null) {
+                    skills = new HashMap<>();
+                }
                 playersSkills.put(player, skills);
                 reader.close();
-                logger.debug("Skills for player {} loaded from {}", player.getName(), SKILLS_DIRECTORY + player.getId() + JSON);
+                logger.debug("Skills for player {} loaded from {}", player.getId(), SKILLS_DIRECTORY + player.getId() + JSON);
             } else {
                 saveSkills(player); // Create a new file if it does not exist
-                logger.debug("No existing skills file for player {}. Created a new one.", player.getName());
             }
         } catch (IOException e) {
             logger.error("Failed to load skills for player {}: {}", player.getId(), e.getMessage());
@@ -114,7 +115,7 @@ public class SkillsManager {
             return;
         }
 
-        File[] files = directory.listFiles((dir, name) -> name.endsWith(JSON));
+        File[] files = directory.listFiles((_, name) -> name.endsWith(JSON));
         if (files == null) {
             return;
         }
@@ -155,7 +156,7 @@ public class SkillsManager {
             Player player = findPlayerById(playerId);
             if (player != null) {
                 playersSkills.put(player, skills);
-                logger.debug("{} skills for player {} loaded from {}", skills.size(), player.getName(), file.getPath());
+                logger.debug("{} skills for player {} loaded from {}", skills.size(), player.getId(), file.getPath());
             }
         } catch (IOException e) {
             logger.error("Failed to load skills from file {}: {}", file.getPath(), e.getMessage());

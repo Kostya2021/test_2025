@@ -1,9 +1,12 @@
 package de.andrenitze.softpro.domains.objectives;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter @Setter
+@Getter
+@Setter
+@EqualsAndHashCode
 public class Objective {
     private Integer id;
     private String title;
@@ -19,7 +22,7 @@ public class Objective {
     private int completedSteps = 0;
     @Setter
     private String mission; // Only for the frontend
-    @Getter @Setter
+    @Getter
     private int completedAt; // For checking criteria of other objectives depending on time (e.g., "Complete 5 MORE projects.")
     /**
      * Earliest occurrence of the objective in days (=game ticks).
@@ -29,12 +32,12 @@ public class Objective {
     private String failureMessage;
 
     public boolean isCompleted() {
-        return ((completedSteps == totalSteps));
+        return (completedSteps == totalSteps);
     }
 
-    public void setCompleted(int currentTick) {
+    public void setCompletedAt(int currentTick) {
+        this.completedAt = currentTick;
         this.completedSteps = totalSteps;
-        this.setCompletedAt(currentTick);
     }
 
     public void setNotCompleted() {

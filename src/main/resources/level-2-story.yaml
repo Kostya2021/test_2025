@@ -1,4 +1,4 @@
-storyElements:
+elements:
   - id: 1
     avatar: ADVISOR
     earliestOccurrence: 3

@@ -12,6 +12,10 @@ import java.util.List;
 import static de.andrenitze.softpro.Main.logger;
 
 public class MissionsLoader {
+    private MissionsLoader() {
+        // Private constructor to hide the implicit public one
+    }
+
     public static List<Mission> loadMissionsFromYamlFile(String fileName) {
         logger.info("Loading missions from YAML file: {}", fileName);
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -24,8 +28,8 @@ public class MissionsLoader {
             logger.info("Successfully loaded {} missions from file: {}", wrapper.getMissions().size(), fileName);
             return wrapper.getMissions();
         } catch (IOException e) {
-            logger.error("Failed to load missions from YAML file", e);
-            throw new RuntimeException("Failed to load missions from YAML file", e);
+            logger.error("Failed to load missions from YAML file: {}", e.getMessage());
+            return List.of();
         }
     }
 

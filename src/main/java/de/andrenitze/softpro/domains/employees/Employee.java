@@ -5,17 +5,23 @@ import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.beans.Transient;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 
-import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
+import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
+import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
-public class Employee {
+public class Employee implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;
-    private transient float sickDayProbability = 0.02f;
+    public static final int JOB_SATISFACTION = 50;
+    private float sickDayProbability = 0.02f;
     @Getter
     private final Integer id;
     @Getter
@@ -28,8 +34,8 @@ public class Employee {
     private String firstName;
     @Setter
     private String lastName;
-    @Getter
-    private final transient HashMap<Project, Integer> projectExperience;
+    @Getter(onMethod_=@Transient)
+    private final transient HashMap<Project, Integer> projectExperience; // projectId and days XP
     @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     @Getter
@@ -38,7 +44,7 @@ public class Employee {
     private float satisfaction;
     private int remainingAnnualSickDays;
     @Getter
-    private final int minimumSickDays = 4;
+    private static final int MINIMUM_SICK_DAYS = 4;
     private int maximumSickDays = 20;
     @Getter
     private boolean isSick = false;
@@ -62,7 +68,7 @@ public class Employee {
     @Getter @Setter
     private int utilization = 0;
     @Getter @Setter
-    private transient int xpInDaysBeforeHiring = 0;
+    private int xpInDaysBeforeHiring = 0;
 
     public Employee(Integer id) {
         this.id = id;
@@ -107,27 +113,23 @@ public class Employee {
         }
     }
 
-    public Integer getExperienceInDaysByProject(Project project) {
-        Integer experience = 0;
-        if (projectExperience.get(project) != null) {
-            experience = projectExperience.get(project);
-        }
-        return experience;
+    public Integer getExperienceByProject(Project project) {
+        return projectExperience.getOrDefault(project, 0);
     }
 
-    public void gainExperience(Project project, Integer newExperienceInDays) {
+    /**
+     * Employee gains experience in a project.
+     * XP in days is stored in projectExperience AND projectTypeExperience AND projectDomainExperience.
+     */
+    public void gainExperience(Project project, int newExperienceInDays) {
         // Don't gain experience in compliance projects
         if (project.getType() == ProjectType.COMPLIANCE) {
             return;
         }
 
         if (newExperienceInDays > 0) {
-            // Project-specific XP (= lower onboarding productivity)
-            Integer rampUpDays = 0;
-            if (this.projectExperience.containsKey(project)) {
-                rampUpDays = this.projectExperience.get(project);
-            }
-            this.projectExperience.put(project, ++rampUpDays);
+            int existingExperience = this.projectExperience.computeIfAbsent(project, _ -> 0);
+            this.projectExperience.put(project, ++existingExperience);
 
             addXp(project.getType(), project.getDomain(), newExperienceInDays);
         }
@@ -188,10 +190,7 @@ public class Employee {
 
         // Calculate utilization (0-100%)
         // 1) Calculate the number of days worked in projects
-        int daysWorkedInProjects = 0;
-        for (Project project : projectExperience.keySet()) {
-            daysWorkedInProjects += projectExperience.get(project);
-        }
+        int daysWorkedInProjects = projectExperience.keySet().stream().mapToInt(projectExperience::get).sum();
 
         // 2) Subtract experience days before hiring
         daysWorkedInProjects -= xpInDaysBeforeHiring;
@@ -203,7 +202,7 @@ public class Employee {
     // This happens every year
     public void initializeSickDays() {
         // Randomize the number of sick days an employee can have in a year
-        this.remainingAnnualSickDays = minimumSickDays + RANDOM.nextInt(maximumSickDays - minimumSickDays);
+        this.remainingAnnualSickDays = MINIMUM_SICK_DAYS + RANDOM.nextInt(maximumSickDays - MINIMUM_SICK_DAYS);
 
         // Reset the number of sick days this year
         this.thisYearsSickDays = 0;
@@ -247,7 +246,7 @@ public class Employee {
 
         // Remove the oldest entry if the list is too long
         if (salaryHistory.size() > 100) { // Keep the last 100 entries
-            salaryHistory.remove(0);
+            salaryHistory.removeFirst();
         }
 
         calculateSatisfaction();
@@ -276,20 +275,20 @@ public class Employee {
             }
         }
 
-        this.satisfaction = (int) Math.min(Math.max(this.satisfaction, 1), 100); // Clamp to [1, 100]
+        this.satisfaction = Math.clamp(this.satisfaction, 1, 100); // Clamp to [1, 100]
     }
 
     // Intrinsic satisfaction of an employee
     private double calculateBaseSatisfaction() {
         // Value between 5 and 20, depending on age
-        return Math.min(20, Math.max(5, 20 - (age - MINIMUM_AGE)));
+        return Math.clamp(20L - (age - MINIMUM_AGE), 5, 20);
     }
 
     // Job satisfaction factors not related to salary
     private int calculateOtherSatisfactionFactors() {
         // Dummy value, refine later (work environment, career opportunities, mentoring etc.)
         // Satisfaction 0-100
-        return 50;
+        return JOB_SATISFACTION;
     }
 
     public String getName() {
@@ -349,18 +348,6 @@ public class Employee {
         calculateSatisfaction();
     }
 
-    public void removeStatusEffectsByDescription(String description) {
-        statusEffects.removeIf(effect -> {
-            boolean toRemove = effect.getDescription().equals(description);
-            if (toRemove && effect.getType() == StatusEffectType.SATISFACTION) {
-                calculateSatisfaction();
-            }
-            return toRemove;
-        });
-
-        logger.debug("Removed status effects with description {} from {}", description, getName());
-    }
-
     public void addComplexStatusEffect(String effect) {
         logger.debug("Applying {} to {}", effect, getName());
 
@@ -414,5 +401,15 @@ public class Employee {
         addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
 
         calculateSatisfaction();
+    }
+
+    public void removeStatusEffectsByTrigger(Object trigger) {
+        statusEffects.removeIf(effect -> {
+            if (effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
+                calculateSatisfaction();
+            }
+            return effect.getTrigger() == trigger;
+        });
+        logger.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
     }
 }

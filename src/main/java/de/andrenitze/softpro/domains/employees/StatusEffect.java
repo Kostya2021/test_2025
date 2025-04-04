@@ -8,6 +8,7 @@ public class StatusEffect {
     private float multiplier; // 1.0 = 100%, 0.5 = 50%, 2.25 = 225%, -1.0 = -100%
     private String description; // How the effect appears in the UI
     private int cooldown = -1; // How many days the effect lasts (-1 = infinite)
+    private Object trigger = null; // The triggering object of the effect (e.g. a project, another employee, etc.)
 
     public StatusEffect(StatusEffectType type, float multiplier, String description) {
         this.type = type;

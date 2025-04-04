@@ -2,7 +2,7 @@
 This is the central game server that can be deployed to and run in an infrastructure as a standard Java 11 application.
 
 ## Environment
-The game requires a MariaDB database. The connection details can be configured in ```.env```, but will be overridden by OS environment variables. Build-time configuration is configured in ```resources/project.properties```.
+The game requires a MariaDB database. The connection details can be configured in ```.env```, but will be overridden by OS environment variables. Build-time configuration is configured in ```resources/application.properties```.
 
 ## Run the Game Server
 To run the server:
@@ -33,6 +33,18 @@ For the feature "Player gains experience (XP)", the following steps are needed:
 * Extend the code where projects are finished to increment the player's xp. Create a helper method *addXP()* in Player class. 
 * Add notificaiton code for the frontend
 * Extend the frontend to include the new data.
+
+## Architecture
+One **GameServer** instance hosts multiple **Game** instances.
+**Player**s are created when WebSocket connections are established. Players are added to the GameServer instance.
+
+There are service classes.
+
+Service classes are organized as Beans using Spring's dependency injection.
+Service classes for **GameServer** are defined in ```config/ServerConfig.java```.
+Service classes for **Game** are defined in ```config/GameConfig.java```.
+
+
 
 ## Test Suite
 ### Unit Tests

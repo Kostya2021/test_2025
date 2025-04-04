@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.domains.projects;
 
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.GameServer;
 import lombok.Getter;
