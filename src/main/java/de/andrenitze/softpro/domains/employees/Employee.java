@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.beans.Transient;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
@@ -13,7 +15,9 @@ import static de.andrenitze.softpro.Main.logger;
 import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
-public class Employee {
+public class Employee implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;
     public static final int JOB_SATISFACTION = 50;
@@ -31,7 +35,7 @@ public class Employee {
     @Setter
     private String lastName;
     @Getter(onMethod_=@Transient)
-    private final HashMap<Project, Integer> projectExperience; // projectId and days XP
+    private final transient HashMap<Project, Integer> projectExperience; // projectId and days XP
     @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     @Getter

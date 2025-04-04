@@ -5,19 +5,17 @@ import de.andrenitze.softpro.TalentMarket;
 import org.java_websocket.WebSocket;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.GameServer.gson;
 import static de.andrenitze.softpro.Main.logger;
 
 @Service
 public class GamePlayerServiceImpl extends BasePlayerService {
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final TalentMarket talentMarket;
-    private final Map<Player, Integer> playerHashes = new HashMap<>();
+    private final Map<UUID, Player> previousPlayerStates = new HashMap<>();
 
     public GamePlayerServiceImpl(TalentMarket talentMarket) {
         this.talentMarket = talentMarket;
@@ -60,11 +58,17 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         return playerList.get(RANDOM.nextInt(playerList.size()));
     }
 
-    public Integer getHashForPlayer(Player player) {
-        return playerHashes.get(player);
+    public Player getPreviousState(Player player) {
+        return previousPlayerStates.get(player.getId());
     }
 
-    public void updateHashForPlayer(Player player, int newPlayerHash) {
-        playerHashes.put(player, newPlayerHash);
+    public void updatePreviousState(Player player) {
+        // Deep copy the player object to avoid reference issues
+        previousPlayerStates.put(player.getId(), deepCopy(player));
+    }
+
+    private Player deepCopy(Player player) {
+        String json = gson.toJson(player);
+        return gson.fromJson(json, Player.class);
     }
 }

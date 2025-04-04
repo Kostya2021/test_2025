@@ -1,9 +1,12 @@
 package de.andrenitze.softpro.domains.objectives;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter @Setter
+@Getter
+@Setter
+@EqualsAndHashCode
 public class Objective {
     private Integer id;
     private String title;

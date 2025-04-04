@@ -7,6 +7,8 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
@@ -14,10 +16,19 @@ import static de.andrenitze.softpro.Main.logger;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.BASE_PRODUCTIVITY_VALUE;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Project {
+public class Project implements Serializable {
+    private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
+    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur,Byte,Zero,System,Cypher,Kernel,Logic,Protocol,Nexus,Mainframe,Quantum,Bit,Octet,Hex,Cluster,Cloud,Node,Stack".split(","));
+    private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen,Protocol,System,Bit,Stream,Array,Packet,Frame,Sync,Cache,Wire,Loop,Cipher,Source".split(","));
+    private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
+    private static final int PROJECT_NAME_SNIPPETS_SIZE = PROJECT_NAME_SNIPPETS.size();
+    private static final int PROJECT_NAME_SPACERS_SIZE = PROJECT_NAME_SPACERS.size();
+    private static final int PROJECT_NAME_SUFFIXES_SIZE = PROJECT_NAME_SUFFIXES.size();
     // One Full Time Equivalent (FTE) can generate this amount of "value units" per day
     // This value will be modified by factors like skill, project risk, team fit, etc.
     public static final int PROJECT_VOLUME_MIN = 10000;
+    @Serial
+    private static final long serialVersionUID = 1L;
     private static int lastId = 1;
     @EqualsAndHashCode.Include
     private final Integer id;
@@ -71,13 +82,6 @@ public class Project {
     private static final List<RiskLevel> RISK_LEVELS = List.of(RiskLevel.values());
     @Getter
     private ProjectType type;
-    private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
-    private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur,Byte,Zero,System,Cypher,Kernel,Logic,Protocol,Nexus,Mainframe,Quantum,Bit,Octet,Hex,Cluster,Cloud,Node,Stack".split(","));
-    private static final List<String> PROJECT_NAME_SUFFIXES = List.of("V,Active,Hub,Net,NET,X,Services,Unified,Unisono,Cloud,Intelligence,Enterprise,Center,Portal,Pipeline,Node,Core,Server,Client,Agent,Manager,Engine,Box,Station,Suite,Pro,Plus,Advanced,Ultimate,Alpha,Beta,Gamma,Delta,Epsilon,Zeta,Eta,Theta,Iota,Kappa,Lambda,Mu,Nu,Xi,Omicron,Pi,Rho,Sigma,Tau,Upsilon,Phi,Chi,Psi,Omega,Velocity,Harmony,Fusion,Apex,Nimbus,Nova,Orion,Quasar,Radiance,Spectrum,Infinity,Genesis,Evolve,Solstice,Cybernetics,Empire,Paragon,Cosmic,Astral,Interstellar,Revolution,Sentinel,Quantum,Centauri,Zenith,Eclipse,Hyperion,Voyager,Serenity,Innovation,Nebula,Trinity,Mirage,Ascend,Aegis,Elysium,Eon,Infinity,Horizon,.io,Crypt,Matrix,Vertex,Galactic,Empyrean,Continuum,Dimension,Realm,Vertex,Aeon,Chronicle,Vision,Odyssey,Ether,Portal,Expanse,Vanguard,Guardian,Legend,Mystic,Realm,Digital,Frontier,Architect,Virtue,Valor,Unity,Chronos,Domain,Echo,Flux,Haven,Illuminati,Journey,Keystone,Legacy,Mastery,Nexus,Oasis,Pinnacle,Refuge,Spire,Threshold,Undertow,Venture,Whisper,Xenon,Yield,Zen,Protocol,System,Bit,Stream,Array,Packet,Frame,Sync,Cache,Wire,Loop,Cipher,Source".split(","));
-    private static final List<String> PROJECT_NAME_SPACERS = List.of(" ,-,".split(","));
-    private static final int PROJECT_NAME_SNIPPETS_SIZE = PROJECT_NAME_SNIPPETS.size();
-    private static final int PROJECT_NAME_SPACERS_SIZE = PROJECT_NAME_SPACERS.size();
-    private static final int PROJECT_NAME_SUFFIXES_SIZE = PROJECT_NAME_SUFFIXES.size();
 
     // Move to external class (ProjectGenerator)? Goal is to have unique Project names within one game instance.
     private static final Set<String> usedProjectNames = new HashSet<>();
@@ -253,13 +257,13 @@ public class Project {
      * Several companies can be associated with the same project.
      * Several companies can take part in the tender process.
      * After the tender, several companies can work on the project together.
-     *
      */
     public void addParty(Player player) {
         if (!involvedParties.contains(player)) {
             involvedParties.add(player);
         }
     }
+
     public List<Player> getInvolvedPlayers() {
         return involvedParties;
     }
@@ -296,7 +300,7 @@ public class Project {
     }
 
     public boolean isCompleted() {
-        return (getTotalValue()-getEarnedValue() <= 0);
+        return (getTotalValue() - getEarnedValue() <= 0);
     }
 
     public boolean playerWasInvolved(Player player) {
@@ -375,5 +379,43 @@ public class Project {
 
     public void removeParty(Player player) {
         this.involvedParties.remove(player);
+    }
+
+    public boolean hasProgressChanged(Project other) {
+        return this.earnedValue != other.earnedValue ||
+                !Objects.equals(this.progressEstimates, other.progressEstimates);
+    }
+
+    public boolean hasStatusChanged(Project other) {
+        return this.startedAt != other.startedAt ||
+                this.completedAt != other.completedAt ||
+                this.cancelledAt != other.cancelledAt;
+    }
+
+    public boolean hasEconomyChanged(Project other) {
+        return this.totalValue != other.totalValue ||
+                Float.compare(this.penalty, other.penalty) != 0 ||
+                Float.compare(this.profit, other.profit) != 0;
+    }
+
+    public boolean hasMetaChanged(Project other) {
+        return this.tenderProcess != other.tenderProcess ||
+                this.tenderDeadlineInDays != other.tenderDeadlineInDays ||
+                this.deadline != other.deadline ||
+                this.acquiredAt != other.acquiredAt ||
+                this.quality != other.quality ||
+                this.publishedAt != other.publishedAt ||
+                !Objects.equals(this.risk, other.risk) ||
+                !Objects.equals(this.cancelledBy, other.cancelledBy) ||
+                !Objects.equals(this.problems, other.problems);
+    }
+
+    public boolean hasChanged(Project other) {
+        if (other == null) return true;
+
+        return hasProgressChanged(other)
+                || hasStatusChanged(other)
+                || hasEconomyChanged(other)
+                || hasMetaChanged(other);
     }
 }

@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.Main.logger;
 
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Player {
     static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
     static {
@@ -38,7 +39,7 @@ public class Player {
     }
     protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
 
-    @Getter
+    @Getter @EqualsAndHashCode.Include
     private final UUID id;
     @Getter
     private String name;
@@ -302,25 +303,14 @@ public class Player {
         return null;
     }
 
-    /**
-     * Returns a hash of the player based on some specific attributes.
-     *
-     * @return The hash of the player.
-     */
-    @Override
-    public int hashCode() {
-        return Objects.hash(this.funds, this.missions, this.xp, this.xpLevel, this.skillPoints, this.level);
-    }
+    public boolean hasChanged(Player player) {
+        if (player == null) return true;
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof Player player)) return false;
-        return Float.compare(player.funds, funds) == 0 &&
-                xp == player.xp &&
-                xpLevel == player.xpLevel &&
-                skillPoints == player.skillPoints &&
-                Objects.equals(id, player.id) &&
-                Objects.equals(missions, player.missions);
+        return !Objects.equals(this.funds, player.getFunds()) ||
+                !Objects.equals(this.missions, player.getMissions()) ||
+                !Objects.equals(this.xp, player.getXp()) ||
+                !Objects.equals(this.xpLevel, player.getXpLevel()) ||
+                !Objects.equals(this.skillPoints, player.getSkillPoints()) ||
+                !Objects.equals(this.level, player.getLevel());
     }
 }

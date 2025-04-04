@@ -37,6 +37,7 @@ import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.io.IOException;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -69,7 +70,10 @@ public class GameServer extends WebSocketServer {
             return field.getAnnotation(ToStringPlugin.Exclude.class) != null;
         }
     };
-    @Getter public static final Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+    @Getter public static final Gson gson = new GsonBuilder()
+            .addSerializationExclusionStrategy(strategy)
+            .excludeFieldsWithModifiers(Modifier.TRANSIENT, Modifier.STATIC)
+            .create();
     @Getter private GameOverStats dailyHighScore;
     public static final Random RANDOM = new SecureRandom();
     private List<GameOverStats> dailyHighScores;

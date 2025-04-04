@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static de.andrenitze.softpro.Game.calculateXP;
 import static de.andrenitze.softpro.GameServer.RANDOM;
+import static de.andrenitze.softpro.GameServer.gson;
 import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJECT_NAMES;
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
 import static java.lang.Math.*;
@@ -50,7 +51,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Getter private final AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
-    private final Map<Project, Integer> projectHashes = new HashMap<>();
+    private final Map<Integer, Project> previousProjectStates = new HashMap<>();
 
     @Autowired
     public ProjectServiceImpl(AccountingServiceImpl accountingService, SkillServiceImpl skillService,
@@ -812,15 +813,6 @@ public class ProjectServiceImpl implements ProjectService {
         return projectSummary;
     }
 
-    public int getHashForProject(Project project) {
-        return projectHashes.getOrDefault(project, 0);
-    }
-
-    public void updateHashForProject(Project project, int newProjectHash) {
-        // Update the hash for the project
-        projectHashes.put(project, newProjectHash);
-    }
-
     public List<Project> getProjectsByPlayer(Player player) {
         List<Project> playerProjects = new ArrayList<>();
         for (Project project : getProjects()) {
@@ -829,5 +821,18 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
         return playerProjects;
+    }
+
+    public Project getPreviousState(int projectId) {
+        return previousProjectStates.get(projectId);
+    }
+
+    public void updatePreviousState(Project project) {
+        previousProjectStates.put(project.getId(), deepCopy(project));
+    }
+
+    private Project deepCopy(Project project) {
+        String json = gson.toJson(project);
+        return gson.fromJson(json, Project.class);
     }
 }

@@ -359,32 +359,48 @@ public class Game {
      * Go through all projects and compare their hashes to find out if something significant has changed.
      */
     private void sendAnyProjectChanges() {
-        // Compare old project hash to new one
-        playerService.getPlayers().forEach((_, player) -> projectService.getProjectsByPlayer(player).forEach(project -> {
-            int newProjectHash = project.hashCode();
-            int oldProjectHash = projectService.getHashForProject(project);
-            if (oldProjectHash != newProjectHash) {
-                logger.debug("Project '{}' has changed since last tick. Sending new state.", project.getName());
-                GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                projectUpdateEvent.setPayload(project);
-                messagingService.sendToPlayer(player, projectUpdateEvent);
-                projectService.updateHashForProject(project, newProjectHash);
+        playerService.getPlayers().forEach((_, player) -> {
+            List<Project> currentProjects = projectService.getProjectsByPlayer(player);
+
+            for (Project project : currentProjects) {
+                Project previousState = projectService.getPreviousState(project.getId());
+
+                if (previousState == null || project.hasChanged(previousState)) {
+                    logger.debug("Project '{}' has changed since last tick. Sending new state.", project.getName());
+
+                    try {
+                    GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                    projectUpdateEvent.setPayload(project);
+                    messagingService.sendToPlayer(player, projectUpdateEvent);
+
+                    projectService.updatePreviousState(project);
+                    } catch (Exception e) {
+                        logger.error("Error while sending project update: {}", e.getMessage());
+                    }
+                }
             }
-        }));
+        });
     }
 
     private void sendAnyPlayerChanges(Player player) {
-        // Compare old player hash to new one
-        int newPlayerHash = player.hashCode();
-        Integer oldPlayerHash = playerService.getHashForPlayer(player);
-        if (oldPlayerHash == null || oldPlayerHash != newPlayerHash) {
+        try {
+        Player previousState = playerService.getPreviousState(player);
+
+        if (previousState == null || player.hasChanged(previousState)) {
             logger.debug("Player '{}' has changed since last tick. Sending new state.", player.getId());
+
             GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
             playerUpdateEvent.setPayload(player);
             messagingService.sendToPlayer(player, playerUpdateEvent);
-            playerService.updateHashForPlayer(player, newPlayerHash);
+
+            // Save a copy of the current state for future comparison
+            playerService.updatePreviousState(player);
+        }
+        } catch (Exception e) {
+            logger.error("Error while sending player update: {}", e.getMessage());
         }
     }
+
 
     private void sendAnyNewAccountingEntries(Player player) {
         // Send any new accounting entries
@@ -401,10 +417,10 @@ public class Game {
             if (objectiveService.areThereObjectivesUpdates(player)) {
                 logger.debug("Sending updated objectives to player.");
                 try {
-                List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
-                GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-                objectivesUpdatedEvent.setPayload(allActiveObjectives);
-                messagingService.sendToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
+                    List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
+                    GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
+                    objectivesUpdatedEvent.setPayload(allActiveObjectives);
+                    messagingService.sendToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
                 } catch (Exception e) {
                     logger.error("Error while sending updated objectives to player {}: {}", player.getId(), e.getMessage());
                 }
