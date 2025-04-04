@@ -8,6 +8,7 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.services.*;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
@@ -41,7 +42,7 @@ public class GameEventHandler {
     private final ProjectEmployeeMappingService projectEmployeeService;
 
     public GameEventHandler(MessagingService messagingService,
-                            PlayerService playerService,
+                            GamePlayerServiceImpl playerService,
                             EmployeeService employeeService,
                             TalentMarket talentMarket,
                             ProjectService projectService,

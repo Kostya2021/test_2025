@@ -81,7 +81,7 @@ public class MessagingServiceImpl implements MessagingService {
 
     public void sendToPlayer(Player player, String message) {
         if (playerService.getPlayers() == null || !playerService.getPlayers().containsValue(player)) {
-            logger.debug("Player {} is not in the game. Not sending event.", player.getId());
+            logger.debug("Player {} is not in the game. Not sending event: {}", player.getId(), message);
             return;
         }
 

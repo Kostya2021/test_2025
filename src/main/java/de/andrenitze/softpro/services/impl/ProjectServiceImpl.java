@@ -361,22 +361,18 @@ public class ProjectServiceImpl implements ProjectService {
 
     private float calculateOnboardingFactor(Project project, ArrayList<Employee> employees) {
         ArrayList<Float> onboardingFactors = new ArrayList<>();
-
+        // TODO Maybe the experience is not added correctly? Onboarding never seems to end for some reason...
         for (Employee employee : employees) {
-            // FIXED: 30,4 (10% of a 304-day project)
+            // 10% of the project's scheduled duration
             float onboardingDays = GameParameters.EMPLOYEE_ONBOARDING_TIME_IN_PERCENT * project.getScheduledDuration();
 
-            // VARIABLE (depending on employees' experience): 4 days / 30,4 days = 0,1333%
+            // Calculate onboarding progress based on employee's experience
             float onboardingProgress = employee.getExperienceInDaysByProject(project) / onboardingDays;
             if (onboardingProgress >= 1) {
                 continue; // Onboarding completed. Ignore this employee for calculation.
             }
 
-            // productivity factor = (1 - 0,1333) * 0,15 * 100 = 13% decrease
-            // Example 0: 0% onboardingProgress => 15% productivity decrease
-            // Example 1: 10% onboardingProgress => 13,5% productivity decrease
-            // Example 2: 50% onboardingProgress => 7,5% productivity decrease
-            // Example 3: 100% onboardingProgress => 0% productivity decrease
+            // Calculate productivity decrease factor
             float onboardingFactor = 1 - (1 - onboardingProgress) * GameParameters.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
             onboardingFactors.add(onboardingFactor);
 
@@ -385,10 +381,14 @@ public class ProjectServiceImpl implements ProjectService {
                     employee.getExperienceInDaysByProject(project), onboardingDays);
         }
 
-        // Return average of all onboarding factors
-        return (float) onboardingFactors.stream()
-                .mapToDouble(d -> d)
-                .reduce(1, (a, b) -> a * b);
+        // If no employees are onboarding, return 1.0f (no productivity decrease)
+        if (onboardingFactors.isEmpty()) {
+            return 1.0f;
+        }
+
+        // Calculate the average onboarding factor
+        return onboardingFactors.stream()
+                .reduce(0f, Float::sum) / onboardingFactors.size();
     }
 
     private int getNumberOfParallelProjectsForEmployee(Employee employee) {

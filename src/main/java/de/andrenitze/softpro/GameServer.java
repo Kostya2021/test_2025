@@ -16,6 +16,7 @@ import de.andrenitze.softpro.services.DecisionService;
 import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.ObjectiveServiceImpl;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
 import lombok.Getter;
@@ -239,7 +240,7 @@ public class GameServer extends WebSocketServer {
         Game game = gameContext.getBean(Game.class);
 
         // Get the PlayerService instance from the game context
-        PlayerService playerService = game.getPlayerService();
+        GamePlayerServiceImpl playerService = game.getPlayerService();
         GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
 
         game.setEventHandler(new GameEventHandler(
@@ -251,7 +252,7 @@ public class GameServer extends WebSocketServer {
                 lifeCycleService,
                 game.getSkillService(),
                 game.getProjectEmployeeService()));
-        game.setObjectiveService(new ObjectiveServiceImpl(game.getPlayerService(),
+        game.setObjectiveService(new ObjectiveServiceImpl(playerService,
                 lifeCycleService,
                 game.getProjectService(),
                 game.getSkillService(),

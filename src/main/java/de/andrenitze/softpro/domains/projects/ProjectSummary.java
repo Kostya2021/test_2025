@@ -6,9 +6,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ProjectSummary {
-    private int id;
+    private int id; // Project ID
     private int earnedValue;
     private int tick;
 
-    public ProjectSummary() {}
+    public ProjectSummary() { /* default constructor */ }
 }

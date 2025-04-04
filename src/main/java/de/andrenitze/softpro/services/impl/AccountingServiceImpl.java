@@ -5,7 +5,6 @@ import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.services.AccountingService;
-import de.andrenitze.softpro.services.MessagingService;
 import de.andrenitze.softpro.services.PlayerService;
 import lombok.Setter;
 import org.java_websocket.WebSocket;
@@ -19,11 +18,9 @@ import static de.andrenitze.softpro.Main.logger;
 
 public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();
-    @Setter private MessagingService messagingService;
     @Setter private PlayerService playerService;
 
-    public AccountingServiceImpl(MessagingService messagingService, PlayerService playerService) {
-        this.messagingService = messagingService;
+    public AccountingServiceImpl(PlayerService playerService) {
         this.playerService = playerService;
     }
 
@@ -56,33 +53,33 @@ public class AccountingServiceImpl implements AccountingService {
             players.forEach((_, player) -> {
                 // Calculate and subtract salaries
                 int salaries = player.calculateAndSubtractSalaries();
-                addEntry(new AccountingEntry(player, gameTick, salaries, AccountCategory.SALARIES,
-                        TransactionType.DEBIT, "Monthly salaries"));
+                AccountingEntry salaryEntry = new AccountingEntry(player, gameTick, salaries, AccountCategory.SALARIES,
+                        TransactionType.DEBIT, "Monthly salaries");
+                addEntry(salaryEntry);
 
                 // Office rent (fixed costs, rises with level)
                 int rent = 500 * (gameLevel-1);
-                addEntry(new AccountingEntry(player, gameTick, rent, AccountCategory.OVERHEAD,
-                        TransactionType.DEBIT, "Office rent"));
+                AccountingEntry rentEntry = new AccountingEntry(player, gameTick, rent, AccountCategory.OVERHEAD,
+                        TransactionType.DEBIT, "Office rent");
+                addEntry(rentEntry);
 
                 // Insurance (fixed costs, rises with level)
                 int insurance = 150 * gameLevel;
-                addEntry(new AccountingEntry(player, gameTick, insurance, AccountCategory.OVERHEAD,
-                        TransactionType.DEBIT, "Insurance"));
+                AccountingEntry insuranceEntry = new AccountingEntry(player, gameTick, insurance, AccountCategory.OVERHEAD,
+                        TransactionType.DEBIT, "Insurance");
+                addEntry(insuranceEntry);
 
                 // Subtract rent and insurance from funds (not handled by accounting service)
                 player.subtractFunds((float) rent + insurance);
-
-                messagingService.sendFundsUpdateToPlayer(player);
             });
         }
     }
 
-    public List<AccountingEntry> getNewAccountingEntries(int gameTick) {
-        List<AccountingEntry> newEntries = new ArrayList<>();
-        playerService.getPlayers().forEach((_, player) -> newEntries.addAll(getAllEntriesByPlayer(player).stream()
+    public List<AccountingEntry> getAccountingEntriesByTick(int gameTick) {
+        return playerService.getPlayers().values().stream()
+                .flatMap(player -> getAllEntriesByPlayer(player).stream())
                 .filter(entry -> entry.getDay() == gameTick)
-                .toList()));
-        return newEntries;
+                .toList();
     }
 
     public List<AccountingEntry> getNewEntriesByPlayer(Player player, int tick) {

@@ -261,7 +261,7 @@ public class Game {
         }
         projectService.createProblemsInProjects(lifeCycleService.getTick(), getLevel());
         accountingService.processMonthlyPayments(currentDate, playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
-        messagingService.sendNewAccountingEntries(accountingService.getNewAccountingEntries(lifeCycleService.getTick()));
+        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycleService.getTick()));
         employeeService.simulateEmployeeLives(lifeCycleService.getTick());
 
         Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycleService.getTick());

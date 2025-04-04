@@ -52,7 +52,6 @@ public class SkillServiceImpl implements SkillService {
     public boolean playerHasSkill(Player player, String skillName) {
         HashMap<String, Skill> skills = playersSkills.get(player);
         if (skills == null) {
-            logger.debug("Player {} has no skills registered.", player.getId());
             return false;
         }
 
