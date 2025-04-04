@@ -151,70 +151,9 @@ public class Game {
     }
 
     /**
-     * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
+     * Execute the game logic each "tick". Player interactions can alter the state between ticks.
+     * Order is important, because some methods depend on the state of others (side effects are likely).
      */
-    public void prepareNextLevelForPlayer() {
-        // Get next level from getPlayersService().getPlayers(). Highest level wins, but all players in one instance should have the same level.
-        int nextLevel = 1;
-        for (Player somePlayerInTheGame : playerService.getPlayers().values()) {
-            if (somePlayerInTheGame.getLevel() > nextLevel) {
-                nextLevel = somePlayerInTheGame.getLevel();
-            }
-        }
-        setLevel(nextLevel);
-
-        logger.debug("prepareNextLevel(): Players' highest level (= {}) will be the next level", nextLevel);
-
-        if (getLevel() != 1) {
-            projectService.initialize();
-
-            // Send talent market to players at once
-            GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-            employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcast(employeeEvent);
-        }
-
-        // Logic for decisions and their consequences
-        // Beware: Decisions from previous levels might have consequences in other levels
-        if (getLevel() == 1) {
-            levelConsequencesService.triggerLevel1Consequences();
-        } else if (getLevel() == 2) {
-            levelConsequencesService.triggerLevel2Consequences();
-        } else if (getLevel() == 3) {
-            levelConsequencesService.triggerLevel3Consequences();
-        } else if (getLevel() == MAX_NUMBER_OF_PLAYERS_PER_GAME) {
-            levelConsequencesService.triggerLevel4Consequences();
-        }
-
-        // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
-        playerService.getPlayers().forEach((_, somePlayerInTheGame) -> {
-            logger.debug("Checking for permanent status effects for player {}", somePlayerInTheGame.getId());
-            if (skillService.playerHasSkill(somePlayerInTheGame, TEAM_SPIRIT)) {
-                logger.debug("Player {} has the skill {}", somePlayerInTheGame.getId(), TEAM_SPIRIT);
-                somePlayerInTheGame.getEmployees().forEach(employee -> {
-                    logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
-                    employee.addComplexStatusEffect(TEAM_SPIRIT);
-                });
-            }
-        });
-
-        playerService.getPlayers().forEach((_, somePlayerInTheGame ) -> {
-            if (somePlayerInTheGame.getDecisionsByLevel(getLevel()).isEmpty()) {
-                logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), getLevel());
-            }
-        });
-    }
-
-    private void setLevel(int i) {
-        this.level = i;
-
-        // Load problems for the level
-        projectService.loadProblems(i);
-
-        // Load story elements for the level
-        storyService.loadStory(i);
-    }
-
     private void progressGameTime() {
         LocalDate currentDate;
         if (lifeCycleService.isPaused()) {
@@ -229,21 +168,21 @@ public class Game {
 
         long startTime = System.nanoTime();
 
-        // Execute the game logic each "tick". Player interactions can alter the state between ticks.
-        // Order is important, because some methods depend on the state of others (side effects are likely).
-        List<Project> projectsWithChanges = projectService.conductWorkOnAllProjects(lifeCycleService.getTick(), getLevel(), currentDate);
+        List<Project> updatedProjects = projectService.conductWorkOnAllProjects(
+                lifeCycleService.getTick(), getLevel(), now()
+        );
 
-        for (Project project : projectsWithChanges) {
-            GameEvent<ProjectSummary> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-            ProjectSummary summary = projectService.getProjectSummary(project);
-            summary.setTick(lifeCycleService.getTick());
-            projectUpdatedEvent.setPayload(summary);
-
-            // Send update to all involved players
-            for (Player player : project.getInvolvedPlayers()) {
-                messagingService.sendToPlayer(player, projectUpdatedEvent);
-            }
+        for (Project project : updatedProjects) {
+            projectService.getProjectSummaryIfProgressChanged(project, lifeCycleService.getTick())
+                    .ifPresent(summary -> {
+                        GameEvent<ProjectSummary> event = new GameEvent<>(EventType.PROJECT_UPDATED);
+                        event.setPayload(summary);
+                        project.getInvolvedPlayers().forEach(player ->
+                                messagingService.sendToPlayer(player, event)
+                        );
+                    });
         }
+
 
         projectService.cancelOverdueProjects(lifeCycleService.getTick(), getLevel());
         projectService.evaluateTenderProcesses(lifeCycleService.getTick());
@@ -338,6 +277,71 @@ public class Game {
         }
     }
 
+    /**
+     * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
+     */
+    public void prepareNextLevelForPlayer() {
+        // Get next level from getPlayersService().getPlayers(). Highest level wins, but all players in one instance should have the same level.
+        int nextLevel = 1;
+        for (Player somePlayerInTheGame : playerService.getPlayers().values()) {
+            if (somePlayerInTheGame.getLevel() > nextLevel) {
+                nextLevel = somePlayerInTheGame.getLevel();
+            }
+        }
+        setLevel(nextLevel);
+
+        logger.debug("prepareNextLevel(): Players' highest level (= {}) will be the next level", nextLevel);
+
+        if (getLevel() != 1) {
+            projectService.initialize();
+
+            // Send talent market to players at once
+            GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+            employeeEvent.setPayload(talentMarket.getTalents());
+            messagingService.broadcast(employeeEvent);
+        }
+
+        // Logic for decisions and their consequences
+        // Beware: Decisions from previous levels might have consequences in other levels
+        if (getLevel() == 1) {
+            levelConsequencesService.triggerLevel1Consequences();
+        } else if (getLevel() == 2) {
+            levelConsequencesService.triggerLevel2Consequences();
+        } else if (getLevel() == 3) {
+            levelConsequencesService.triggerLevel3Consequences();
+        } else if (getLevel() == MAX_NUMBER_OF_PLAYERS_PER_GAME) {
+            levelConsequencesService.triggerLevel4Consequences();
+        }
+
+        // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
+        playerService.getPlayers().forEach((_, somePlayerInTheGame) -> {
+            logger.debug("Checking for permanent status effects for player {}", somePlayerInTheGame.getId());
+            if (skillService.playerHasSkill(somePlayerInTheGame, TEAM_SPIRIT)) {
+                logger.debug("Player {} has the skill {}", somePlayerInTheGame.getId(), TEAM_SPIRIT);
+                somePlayerInTheGame.getEmployees().forEach(employee -> {
+                    logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
+                    employee.addComplexStatusEffect(TEAM_SPIRIT);
+                });
+            }
+        });
+
+        playerService.getPlayers().forEach((_, somePlayerInTheGame ) -> {
+            if (somePlayerInTheGame.getDecisionsByLevel(getLevel()).isEmpty()) {
+                logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), getLevel());
+            }
+        });
+    }
+
+    private void setLevel(int i) {
+        this.level = i;
+
+        // Load problems for the level
+        projectService.loadProblems(i);
+
+        // Load story elements for the level
+        storyService.loadStory(i);
+    }
+
     private void sendAnyNewStoryElements(Player player) {
         List<StoryElement> newStoryElements = storyService.getNewStoryElementsForPlayer(player, lifeCycleService.getTick());
         if (!newStoryElements.isEmpty()) {
@@ -369,11 +373,11 @@ public class Game {
                     logger.debug("Project '{}' has changed since last tick. Sending new state.", project.getName());
 
                     try {
-                    GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
-                    projectUpdateEvent.setPayload(project);
-                    messagingService.sendToPlayer(player, projectUpdateEvent);
+                        GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+                        projectUpdateEvent.setPayload(project);
+                        messagingService.sendToPlayer(player, projectUpdateEvent);
 
-                    projectService.updatePreviousState(project);
+                        projectService.updatePreviousState(project);
                     } catch (Exception e) {
                         logger.error("Error while sending project update: {}", e.getMessage());
                     }
@@ -384,18 +388,18 @@ public class Game {
 
     private void sendAnyPlayerChanges(Player player) {
         try {
-        Player previousState = playerService.getPreviousState(player);
+            Player previousState = playerService.getPreviousState(player);
 
-        if (previousState == null || player.hasChanged(previousState)) {
-            logger.debug("Player '{}' has changed since last tick. Sending new state.", player.getId());
+            if (previousState == null || player.hasChanged(previousState)) {
+                logger.debug("Player '{}' has changed since last tick. Sending new state.", player.getId());
 
-            GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
-            playerUpdateEvent.setPayload(player);
-            messagingService.sendToPlayer(player, playerUpdateEvent);
+                GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
+                playerUpdateEvent.setPayload(player);
+                messagingService.sendToPlayer(player, playerUpdateEvent);
 
-            // Save a copy of the current state for future comparison
-            playerService.updatePreviousState(player);
-        }
+                // Save a copy of the current state for future comparison
+                playerService.updatePreviousState(player);
+            }
         } catch (Exception e) {
             logger.error("Error while sending player update: {}", e.getMessage());
         }

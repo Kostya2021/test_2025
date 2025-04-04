@@ -835,4 +835,19 @@ public class ProjectServiceImpl implements ProjectService {
         String json = gson.toJson(project);
         return gson.fromJson(json, Project.class);
     }
+
+    public Optional<ProjectSummary> getProjectSummaryIfProgressChanged(Project project, int tick) {
+        Project previousState = getPreviousState(project.getId());
+
+        if (previousState == null || project.hasProgressChanged(previousState)) {
+            updatePreviousState(project);
+
+            ProjectSummary summary = getProjectSummary(project);
+            summary.setTick(tick);
+
+            return Optional.of(summary);
+        }
+
+        return Optional.empty();
+    }
 }
