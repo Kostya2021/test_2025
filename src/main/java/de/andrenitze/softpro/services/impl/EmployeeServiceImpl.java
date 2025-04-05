@@ -35,7 +35,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     public void simulateEmployeeLives(int gameTick) {
-        playerService.getPlayers().forEach((_, player) -> player.getEmployees().forEach(employee -> {
+        playerService.getPlayers().forEach((ignored, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(gameTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(gameTick) || employee.removeExpiredStatusEffects();
 
@@ -78,7 +78,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
         if (projectsEmployeesMap.isEmployeeAssignedToAnyProject(employee)) {
-            projectsEmployeesMap.getProjectEmployeesMap().forEach((project, _) -> {
+            projectsEmployeesMap.getProjectEmployeesMap().forEach((project, ignored) -> {
                 if (project.getStartedAt() == 0) {
                     return;
                 }

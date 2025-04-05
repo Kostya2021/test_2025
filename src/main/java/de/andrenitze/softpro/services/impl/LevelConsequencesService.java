@@ -21,7 +21,7 @@ public class LevelConsequencesService {
     }
 
     public void triggerLevel1Consequences() {
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             int option = player.getDecisionsByLevel(1).getFirst().getOptionId();
             if (option == 1) {
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(
@@ -41,7 +41,7 @@ public class LevelConsequencesService {
     }
 
     public void triggerLevel2Consequences() {
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             int option = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (option == 1) {
                 player.setFunds(player.getFunds() - 5000);
@@ -54,7 +54,7 @@ public class LevelConsequencesService {
     }
 
     public void triggerLevel3Consequences() {
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(
@@ -67,7 +67,7 @@ public class LevelConsequencesService {
     }
 
     public void triggerLevel4Consequences() {
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             int backupOption = player.getDecisionsByLevel(BACKUP_BLUES_LEVEL).getFirst().getOptionId();
             if (backupOption == 2) {
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(

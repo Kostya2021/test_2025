@@ -259,7 +259,7 @@ public class Game {
 
 
         // For all players in the game...
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             sendAnyNewAccountingEntries(player);
             sendAnyProjectChanges();
             sendAnyPlayerChanges(player);
@@ -314,7 +314,7 @@ public class Game {
         }
 
         // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
-        playerService.getPlayers().forEach((_, somePlayerInTheGame) -> {
+        playerService.getPlayers().forEach((ignored, somePlayerInTheGame) -> {
             logger.debug("Checking for permanent status effects for player {}", somePlayerInTheGame.getId());
             if (skillService.playerHasSkill(somePlayerInTheGame, TEAM_SPIRIT)) {
                 logger.debug("Player {} has the skill {}", somePlayerInTheGame.getId(), TEAM_SPIRIT);
@@ -325,7 +325,7 @@ public class Game {
             }
         });
 
-        playerService.getPlayers().forEach((_, somePlayerInTheGame ) -> {
+        playerService.getPlayers().forEach((ignored, somePlayerInTheGame ) -> {
             if (somePlayerInTheGame.getDecisionsByLevel(getLevel()).isEmpty()) {
                 logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), getLevel());
             }
@@ -363,7 +363,7 @@ public class Game {
      * Go through all projects and compare their hashes to find out if something significant has changed.
      */
     private void sendAnyProjectChanges() {
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             List<Project> currentProjects = projectService.getProjectsByPlayer(player);
 
             for (Project project : currentProjects) {
@@ -417,7 +417,7 @@ public class Game {
     }
 
     private void checkObjectivesCriteriaAndSendRewards() {
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             if (objectiveService.areThereObjectivesUpdates(player)) {
                 logger.debug("Sending updated objectives to player.");
                 try {

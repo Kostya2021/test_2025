@@ -42,10 +42,10 @@ public class GamePlayerServiceImpl extends BasePlayerService {
 
     public void generateFirstEmployeesForPlayers() {
         // Remove any existing employees from the player
-        getPlayers().forEach((_, player) -> player.getEmployees().clear());
+        getPlayers().forEach((ignored, player) -> player.getEmployees().clear());
 
         // Generate first employees for all players (necessary for Level 2)
-        getPlayers().forEach((_, player) -> talentMarket.generateFirstEmployees().forEach(
+        getPlayers().forEach((ignored, player) -> talentMarket.generateFirstEmployees().forEach(
                 player::addEmployee
         ));
     }

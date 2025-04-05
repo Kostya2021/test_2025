@@ -49,7 +49,7 @@ public class AccountingServiceImpl implements AccountingService {
 
     public void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players, int gameTick, int gameLevel) {
         if (d.getDayOfMonth() == 1) {
-            players.forEach((_, player) -> {
+            players.forEach((ignored, player) -> {
                 // Calculate and subtract salaries
                 int salaries = player.calculateAndSubtractSalaries();
                 AccountingEntry salaryEntry = new AccountingEntry(player, gameTick, salaries, AccountCategory.SALARIES,

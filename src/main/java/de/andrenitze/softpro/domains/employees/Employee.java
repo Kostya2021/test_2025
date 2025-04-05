@@ -128,7 +128,7 @@ public class Employee implements Serializable {
         }
 
         if (newExperienceInDays > 0) {
-            int existingExperience = this.projectExperience.computeIfAbsent(project, _ -> 0);
+            int existingExperience = this.projectExperience.computeIfAbsent(project, ignored -> 0);
             this.projectExperience.put(project, ++existingExperience);
 
             addXp(project.getType(), project.getDomain(), newExperienceInDays);

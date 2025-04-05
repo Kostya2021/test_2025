@@ -62,7 +62,7 @@ public class DecisionDAO {
                             rs.getInt("vote_count"),
                             rs.getDouble("percentage")
                     );
-                    groupedDistributions.computeIfAbsent(decisionId, _ -> new ArrayList<>()).add(distribution);
+                    groupedDistributions.computeIfAbsent(decisionId, ignored -> new ArrayList<>()).add(distribution);
                 }
             }
         } catch (SQLException e) {

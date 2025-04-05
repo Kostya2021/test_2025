@@ -115,7 +115,7 @@ public class SkillServiceImpl implements SkillService {
             return;
         }
 
-        File[] files = directory.listFiles((_, name) -> name.endsWith(JSON));
+        File[] files = directory.listFiles((ignored, name) -> name.endsWith(JSON));
         if (files == null) {
             return;
         }

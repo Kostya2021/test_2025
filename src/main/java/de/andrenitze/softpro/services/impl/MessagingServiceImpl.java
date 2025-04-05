@@ -50,12 +50,12 @@ public class MessagingServiceImpl implements MessagingService {
         if (!newEntries.isEmpty()) {
             GameEvent<List<AccountingEntry>> newAccountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
             newAccountingEntriesEvent.setPayload(newEntries);
-            playerService.getPlayers().forEach((_, player) -> sendToPlayer(player, newAccountingEntriesEvent));
+            playerService.getPlayers().forEach((ignored, player) -> sendToPlayer(player, newAccountingEntriesEvent));
         }
     }
 
     public void broadcast(String message) {
-        playerService.getPlayers().forEach((webSocket, _) -> webSocket.send(message));
+        playerService.getPlayers().forEach((webSocket, ignored) -> webSocket.send(message));
     }
 
     public void broadcast(EventType eventType) {
@@ -68,7 +68,7 @@ public class MessagingServiceImpl implements MessagingService {
     }
 
     public void broadcastInitialState() {
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             GameEvent<Player> event = new GameEvent<>(EventType.STATE_UPDATED);
             event.setPayload(player);
             sendToPlayer(player, event);

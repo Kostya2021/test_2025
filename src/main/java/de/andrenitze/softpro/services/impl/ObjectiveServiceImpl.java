@@ -47,7 +47,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
 
     public Map<Player, List<Objective>> getNewObjectives(int currentTick) {
         Map<Player, List<Objective>> newObjectivesMap = new HashMap<>();
-        playerService.getPlayers().forEach((_, player) -> {
+        playerService.getPlayers().forEach((ignored, player) -> {
             List<Objective> newObjectives = player.getNewObjectivesByTick(currentTick);
             if (!newObjectives.isEmpty()) {
                 logger.debug("Found {} new objectives for player.", newObjectives.size());

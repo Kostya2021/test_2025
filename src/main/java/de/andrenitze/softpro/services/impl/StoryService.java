@@ -27,7 +27,7 @@ public class StoryService {
     public List<StoryElement> getNewStoryElementsForPlayer(Player player, int currentTick) {
         List<StoryElement> newStoryElements = new ArrayList<>();
         String playerId = player.getId().toString();
-        Set<Integer> sentElementIds = sentStoryElementIds.computeIfAbsent(playerId, _ -> new HashSet<>());
+        Set<Integer> sentElementIds = sentStoryElementIds.computeIfAbsent(playerId, ignored -> new HashSet<>());
 
         for (StoryElement element : storyElements) {
             if (!sentElementIds.contains(element.getId()) &&
