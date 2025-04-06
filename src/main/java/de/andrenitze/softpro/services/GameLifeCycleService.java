@@ -3,6 +3,8 @@ package de.andrenitze.softpro.services;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 /**
  * Manages the game life cycle including current tick and pause/resume.
  */
@@ -12,9 +14,12 @@ public class GameLifeCycleService {
     private int tick;
     private boolean paused;
     private boolean running;
+    @Getter
+    private LocalDate currentDate;
 
     public GameLifeCycleService() {
         this.tick = 0;
+        this.currentDate = LocalDate.now();
     }
 
     public void pause() {
@@ -34,5 +39,6 @@ public class GameLifeCycleService {
             return;
         }
         tick++;
+        currentDate = currentDate.plusDays(1);
     }
 }
