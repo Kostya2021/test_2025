@@ -25,7 +25,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.net.ConnectException;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.MAX_NUMBER_OF_PLAYERS_PER_GAME;
-import static java.time.LocalDate.now;
 
 @Component
 @Scope("prototype")
@@ -155,21 +153,16 @@ public class Game {
      * Order is important, because some methods depend on the state of others (side effects are likely).
      */
     private void progressGameTime() {
-        LocalDate currentDate;
         if (lifeCycleService.isPaused()) {
             return;
         }
 
         lifeCycleService.nextTick();
 
-        // Progress calendar date
-        currentDate = now();
-        currentDate = currentDate.plusDays(lifeCycleService.getTick());
-
         long startTime = System.nanoTime();
 
         List<Project> updatedProjects = projectService.conductWorkOnAllProjects(
-                lifeCycleService.getTick(), getLevel(), now()
+                lifeCycleService.getTick(), getLevel(), lifeCycleService.getCurrentDate()
         );
 
         for (Project project : updatedProjects) {
@@ -198,7 +191,7 @@ public class Game {
             projectService.randomlySpawnLevel1Tenders(lifeCycleService.getTick(), playerService.getRandomPlayer());
         }
         projectService.createProblemsInProjects(lifeCycleService.getTick(), getLevel());
-        accountingService.processMonthlyPayments(currentDate, playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
+        accountingService.processMonthlyPayments(lifeCycleService.getCurrentDate(), playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
         messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycleService.getTick()));
         employeeService.simulateEmployeeLives(lifeCycleService.getTick());
 
