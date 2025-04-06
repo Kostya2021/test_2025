@@ -55,9 +55,7 @@ public class Game {
     @Setter private ObjectiveServiceImpl objectiveService;
     private LevelConsequencesService levelConsequencesService;
 
-    public static final int GAME_SPEED_IN_MILLISECONDS = 200;
-    public static final int NUMBER_OF_LEVELS_IN_THE_GAME = 3;
-
+    public static final int GAME_SPEED_IN_MILLISECONDS = 700;
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
 
@@ -434,6 +432,7 @@ public class Game {
     }
 
     private void handleGameOver(Player player, WebSocket webSocket) {
+        int numberOfLevelsInTheGame = 3;
         logger.debug("Game over for player {}.", player.getId());
         boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt();
 
@@ -448,7 +447,7 @@ public class Game {
                     level + 1);
 
             // Only increase level for existing levels
-            if (level < NUMBER_OF_LEVELS_IN_THE_GAME) {
+            if (level < numberOfLevelsInTheGame) {
                 player.setLevel(level + 1);
                 logger.debug("Player {} has reached level {}.", player.getId(), level + 1);
             } else {
