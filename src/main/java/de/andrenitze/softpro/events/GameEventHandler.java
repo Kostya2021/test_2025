@@ -188,18 +188,19 @@ public class GameEventHandler {
     private void handleRiskAssessmentRequestedEvent(WebSocket websocket, String message) {
         int projectId = parseIdByKey(message, PROJECT_ID);
         Player player = playerService.getPlayer(websocket);
+        Project project = projectService.getProjectById(projectId);
 
-        boolean confirmed = projectService.assessProjectRiskForPlayer(projectId, player, gameLifeCycleService.getTick());
+        if (project == null) {
+            logger.warn("Could not assess risk. Project {} not found.", projectId);
+            return;
+        }
+
+        projectService.assessProjectRiskForPlayer(project, player, gameLifeCycleService.getTick());
 
         // Send confirmation message to player
-        if (confirmed) {
-            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
-            Project project = projectService.getProjectById(projectId);
-            projectUpdatedEvent.setPayload(project);
-        } else {
-            logger.warn("Risk assessment for project {} failed.", projectId);
-
-        }
+        GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
+        projectUpdatedEvent.setPayload(project);
+        messagingService.sendToPlayer(player, projectUpdatedEvent);
     }
 
     private void handleEmployeeDismissedEvent(WebSocket websocket, String message) {

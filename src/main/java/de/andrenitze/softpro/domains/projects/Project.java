@@ -89,7 +89,7 @@ public class Project implements Serializable {
     private static final EnumMap<ProjectType, List<String>> projectTypeDomainMap = new EnumMap<>(ProjectType.class);
     @Getter
     private String domain;
-    @Getter
+    @Getter @Setter
     private boolean hasBeenRiskAssessed = false;
     @Getter
     private final List<Problem> problems = new ArrayList<>();
