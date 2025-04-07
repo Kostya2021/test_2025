@@ -58,3 +58,6 @@ Should be written rather sooner than later for new features to get all the side 
 2) Check the target URL of the running server in the config: ```/test/loadtest.yml```.
 3) Start the load test: ```artillery run test\loadtest.yml -o loadTestResults.json```
 4) (Optional) Generate HTML report: ```artillery report loadTestResults.json```
+
+## License
+A licence file can be generated using ```mvn license:add-third-party```. The license file will be generated in the root directory of the project. The license file will include all third-party libraries used in the project. The license file will be generated to ```target/generated-sources/license/THIRD-PARTY.txt``` of the project. The license file will include all third-party libraries used in the project.
