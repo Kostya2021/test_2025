@@ -784,12 +784,8 @@ public class ProjectServiceImpl implements ProjectService {
         problemGenerator.loadProblemsByLevel(level);
     }
 
-    public boolean assessProjectRiskForPlayer(int projectId, Player player, int tick) {
-        Project project = getProjectById(projectId);
-        if (project == null) {
-            logger.error("Project with ID {} could not be found.", projectId);
-            return false;
-        }
+    public void assessProjectRiskForPlayer(Project project, Player player, int tick) {
+        project.setHasBeenRiskAssessed(true);
 
         // Deduct funds from player
         int riskAssessmentCost = (int) GameParameters.PROJECT_RISK_ASSESSMENT_COST;
@@ -802,7 +798,6 @@ public class ProjectServiceImpl implements ProjectService {
                 "Project risk assessment")
         );
         player.subtractFunds(riskAssessmentCost);
-        return true;
     }
 
     @NotNull
