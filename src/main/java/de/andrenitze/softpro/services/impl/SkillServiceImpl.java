@@ -63,7 +63,6 @@ public class SkillServiceImpl implements SkillService {
         if (playersSkills.containsKey(player)) {
             logger.debug("Player {} already exists in the skillsManager. No override will occur.", player.getId());
         } else {
-            logger.debug("Adding new player {} to the skillsManager.", player.getId());
             loadSkills(player);
         }
         playersSkills.putIfAbsent(player, new HashMap<>());

@@ -19,7 +19,7 @@ public interface ProjectService {
     void addProject(Project project);
     void assignProjectToPlayer(Player player, Project project, int tick);
     List<Project> getProjects();
-    void assessProjectRiskForPlayer(Project project, Player player, int tick);
+    void assessProjectRiskForPlayer(Project project, Player player, int tick, int level);
     Project getProjectById(int projectId);
     void conductTeamEstimation(int projectId, Player player, int tick);
     void startProject(Project project, int startedAt);

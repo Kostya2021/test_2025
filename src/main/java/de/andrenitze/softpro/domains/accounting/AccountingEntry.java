@@ -14,17 +14,17 @@ public class AccountingEntry {
     private String description;
     private TransactionType transactionType;
 
-    public AccountingEntry(Player player, int day, int amount, AccountCategory category, TransactionType transactionType) {
+    public AccountingEntry(Player player, int day, int level, int amount, AccountCategory category, TransactionType transactionType) {
         this.player = player;
-        this.level = player.getLevel();
+        this.level = level;
         this.day = day;
         this.amount = amount;
         this.category = category;
         this.transactionType = transactionType;
     }
 
-    public AccountingEntry(Player player, int day, int amount, AccountCategory category, TransactionType transactionType, String description) {
-        this(player, day, amount, category, transactionType);
+    public AccountingEntry(Player player, int day, int level, int amount, AccountCategory category, TransactionType transactionType, String description) {
+        this(player, day, level, amount, category, transactionType);
         this.description = description;
     }
 }

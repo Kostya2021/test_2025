@@ -28,12 +28,6 @@ public class MessagingServiceImpl implements MessagingService {
         this.playerService = playerService;
     }
 
-    public void sendFundsUpdateToPlayer(Player player) {
-        GameEvent<Float> newFundsEvent = new GameEvent<>(EventType.NEW_FUNDS);
-        newFundsEvent.setPayload(player.getFunds());
-        sendToPlayer(player, gson.toJson(newFundsEvent));
-    }
-
     public void sendProjectUpdate(Player player, Project project) {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
         projectUpdateEvent.setPayload(project);
@@ -67,7 +61,7 @@ public class MessagingServiceImpl implements MessagingService {
         broadcast(gson.toJson(gameEvent));
     }
 
-    public void broadcastInitialState() {
+    public void broadcastInitialPlayerState() {
         playerService.getPlayers().forEach((ignored, player) -> {
             GameEvent<Player> event = new GameEvent<>(EventType.STATE_UPDATED);
             event.setPayload(player);

@@ -117,7 +117,7 @@ public class Game {
         // Start the round for all players
         lifeCycle.run();
         messagingService.broadcast(EventType.ROUND_STARTED);
-        messagingService.broadcastInitialState();
+        messagingService.broadcastInitialPlayerState();
 
         // Broadcast the initial state of the game to all players
         GameEvent<List<Project>> newTendersEvent = new GameEvent<>(EventType.TENDERS_ADDED);
@@ -268,40 +268,28 @@ public class Game {
     /**
      * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
      */
-    public void prepareNextLevelForPlayer() {
-        // Get next level from getPlayersService().getPlayers(). Highest level wins, but all players in one instance should have the same level.
-        int nextLevel = 1;
-        for (Player somePlayerInTheGame : playerService.getPlayers().values()) {
-            if (somePlayerInTheGame.getLevel() > nextLevel) {
-                nextLevel = somePlayerInTheGame.getLevel();
-            }
-        }
-        setLevel(nextLevel);
-
-        logger.debug("prepareNextLevel(): Players' highest level (= {}) will be the next level", nextLevel);
+    void prepareLevelForPlayer(int level) {
+        setLevel(level);
+        logger.debug("Preparing level {} for player.", lifeCycle.getLevel());
 
         if (lifeCycle.getLevel() != 1) {
             projectService.initialize();
 
-            // Send talent market to players at once
             GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
             messagingService.broadcast(employeeEvent);
         }
 
-        // Logic for decisions and their consequences
-        // Beware: Decisions from previous levels might have consequences in other levels
-        if (lifeCycle.getLevel() == 1) {
-            levelConsequencesService.triggerLevel1Consequences();
-        } else if (lifeCycle.getLevel() == 2) {
-            levelConsequencesService.triggerLevel2Consequences();
-        } else if (lifeCycle.getLevel() == 3) {
-            levelConsequencesService.triggerLevel3Consequences();
-        } else if (lifeCycle.getLevel() == MAX_NUMBER_OF_PLAYERS_PER_GAME) {
-            levelConsequencesService.triggerLevel4Consequences();
+        // Trigger level consequences
+        switch (lifeCycle.getLevel()) {
+            case 1 -> levelConsequencesService.triggerLevel1Consequences();
+            case 2 -> levelConsequencesService.triggerLevel2Consequences();
+            case 3 -> levelConsequencesService.triggerLevel3Consequences();
+            case MAX_NUMBER_OF_PLAYERS_PER_GAME -> levelConsequencesService.triggerLevel4Consequences();
+            default -> logger.warn("No level consequences for level {}", lifeCycle.getLevel());
         }
 
-        // Add permanent employee status effects, if unlocked (e.g., "team-spirit")
+        // Add permanent status effects to players
         playerService.getPlayers().forEach((ignored, somePlayerInTheGame) -> {
             logger.debug("Checking for permanent status effects for player {}", somePlayerInTheGame.getId());
             if (skillService.playerHasSkill(somePlayerInTheGame, TEAM_SPIRIT)) {
@@ -313,7 +301,7 @@ public class Game {
             }
         });
 
-        playerService.getPlayers().forEach((ignored, somePlayerInTheGame ) -> {
+        playerService.getPlayers().forEach((ignored, somePlayerInTheGame) -> {
             if (somePlayerInTheGame.getDecisionsByLevel(lifeCycle.getLevel()).isEmpty()) {
                 logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), lifeCycle.getLevel());
             }
@@ -422,7 +410,7 @@ public class Game {
 
     void checkGameOverConditions() {
         playerService.getPlayers().forEach((webSocket, player) -> {
-            if (player.isBankrupt() || player.completedAllObjectives()) {
+            if (player.isBankrupt(lifeCycle.getLevel()) || player.completedAllObjectives()) {
                 handleGameOver(player, webSocket); // Decide what to do next
             }
         });
@@ -432,7 +420,7 @@ public class Game {
         int numberOfLevelsInTheGame = 3;
         int level = lifeCycle.getLevel();
         logger.debug("Game over for player {}.", player.getId());
-        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt();
+        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt(lifeCycle.getLevel());
 
         GameOverStats goStats = createGameOverStats(this, player, lifeCycle.getTick());
         goStats.setReport(playerHasWon ? "win" : "fail");
@@ -446,8 +434,8 @@ public class Game {
 
             // Only increase level for existing levels
             if (level < numberOfLevelsInTheGame) {
-                player.setLevel(level + 1);
-                logger.debug("Player {} has reached level {}.", player.getId(), level + 1);
+                lifeCycle.setLevel(level + 1);
+                logger.debug("Player {} has reached level {}.", player.getId(), lifeCycle.getLevel());
             } else {
                 logger.debug("Player {} has reached the final level.", player.getId());
             }
@@ -464,6 +452,11 @@ public class Game {
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
         messagingService.sendToPlayer(player, playerUpdateEvent);
+
+        // Send level updated
+        GameEvent<Integer> levelUpdatedEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
+        levelUpdatedEvent.setPayload(lifeCycle.getLevel());
+        messagingService.sendToPlayer(player, levelUpdatedEvent);
 
         // Fire game over event for GameServer to handle (save high-score etc.)
         GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
@@ -511,6 +504,10 @@ public class Game {
         } else {
             logger.warn("Player could not be removed from game.");
         }
+    }
+
+    public int getLevel() {
+        return lifeCycle.getLevel();
     }
 
     public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats, Game game) {}

@@ -137,7 +137,7 @@ public class ProjectServiceImpl implements ProjectService {
             }
 
             player.addFunds(profit);
-            AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
+            AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, level, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
 
@@ -460,6 +460,7 @@ public class ProjectServiceImpl implements ProjectService {
             accountingService.addEntry(new AccountingEntry(
                     player,
                     tick,
+                    level,
                     cancellationPenalty,
                     AccountCategory.PENALTIES,
                     TransactionType.DEBIT,
@@ -790,7 +791,7 @@ public class ProjectServiceImpl implements ProjectService {
         problemGenerator.loadProblemsByLevel(level);
     }
 
-    public void assessProjectRiskForPlayer(Project project, Player player, int tick) {
+    public void assessProjectRiskForPlayer(Project project, Player player, int tick, int level) {
         project.setHasBeenRiskAssessed(true);
 
         // Deduct funds from player
@@ -798,6 +799,7 @@ public class ProjectServiceImpl implements ProjectService {
         accountingService.addEntry(new AccountingEntry(
                 player,
                 tick,
+                level,
                 riskAssessmentCost,
                 AccountCategory.DEBIT_PROJECTS,
                 TransactionType.DEBIT,

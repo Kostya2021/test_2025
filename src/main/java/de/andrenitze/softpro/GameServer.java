@@ -212,7 +212,9 @@ public class GameServer extends WebSocketServer {
         sendVersionAndGameSpeed(webSocket);
 
         Player newPlayer = new Player();
-        addPlayerToLobby(webSocket, newPlayer);
+
+        // This needs to be replaced with the current level from the players' user account
+        addPlayerToLobby(webSocket, newPlayer, 1);
     }
 
     private void sendVersionAndGameSpeed(WebSocket webSocket) {
@@ -238,7 +240,7 @@ public class GameServer extends WebSocketServer {
      * @param webSocket WebSocket   The WebSocket connection to the client
      * @param player Player         The player to be added to the game
      */
-    private void createGame(WebSocket webSocket, Player player) {
+    private void createGame(WebSocket webSocket, Player player, int level) {
         logger.debug("Creating new game instance for player {}", player.getId());
         AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
         Game game = gameContext.getBean(Game.class);
@@ -267,15 +269,20 @@ public class GameServer extends WebSocketServer {
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         logger.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
-        game.prepareNextLevelForPlayer();
+        game.prepareLevelForPlayer(level);
         try {
             game.getPlayerService().addPlayer(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         } catch (Exception e) {
             logger.error("Could not add player to game: {}", e.getMessage());
             return;
         }
-        logger.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), player.getLevel(), player.getId());
+        logger.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), lifeCycleService.getLevel(), player.getId());
         prepareForNextLevel(player, game);
+
+        // Notify player about next level
+        GameEvent<Integer> levelUpdateEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
+        levelUpdateEvent.setPayload(lifeCycleService.getLevel());
+        webSocket.send(gson.toJson(levelUpdateEvent));
     }
 
     /**
@@ -283,14 +290,15 @@ public class GameServer extends WebSocketServer {
      * This can be in the lobby OR on the briefing screen.
      */
     private void prepareForNextLevel(Player player, Game game) {
-        logger.debug("Preparing game for level {} and player {}", player.getLevel(), player.getId());
+        int level = game.getLevel();
+        logger.debug("Preparing game for level {} and player {}", level, player.getId());
 
         // Give player chance to prepare for the next level (read up, make decisions etc.)
         player.setReady(false);
 
         // Initialization methods change the player's state according to the player's level
-        player.initializeObjectives();
-        player.initializeFunds();
+        player.initializeObjectives(level);
+        player.initializeFunds(level);
         player.setXp(0);
 
         // Initialize the projects
@@ -299,10 +307,8 @@ public class GameServer extends WebSocketServer {
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);
 
-        logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLifeCycle().getLevel());
-
         // For level 1, generate the player as his/her own first and only employee
-        if (player.getLevel() == 1) {
+        if (level == 1) {
             player.setEmployees(new ArrayList<>());
             Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
             employee.setFirstName(player.getFirstName());
@@ -335,13 +341,9 @@ public class GameServer extends WebSocketServer {
                         false);
                 game.getProjectService().addProject(project);
             }
-
-            logger.debug("Generated 3 projects for player {}. Now {} projects in game.",
-                    player.getId(),
-                    game.getProjectService().getProjects().size());
         }
 
-        if (player.getLevel() == 2) {
+        if (level == 2) {
             // For level 2, populate the talent market with employees
             game.getTalentMarket().initialize();
 
@@ -409,7 +411,7 @@ public class GameServer extends WebSocketServer {
             int level = playerReadyEvent.getPayload().level();
             List<Decision> decisions = playerReadyEvent.getPayload().decisions();
             player.setDecisions(level, decisions);
-            decisionService.saveDecisionsAsync(player.getId().toString(), player.getLevel(), player.getDecisionsByLevel(level));
+            decisionService.saveDecisionsAsync(player.getId().toString(), gameLifeCycleService.getLevel(), player.getDecisionsByLevel(level));
 
             player.setReady(true);
             startReadyGames();
@@ -580,10 +582,11 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    public void addPlayerToLobby(WebSocket webSocket, Player player) {
+    public void addPlayerToLobby(WebSocket webSocket, Player player, int level) {
         lobbyPlayerService.addPlayer(webSocket, player);
-        createGame(webSocket, player);
+        createGame(webSocket, player, level);
 
+        // Send player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
         webSocket.send(gson.toJson(playerUpdateEvent));
@@ -664,7 +667,9 @@ public class GameServer extends WebSocketServer {
 
         // Move player from game to lobby
         gamePlayerService.removePlayer(player);
-        addPlayerToLobby(webSocket, player);
+
+        // Keep the level to create a correct new game instance (the old game context is already destroyed)
+        addPlayerToLobby(webSocket, player, game.getLevel());
         player.setReady(false);
 
         broadcastLobbyState();
