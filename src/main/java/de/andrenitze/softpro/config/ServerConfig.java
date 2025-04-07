@@ -2,6 +2,7 @@ package de.andrenitze.softpro.config;
 
 import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
+import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import org.springframework.context.ApplicationContext;
@@ -24,8 +25,8 @@ public class ServerConfig {
     }
 
     @Bean
-    public GameServer gameServer(LobbyPlayerServiceImpl lobby, GameFactory gameFactory) {
-        return new GameServer(gameFactory, lobby);
+    public GameServer gameServer(LobbyPlayerServiceImpl lobby, GameFactory gameFactory, GameLifeCycleService lifeCycleService) {
+        return new GameServer(gameFactory, lobby, lifeCycleService);
     }
 
     @Bean

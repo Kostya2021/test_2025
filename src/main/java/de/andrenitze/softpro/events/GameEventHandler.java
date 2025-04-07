@@ -20,7 +20,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
 import static de.andrenitze.softpro.Main.logger;
 
 public class GameEventHandler {
@@ -273,7 +272,7 @@ public class GameEventHandler {
                 GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
                 effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE));
                 messagingService.sendToPlayer(playerService.getPlayer(websocket), effectDisabledEvent);
-            }, GAME_SPEED_IN_MILLISECONDS * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
+            }, gameLifeCycleService.getGameSpeedInMilliseconds() * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
         } else if (effect.equals(TEAM_SPIRIT)) {
             for (Employee employee : playerService.getPlayer(websocket).getEmployees()) {
                 employee.addComplexStatusEffect(effect);

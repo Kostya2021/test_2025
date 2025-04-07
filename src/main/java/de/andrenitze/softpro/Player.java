@@ -19,7 +19,7 @@ import static de.andrenitze.softpro.Main.logger;
 public class Player {
     static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
     static {
-        INITIAL_FUNDS.put(1, 10000f);
+        INITIAL_FUNDS.put(1, 25000f);
         INITIAL_FUNDS.put(2, 100000f);
         INITIAL_FUNDS.put(3, 100000f);
         INITIAL_FUNDS.put(4, 100000f);

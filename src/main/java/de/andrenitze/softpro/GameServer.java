@@ -47,13 +47,12 @@ import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.Game.GAME_SPEED_IN_MILLISECONDS;
-
 @Component
 public class GameServer extends WebSocketServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final GameFactory gameFactory;
     private final LobbyPlayerServiceImpl lobbyPlayerService;
+    private final GameLifeCycleService gameLifeCycleService;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -85,10 +84,11 @@ public class GameServer extends WebSocketServer {
      */
     @Autowired
     public GameServer(GameFactory gameFactory,
-                      LobbyPlayerServiceImpl lobbyPlayerService) {
+                      LobbyPlayerServiceImpl lobbyPlayerService, GameLifeCycleService gameLifeCycleService) {
         super(new InetSocketAddress(DEFAULT_PORT));
         this.gameFactory = gameFactory;
         this.lobbyPlayerService = lobbyPlayerService;
+        this.gameLifeCycleService = gameLifeCycleService;
     }
 
     @Override
@@ -223,7 +223,7 @@ public class GameServer extends WebSocketServer {
             GameEvent<Map<String, Object>> versionEvent = new GameEvent<>(EventType.VERSION);
             Map<String, Object> payload = new HashMap<>();
             payload.put("version", version);
-            payload.put("gameSpeed", GAME_SPEED_IN_MILLISECONDS);
+            payload.put("gameSpeed", gameLifeCycleService.getGameSpeedInMilliseconds());
             versionEvent.setPayload(payload);
             webSocket.send(GameServer.getGson().toJson(versionEvent));
         } catch (IOException e) {

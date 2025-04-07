@@ -55,7 +55,6 @@ public class Game {
     @Setter private ObjectiveServiceImpl objectiveService;
     private LevelConsequencesService levelConsequencesService;
 
-    public static final int GAME_SPEED_IN_MILLISECONDS = 700;
     @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
 
@@ -141,7 +140,7 @@ public class Game {
             messagingService.broadcast(timerEvent);
 
             progressGameTime();
-        }, 750, GAME_SPEED_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
+        }, 750, lifeCycleService.getGameSpeedInMilliseconds(), TimeUnit.MILLISECONDS);
 
         logger.info("A new game has started with {} players in level {}.", playerService.getPlayers().size(), getLevel());
     }
@@ -490,7 +489,7 @@ public class Game {
         goStats.setDeliveredProjects(deliveredProjects);
         goStats.setProjectsVolume(projectsVolume);
         goStats.setSurvivedDays(tick);
-        goStats.setPlayedSeconds(tick * GAME_SPEED_IN_MILLISECONDS / 1000);
+        goStats.setPlayedSeconds(tick * lifeCycleService.getGameSpeedInMilliseconds() / 1000);
         goStats.setLevel(level);
 
         DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
