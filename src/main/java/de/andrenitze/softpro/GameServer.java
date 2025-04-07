@@ -261,7 +261,7 @@ public class GameServer extends WebSocketServer {
                 game.getProjectService(),
                 game.getSkillService(),
                 game.getProjectEmployeeService()));
-        game.setLifeCycleService(lifeCycleService);
+        game.setLifeCycle(lifeCycleService);
         game.getMessagingService().setPlayerService(playerService);
 
         // Add the game context and game instance to the gameContexts map
@@ -299,7 +299,7 @@ public class GameServer extends WebSocketServer {
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);
 
-        logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLevel());
+        logger.debug("player level is {}, game level is {}", player.getLevel(), game.getLifeCycle().getLevel());
 
         // For level 1, generate the player as his/her own first and only employee
         if (player.getLevel() == 1) {

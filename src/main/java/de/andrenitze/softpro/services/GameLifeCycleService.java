@@ -19,6 +19,8 @@ public class GameLifeCycleService {
     private boolean running;
     @Getter
     private LocalDate currentDate;
+    @Getter @Setter
+    private int level;
 
     public GameLifeCycleService() {
         this.tick = 0;

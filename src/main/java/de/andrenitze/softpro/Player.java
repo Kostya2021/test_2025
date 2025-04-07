@@ -71,7 +71,7 @@ public class Player {
     private int skillPoints = 0;
     // The level the player has reached in the game
     @Setter @Getter
-    private int level = 1;
+    private int level = 2;
 
     @EqualsAndHashCode.Exclude
     private final Map<Integer, List<Decision>> decisions = new HashMap<>();

@@ -36,7 +36,7 @@ class GameTest {
     @Test
     void testDecisionConsequences() {
         // Simulate a decision made by the player in Level 2
-        game.getProjectService().assessProjectRiskForPlayer(project, player, game.getLifeCycleService().getTick());
+        game.getProjectService().assessProjectRiskForPlayer(project, player, game.getLifeCycle().getTick());
 
         // Move to Level 3
         game.getPlayerService().generateFirstEmployeesForPlayers();

@@ -51,11 +51,9 @@ public class Game {
     @Getter @Setter private GameEventHandler eventHandler;
     @Getter private GameEventPublisher eventPublisher;
     @Getter private ProjectEmployeeMappingImpl projectEmployeeService;
-    @Setter @Getter private GameLifeCycleService lifeCycleService;
+    @Setter @Getter private GameLifeCycleService lifeCycle;
     @Setter private ObjectiveServiceImpl objectiveService;
     private LevelConsequencesService levelConsequencesService;
-
-    @Getter private int level = 1;
     private ScheduledExecutorService gameLoop;
 
     /**
@@ -74,7 +72,7 @@ public class Game {
                 GameEventHandler eventHandler,
                 GameEventPublisher eventPublisher,
                 LevelConsequencesService levelConsequencesService,
-                GameLifeCycleService lifeCycleService,
+                GameLifeCycleService lifeCycle,
                 ProjectEmployeeMappingImpl projectEmployeeMapping,
                 StoryService storyService) {
         this.talentMarket = new TalentMarket();
@@ -89,22 +87,22 @@ public class Game {
         this.eventHandler = eventHandler;
         this.eventPublisher = eventPublisher;
         this.levelConsequencesService = levelConsequencesService;
-        this.lifeCycleService = lifeCycleService;
+        this.lifeCycle = lifeCycle;
         this.projectEmployeeService = projectEmployeeMapping;
         this.storyService = storyService;
 
         // Don't initialize the talent market for level 1
-        if (level != 1) {
+        if (lifeCycle.getLevel() != 1) {
             talentMarket.initialize();
         }
     }
 
     // Mandatory services are injected here
-    public Game(StoryService storyService, GamePlayerServiceImpl playerService, SkillServiceImpl skillService, GameLifeCycleService lifeCycleService) {
+    public Game(StoryService storyService, GamePlayerServiceImpl playerService, SkillServiceImpl skillService, GameLifeCycleService lifeCycle) {
         this.storyService = storyService;
         this.playerService = playerService;
         this.skillService = skillService;
-        this.lifeCycleService = lifeCycleService;
+        this.lifeCycle = lifeCycle;
     }
 
     public void start() {
@@ -117,7 +115,7 @@ public class Game {
         }
 
         // Start the round for all players
-        lifeCycleService.run();
+        lifeCycle.run();
         messagingService.broadcast(EventType.ROUND_STARTED);
         messagingService.broadcastInitialState();
 
@@ -130,19 +128,19 @@ public class Game {
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
         gameLoop.scheduleWithFixedDelay(() -> {
-            if (lifeCycleService.isPaused()) {
+            if (lifeCycle.isPaused()) {
                 return;
             }
 
             // Notify all clients of current time
             GameEvent<Integer> timerEvent = new GameEvent<>(EventType.TICK);
-            timerEvent.setPayload(lifeCycleService.getTick());
+            timerEvent.setPayload(lifeCycle.getTick());
             messagingService.broadcast(timerEvent);
 
             progressGameTime();
-        }, 750, lifeCycleService.getGameSpeedInMilliseconds(), TimeUnit.MILLISECONDS);
+        }, 750, lifeCycle.getGameSpeedInMilliseconds(), TimeUnit.MILLISECONDS);
 
-        logger.info("A new game has started with {} players in level {}.", playerService.getPlayers().size(), getLevel());
+        logger.info("A new game has started with {} players in level {}.", playerService.getPlayers().size(), lifeCycle.getLevel());
     }
 
     /**
@@ -150,20 +148,20 @@ public class Game {
      * Order is important, because some methods depend on the state of others (side effects are likely).
      */
     private void progressGameTime() {
-        if (lifeCycleService.isPaused()) {
+        if (lifeCycle.isPaused()) {
             return;
         }
 
-        lifeCycleService.nextTick();
+        lifeCycle.nextTick();
 
         long startTime = System.nanoTime();
 
         List<Project> updatedProjects = projectService.conductWorkOnAllProjects(
-                lifeCycleService.getTick(), getLevel(), lifeCycleService.getCurrentDate()
+                lifeCycle.getTick(), lifeCycle.getLevel(), lifeCycle.getCurrentDate()
         );
 
         for (Project project : updatedProjects) {
-            projectService.getProjectSummaryIfProgressChanged(project, lifeCycleService.getTick())
+            projectService.getProjectSummaryIfProgressChanged(project, lifeCycle.getTick())
                     .ifPresent(summary -> {
                         GameEvent<ProjectSummary> event = new GameEvent<>(EventType.PROJECT_UPDATED);
                         event.setPayload(summary);
@@ -174,28 +172,28 @@ public class Game {
         }
 
 
-        projectService.cancelOverdueProjects(lifeCycleService.getTick(), getLevel());
-        projectService.evaluateTenderProcesses(lifeCycleService.getTick());
+        projectService.cancelOverdueProjects(lifeCycle.getTick(), lifeCycle.getLevel());
+        projectService.evaluateTenderProcesses(lifeCycle.getTick());
         // Things not to do in the first level
         // The "level" param in the other methods are used for a similar decision and might be removed in the future.
-        if (getLevel() != 1) {
-            projectService.randomlySpawnTenders(lifeCycleService.getTick());
-            projectService.generateRandomComplianceProjects(lifeCycleService.getTick());
+        if (lifeCycle.getLevel() != 1) {
+            projectService.randomlySpawnTenders(lifeCycle.getTick());
+            projectService.generateRandomComplianceProjects(lifeCycle.getTick());
             notifyPlayersAboutStaleTenders();
-            projectService.startStaleProjects(lifeCycleService.getTick());
+            projectService.startStaleProjects(lifeCycle.getTick());
         } else {
             // Generate player-specific (easy) tenders in level 1
-            projectService.randomlySpawnLevel1Tenders(lifeCycleService.getTick(), playerService.getRandomPlayer());
+            projectService.randomlySpawnLevel1Tenders(lifeCycle.getTick(), playerService.getRandomPlayer());
         }
-        projectService.createProblemsInProjects(lifeCycleService.getTick(), getLevel());
-        accountingService.processMonthlyPayments(lifeCycleService.getCurrentDate(), playerService.getPlayers(), lifeCycleService.getTick(), getLevel());
-        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycleService.getTick()));
-        employeeService.simulateEmployeeLives(lifeCycleService.getTick());
+        projectService.createProblemsInProjects(lifeCycle.getTick(), lifeCycle.getLevel());
+        accountingService.processMonthlyPayments(lifeCycle.getCurrentDate(), playerService.getPlayers(), lifeCycle.getTick(), lifeCycle.getLevel());
+        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick()));
+        employeeService.simulateEmployeeLives(lifeCycle.getTick());
 
-        Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycleService.getTick());
+        Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycle.getTick());
         for (Map.Entry<Player, List<Objective>> entry : newObjectivesMap.entrySet()) {
             Player player = entry.getKey();
-            List<Objective> allObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
+            List<Objective> allObjectives = player.getObjectivesUntilThisTick(lifeCycle.getTick());
             GameEvent<List<Objective>> gameEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
             gameEvent.setPayload(allObjectives);
             messagingService.sendToPlayer(player, gameEvent);
@@ -204,14 +202,14 @@ public class Game {
 
         // Send updates for all projects which have been completed or cancelled in this tick
         projectService.getProjects().stream()
-                .filter(project -> project.isCompleted() && project.getCompletedAt() == lifeCycleService.getTick() ||
-                        project.getCancelledAt() == lifeCycleService.getTick())
+                .filter(project -> project.isCompleted() && project.getCompletedAt() == lifeCycle.getTick() ||
+                        project.getCancelledAt() == lifeCycle.getTick())
                 .forEach(project -> project.getInvolvedPlayers().forEach(player ->
                         messagingService.sendProjectUpdate(player, project)));
 
         // Send project tenders published in this tick
         projectService.getProjects().stream()
-                .filter(project -> project.getPublishedAt() == lifeCycleService.getTick())
+                .filter(project -> project.getPublishedAt() == lifeCycle.getTick())
                 .forEach(project -> {
                     // Broadcast new tenders
                     GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
@@ -234,7 +232,7 @@ public class Game {
 
         // Send force-started project notification
         projectService.getProjects().stream()
-                .filter(project -> project.getStartedAt() == lifeCycleService.getTick())
+                .filter(project -> project.getStartedAt() == lifeCycle.getTick())
                 .forEach(project -> {
                     GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
                     HashMap<String, Integer> payload = new HashMap<>();
@@ -262,7 +260,7 @@ public class Game {
         long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
 
         // If time elapsed is more than 20 ms and game is not currently shutting down
-        if (timeElapsedInMilliseconds >= 20 && lifeCycleService.isRunning()) {
+        if (timeElapsedInMilliseconds >= 20 && lifeCycle.isRunning()) {
             logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
     }
@@ -282,7 +280,7 @@ public class Game {
 
         logger.debug("prepareNextLevel(): Players' highest level (= {}) will be the next level", nextLevel);
 
-        if (getLevel() != 1) {
+        if (lifeCycle.getLevel() != 1) {
             projectService.initialize();
 
             // Send talent market to players at once
@@ -293,13 +291,13 @@ public class Game {
 
         // Logic for decisions and their consequences
         // Beware: Decisions from previous levels might have consequences in other levels
-        if (getLevel() == 1) {
+        if (lifeCycle.getLevel() == 1) {
             levelConsequencesService.triggerLevel1Consequences();
-        } else if (getLevel() == 2) {
+        } else if (lifeCycle.getLevel() == 2) {
             levelConsequencesService.triggerLevel2Consequences();
-        } else if (getLevel() == 3) {
+        } else if (lifeCycle.getLevel() == 3) {
             levelConsequencesService.triggerLevel3Consequences();
-        } else if (getLevel() == MAX_NUMBER_OF_PLAYERS_PER_GAME) {
+        } else if (lifeCycle.getLevel() == MAX_NUMBER_OF_PLAYERS_PER_GAME) {
             levelConsequencesService.triggerLevel4Consequences();
         }
 
@@ -316,14 +314,14 @@ public class Game {
         });
 
         playerService.getPlayers().forEach((ignored, somePlayerInTheGame ) -> {
-            if (somePlayerInTheGame.getDecisionsByLevel(getLevel()).isEmpty()) {
-                logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), getLevel());
+            if (somePlayerInTheGame.getDecisionsByLevel(lifeCycle.getLevel()).isEmpty()) {
+                logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), lifeCycle.getLevel());
             }
         });
     }
 
     private void setLevel(int i) {
-        this.level = i;
+        lifeCycle.setLevel(i);
 
         // Load problems for the level
         projectService.loadProblems(i);
@@ -333,7 +331,7 @@ public class Game {
     }
 
     private void sendAnyNewStoryElements(Player player) {
-        List<StoryElement> newStoryElements = storyService.getNewStoryElementsForPlayer(player, lifeCycleService.getTick());
+        List<StoryElement> newStoryElements = storyService.getNewStoryElementsForPlayer(player, lifeCycle.getTick());
         if (!newStoryElements.isEmpty()) {
             GameEvent<List<StoryElement>> storyEvent = new GameEvent<>(EventType.STORY_ELEMENTS_ADDED);
             storyEvent.setPayload(newStoryElements);
@@ -343,7 +341,7 @@ public class Game {
 
     private void notifyPlayersAboutStaleTenders() {
         // Notify players about stale tenders
-        List<Project> staleTenders = projectService.getStaleTenders(lifeCycleService.getTick());
+        List<Project> staleTenders = projectService.getStaleTenders(lifeCycle.getTick());
         GameEvent<List<Project>> staleTendersEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
         staleTendersEvent.setPayload(staleTenders);
         messagingService.broadcast(staleTendersEvent);
@@ -398,7 +396,7 @@ public class Game {
 
     private void sendAnyNewAccountingEntries(Player player) {
         // Send any new accounting entries
-        List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycleService.getTick());
+        List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycle.getTick());
         GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
         accountingEntriesEvent.setPayload(newEntries);
         if (!newEntries.isEmpty()) {
@@ -411,7 +409,7 @@ public class Game {
             if (objectiveService.areThereObjectivesUpdates(player)) {
                 logger.debug("Sending updated objectives to player.");
                 try {
-                    List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycleService.getTick());
+                    List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycle.getTick());
                     GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                     objectivesUpdatedEvent.setPayload(allActiveObjectives);
                     messagingService.sendToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
@@ -432,10 +430,11 @@ public class Game {
 
     private void handleGameOver(Player player, WebSocket webSocket) {
         int numberOfLevelsInTheGame = 3;
+        int level = lifeCycle.getLevel();
         logger.debug("Game over for player {}.", player.getId());
         boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt();
 
-        GameOverStats goStats = createGameOverStats(this, player, lifeCycleService.getTick());
+        GameOverStats goStats = createGameOverStats(this, player, lifeCycle.getTick());
         goStats.setReport(playerHasWon ? "win" : "fail");
 
         if (playerHasWon) {
@@ -489,13 +488,13 @@ public class Game {
         goStats.setDeliveredProjects(deliveredProjects);
         goStats.setProjectsVolume(projectsVolume);
         goStats.setSurvivedDays(tick);
-        goStats.setPlayedSeconds(tick * lifeCycleService.getGameSpeedInMilliseconds() / 1000);
-        goStats.setLevel(level);
+        goStats.setPlayedSeconds(tick * lifeCycle.getGameSpeedInMilliseconds() / 1000);
+        goStats.setLevel(lifeCycle.getLevel());
 
         DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
         Map<Integer, List<OptionVoteDistribution>> distributions = null;
         try {
-            distributions = dao.getVoteDistributionByLevel(level);
+            distributions = dao.getVoteDistributionByLevel(lifeCycle.getLevel());
         } catch (ConnectException e) {
             logger.warn("Could not fetch vote distributions from database: {}", e.getMessage());
         }
@@ -561,6 +560,6 @@ public class Game {
 
     // Forwarding the method for the GameServer
     public boolean isRunning() {
-        return lifeCycleService.isRunning();
+        return lifeCycle.isRunning();
     }
 }
