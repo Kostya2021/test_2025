@@ -52,19 +52,19 @@ public class AccountingServiceImpl implements AccountingService {
             players.forEach((ignored, player) -> {
                 // Calculate and subtract salaries
                 int salaries = player.calculateAndSubtractSalaries();
-                AccountingEntry salaryEntry = new AccountingEntry(player, gameTick, salaries, AccountCategory.SALARIES,
+                AccountingEntry salaryEntry = new AccountingEntry(player, gameTick, gameLevel, salaries, AccountCategory.SALARIES,
                         TransactionType.DEBIT, "Monthly salaries");
                 addEntry(salaryEntry);
 
                 // Office rent (fixed costs, rises with level)
                 int rent = 500 * (gameLevel-1);
-                AccountingEntry rentEntry = new AccountingEntry(player, gameTick, rent, AccountCategory.OVERHEAD,
+                AccountingEntry rentEntry = new AccountingEntry(player, gameTick, gameLevel, rent, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Office rent");
                 addEntry(rentEntry);
 
                 // Insurance (fixed costs, rises with level)
                 int insurance = 150 * gameLevel;
-                AccountingEntry insuranceEntry = new AccountingEntry(player, gameTick, insurance, AccountCategory.OVERHEAD,
+                AccountingEntry insuranceEntry = new AccountingEntry(player, gameTick, gameLevel, insurance, AccountCategory.OVERHEAD,
                         TransactionType.DEBIT, "Insurance");
                 addEntry(insuranceEntry);
 

@@ -22,8 +22,6 @@ public class StoryElementsLoader {
         ClassLoader classLoader = getClass().getClassLoader();
         InputStream inputStream = classLoader.getResourceAsStream(filename);
 
-        logger.debug("Loading story elements from file: {}", filename);
-
         if (inputStream == null) {
             throw new IllegalArgumentException("file not found! " + filename);
         } else {
@@ -35,7 +33,7 @@ public class StoryElementsLoader {
         try {
             StoryElements extractedStoryElements = mapper.readValue(getFileFromResourceAsStream(level), StoryElements.class);
             levelStoryElements.put(level, extractedStoryElements.getElements());
-            logger.debug("Loaded {} story elements for level {}", extractedStoryElements.getElements().size(), level);
+            logger.debug("Loaded {} story elements for level {}.", extractedStoryElements.getElements().size(), level);
         } catch (IOException e) {
             logger.error("Error while loading story elements from yaml file: {}", e.getMessage());
         }

@@ -20,7 +20,7 @@ public class Player {
     static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
     static {
         INITIAL_FUNDS.put(1, 25000f);
-        INITIAL_FUNDS.put(2, 100000f);
+        INITIAL_FUNDS.put(2, 150000f);
         INITIAL_FUNDS.put(3, 100000f);
         INITIAL_FUNDS.put(4, 100000f);
         INITIAL_FUNDS.put(5, 100000f);
@@ -37,7 +37,7 @@ public class Player {
         BANKRUPTCY_THRESHOLD.put(6, 0);
         BANKRUPTCY_THRESHOLD.put(7, 0);
     }
-    protected static final int[] XP_LEVEL_THRESHOLDS = {125, 250, 500, 1000, 2500, 8000, 15000, 20000, 30000};
+    protected static final int[] XP_LEVEL_THRESHOLDS = {125, 200, 350, 600, 800, 1000, 1200, 1400, 1600};
 
     @Getter @EqualsAndHashCode.Include
     private final UUID id;
@@ -69,9 +69,6 @@ public class Player {
     // Skill points are acquired after gaining a certain amount of XP and are invested to unlock skills
     @Getter @Setter
     private int skillPoints = 0;
-    // The level the player has reached in the game
-    @Setter @Getter
-    private int level = 1;
 
     @EqualsAndHashCode.Exclude
     private final Map<Integer, List<Decision>> decisions = new HashMap<>();
@@ -222,8 +219,8 @@ public class Player {
      * This method loads objectives and funds for the next level.
      * It requires the player's <i>level</i> to be set correctly before calling the method!
      */
-    public void initializeObjectives() {
-        this.missions = Objectives.getInstance(this.level).getMissions();
+    public void initializeObjectives(int level) {
+        this.missions = Objectives.getInstance(level).getMissions();
 
         // Make sure all objectives are not completed
         for (Mission mission : this.missions) {
@@ -232,7 +229,7 @@ public class Player {
             }
         }
 
-        logger.debug("Loaded funds and {} missions for level {} and player {}", this.missions.size(), this.level, id);
+        logger.debug("Loaded funds and {} missions for level {} and player {}", this.missions.size(), level, id);
     }
 
     public void addXp(int newXP) {
@@ -269,8 +266,8 @@ public class Player {
         this.decisions.put(level, decisions);
     }
 
-    public void initializeFunds() {
-        this.funds = INITIAL_FUNDS.get(this.level);
+    public void initializeFunds(int level) {
+        this.funds = INITIAL_FUNDS.get(level);
     }
 
     public boolean completedAllObjectives() {
@@ -284,8 +281,8 @@ public class Player {
         return true;
     }
 
-    public boolean isBankrupt() {
-        return this.funds < BANKRUPTCY_THRESHOLD.get(this.level);
+    public boolean isBankrupt(int level) {
+        return this.funds < BANKRUPTCY_THRESHOLD.get(level);
     }
 
     public List<Decision> getDecisionsByLevel(int level) {
@@ -310,7 +307,6 @@ public class Player {
                 !Objects.equals(this.missions, player.getMissions()) ||
                 !Objects.equals(this.xp, player.getXp()) ||
                 !Objects.equals(this.xpLevel, player.getXpLevel()) ||
-                !Objects.equals(this.skillPoints, player.getSkillPoints()) ||
-                !Objects.equals(this.level, player.getLevel());
+                !Objects.equals(this.skillPoints, player.getSkillPoints());
     }
 }

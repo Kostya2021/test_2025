@@ -195,7 +195,8 @@ public class GameEventHandler {
             return;
         }
 
-        projectService.assessProjectRiskForPlayer(project, player, gameLifeCycleService.getTick());
+        projectService.assessProjectRiskForPlayer(project, player, gameLifeCycleService.getTick(),
+                gameLifeCycleService.getLevel());
 
         // Send confirmation message to player
         GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.RISK_ASSESSMENT_CONFIRMED);
@@ -333,7 +334,8 @@ public class GameEventHandler {
 
         if (project != null) {
             logger.debug("Cancelling project '{}'...", projectId);
-            projectService.cancelProject(player, project, PARTY_CONTRACTOR, gameLifeCycleService.getTick(), player.getLevel());
+            projectService.cancelProject(player, project, PARTY_CONTRACTOR,
+                    gameLifeCycleService.getTick(), gameLifeCycleService.getLevel());
         } else {
             logger.warn("Could not cancel project. Project {} not found.", projectId);
         }

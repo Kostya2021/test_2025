@@ -137,7 +137,7 @@ public class ProjectServiceImpl implements ProjectService {
             }
 
             player.addFunds(profit);
-            AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, profit,
+            AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, level, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
 
@@ -460,6 +460,7 @@ public class ProjectServiceImpl implements ProjectService {
             accountingService.addEntry(new AccountingEntry(
                     player,
                     tick,
+                    level,
                     cancellationPenalty,
                     AccountCategory.PENALTIES,
                     TransactionType.DEBIT,
@@ -749,6 +750,11 @@ public class ProjectServiceImpl implements ProjectService {
             return;
         }
 
+        // Have a chance to spawn a project
+        if (RANDOM.nextFloat() >= PROJECT_SPAWN_PROBABILITY) {
+            return;
+        }
+
         Project project;
         // 25% chance for a perfect project
         if (RANDOM.nextFloat() <= 0.75) {
@@ -767,6 +773,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             project = new Project(type, domain, RiskLevel.LOW, false);
         }
+
         project.setTenderProcess(false);
         project.setPublishedAt(tick);
         addProject(project);
@@ -784,7 +791,7 @@ public class ProjectServiceImpl implements ProjectService {
         problemGenerator.loadProblemsByLevel(level);
     }
 
-    public void assessProjectRiskForPlayer(Project project, Player player, int tick) {
+    public void assessProjectRiskForPlayer(Project project, Player player, int tick, int level) {
         project.setHasBeenRiskAssessed(true);
 
         // Deduct funds from player
@@ -792,6 +799,7 @@ public class ProjectServiceImpl implements ProjectService {
         accountingService.addEntry(new AccountingEntry(
                 player,
                 tick,
+                level,
                 riskAssessmentCost,
                 AccountCategory.DEBIT_PROJECTS,
                 TransactionType.DEBIT,
