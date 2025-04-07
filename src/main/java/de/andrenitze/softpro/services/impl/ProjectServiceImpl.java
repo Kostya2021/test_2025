@@ -749,6 +749,11 @@ public class ProjectServiceImpl implements ProjectService {
             return;
         }
 
+        // Have a chance to spawn a project
+        if (RANDOM.nextFloat() >= PROJECT_SPAWN_PROBABILITY) {
+            return;
+        }
+
         Project project;
         // 25% chance for a perfect project
         if (RANDOM.nextFloat() <= 0.75) {
@@ -767,6 +772,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             project = new Project(type, domain, RiskLevel.LOW, false);
         }
+
         project.setTenderProcess(false);
         project.setPublishedAt(tick);
         addProject(project);
