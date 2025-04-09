@@ -214,7 +214,7 @@ public class GameServer extends WebSocketServer {
         Player newPlayer = new Player();
 
         // This needs to be replaced with the current level from the players' user account
-        addPlayerToLobby(webSocket, newPlayer, 1);
+        addPlayerToLobby(webSocket, newPlayer, 1); // First level
     }
 
     private void sendVersionAndGameSpeed(WebSocket webSocket) {
@@ -302,7 +302,7 @@ public class GameServer extends WebSocketServer {
         player.setXp(0);
 
         // Initialize the projects
-        game.getProjectService().setProjects(new ArrayList<>());
+        //game.getProjectService().setProjects(new ArrayList<>());
 
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);

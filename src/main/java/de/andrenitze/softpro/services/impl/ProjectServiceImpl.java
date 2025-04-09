@@ -502,7 +502,12 @@ public class ProjectServiceImpl implements ProjectService {
 
             // Cancel for each involved player
             for (Player player : project.getInvolvedPlayers()) {
-                cancelProject(player, project, PARTY_CLIENT, tick, level);
+                try {
+                    // TODO Hier gibt es ein Problem mit dem Abbruch. Liegt es an den involvedPlayers?
+                    cancelProject(player, project, PARTY_CLIENT, tick, level);
+                } catch (Exception e) {
+                    logger.error("Error cancelling project {} for player {}: {}", project.getName(), player.getId(), e.getMessage());
+                }
             }
         }
     }
@@ -572,18 +577,21 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public void initialize() {
+    public void initializeProjectMarket(int level) {
         setProjects(new ArrayList<>());
 
-        for (int i = 0; i < 100; i++) {
+        // Fill the market with random amount of project tenders (30-60 tenders)
+        int tenderCount = RANDOM.nextInt(30, 60);
+        for (int i = 0; i < tenderCount; i++) {
             Project project = new Project().initialize();
 
             // Set randomly negative publish dates to have some history of tenders
             project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
 
-            // Initialize the project-employee map with empty employees list
-            projectEmployeeService.addProject(project, new ArrayList<>());
+            // Add the tender to the list of projects
+            projects.add(project);
         }
+        logger.debug("Created {} tenders.", getProjects().size());
     }
 
     /**
@@ -592,7 +600,7 @@ public class ProjectServiceImpl implements ProjectService {
      *
      * @param tick  Current game tick
      */
-    public void generateRandomComplianceProjects(int tick) {
+    public void spawnComplianceProjects(int tick) {
         // Only have one compliance project at a time
         if (getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
                 RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
@@ -779,7 +787,7 @@ public class ProjectServiceImpl implements ProjectService {
         addProject(project);
     }
 
-    public void randomlySpawnTenders(int tick) {
+    public void spawnTenders(int tick) {
         if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
             Project project = new Project().initialize();
             project.setPublishedAt(tick);

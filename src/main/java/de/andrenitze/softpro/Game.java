@@ -122,8 +122,12 @@ public class Game {
         // Broadcast the initial state of the game to all players
         GameEvent<List<Project>> newTendersEvent = new GameEvent<>(EventType.TENDERS_ADDED);
         newTendersEvent.setPayload(projectService.getProjects());
-        logger.debug("Sending {} tenders to players.", newTendersEvent.getPayload().size());
         messagingService.broadcast(newTendersEvent);
+
+        // Now: TalentMarket
+        GameEvent<List<Employee>> newTalentsEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+        newTalentsEvent.setPayload(talentMarket.getTalents());
+        messagingService.broadcast(newTalentsEvent);
 
         // Start running the game time
         gameLoop = Executors.newSingleThreadScheduledExecutor();
@@ -177,8 +181,8 @@ public class Game {
         // Things not to do in the first level
         // The "level" param in the other methods are used for a similar decision and might be removed in the future.
         if (lifeCycle.getLevel() != 1) {
-            projectService.randomlySpawnTenders(lifeCycle.getTick());
-            projectService.generateRandomComplianceProjects(lifeCycle.getTick());
+            projectService.spawnTenders(lifeCycle.getTick());
+            projectService.spawnComplianceProjects(lifeCycle.getTick());
             notifyPlayersAboutStaleTenders();
             projectService.startStaleProjects(lifeCycle.getTick());
         } else {
@@ -273,7 +277,7 @@ public class Game {
         logger.debug("Preparing level {} for player.", lifeCycle.getLevel());
 
         if (lifeCycle.getLevel() != 1) {
-            projectService.initialize();
+            projectService.initializeProjectMarket(level);
 
             GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
@@ -308,14 +312,11 @@ public class Game {
         });
     }
 
-    private void setLevel(int i) {
-        lifeCycle.setLevel(i);
-
-        // Load problems for the level
-        projectService.loadProblems(i);
-
-        // Load story elements for the level
-        storyService.loadStory(i);
+    private void setLevel(int level) {
+        lifeCycle.setLevel(level);
+        projectService.loadProblems(level);
+        projectService.initializeProjectMarket(level);
+        storyService.loadStory(level);
     }
 
     private void sendAnyNewStoryElements(Player player) {
