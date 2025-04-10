@@ -271,8 +271,15 @@ public class GameEventHandler {
 
             int crunchModeCooldown = 20;
             scheduler.schedule(() -> {
+                // Disable effect after cooldown
+                for (Employee employee : projectEmployeeService.getEmployeesByProject(project)) {
+                    employee.removeStatusEffectsByReason(CRUNCH_MODE);
+                    messagingService.sendEmployeeUpdate(playerService.getPlayer(websocket), employee);
+                }
+
+                // Notify player
                 GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
-                effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE));
+                effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE, "projectId", String.valueOf(projectId)));
                 messagingService.sendToPlayer(playerService.getPlayer(websocket), effectDisabledEvent);
             }, gameLifeCycleService.getGameSpeedInMilliseconds() * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
         } else if (effect.equals(TEAM_SPIRIT)) {
