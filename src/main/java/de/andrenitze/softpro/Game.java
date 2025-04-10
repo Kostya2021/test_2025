@@ -389,8 +389,6 @@ public class Game {
         GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
         accountingEntriesEvent.setPayload(newEntries);
 
-        logger.debug("Sending {} new accounting entries to player {} in tick {}.", newEntries.size(), player.getId(), lifeCycle.getTick());
-
         if (!newEntries.isEmpty()) {
             messagingService.sendToPlayer(player, accountingEntriesEvent);
         }
