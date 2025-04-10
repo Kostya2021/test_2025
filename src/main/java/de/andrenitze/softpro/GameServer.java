@@ -249,7 +249,7 @@ public class GameServer extends WebSocketServer {
         // Get the PlayerService instance from the game context
         GamePlayerServiceImpl playerService = game.getPlayerService();
         GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
-        AccountingServiceImpl accountingService = gameContext.getBean(AccountingServiceImpl.class);
+        AccountingServiceImpl accountingService = game.getAccountingService();
 
         game.setEventHandler(new GameEventHandler(
                 game.getMessagingService(),
