@@ -300,6 +300,23 @@ class GameEventHandler {
                     }
                 }
             }
+            case EMPLOYEE_TRAINING_REQUESTED -> {
+                Type payloadType = new TypeToken<GameEvent<HashMap<String, Integer>>>() {}.getType();
+                GameEvent<HashMap<String, Integer>> employeeTrainingEvent = GSON.fromJson(message, payloadType);
+
+                int employeeId = employeeTrainingEvent.getPayload().get("employeeId");
+                String training = String.valueOf(employeeTrainingEvent.getPayload().get("trainingId"));
+
+                Player player = game.getPlayerByWebSocket(websocket);
+                Employee employee = player.getEmployeeById(employeeId);
+
+                if (employee == null) {
+                    logger.warn("Could not train employee. Employee {} not found.", employeeId);
+                    break;
+                }
+
+                employee.train(training);
+            }
             case EFFECT_DISABLED -> {
             }
             case PLAYER_NAME_UPDATED -> {

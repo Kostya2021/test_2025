@@ -37,5 +37,5 @@ public enum EventType {
     EFFECT_DISABLED,
     COOLDOWN,
     PAUSE,
-    RESUME,
+    RESUME, EMPLOYEE_TRAINING_REQUESTED,
 }
