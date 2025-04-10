@@ -74,7 +74,7 @@ public class ProblemGenerator {
             throw new IllegalStateException("No problems available. Ensure the file is loaded correctly.");
         }
 
-        // If occurredProblems equals the problems (= all problems have already occurred), dont return a problem
+        // If occurredProblems equals the problems (= all problems have already occurred), don't return a problem
         if (occurredProblems.size() == problems.size()) {
             return null;
         }
