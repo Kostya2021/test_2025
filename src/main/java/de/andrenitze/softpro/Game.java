@@ -191,7 +191,7 @@ public class Game {
         }
         projectService.createProblemsInProjects(lifeCycle.getTick(), lifeCycle.getLevel());
         accountingService.processMonthlyPayments(lifeCycle.getCurrentDate(), playerService.getPlayers(), lifeCycle.getTick(), lifeCycle.getLevel());
-        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick()));
+        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick(), playerService.getPlayers()));
         employeeService.simulateEmployeeLives(lifeCycle.getTick());
 
         Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycle.getTick());
@@ -388,6 +388,9 @@ public class Game {
         List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycle.getTick());
         GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
         accountingEntriesEvent.setPayload(newEntries);
+
+        logger.debug("Sending {} new accounting entries to player {} in tick {}.", newEntries.size(), player.getId(), lifeCycle.getTick());
+
         if (!newEntries.isEmpty()) {
             messagingService.sendToPlayer(player, accountingEntriesEvent);
         }

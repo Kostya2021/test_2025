@@ -5,23 +5,20 @@ import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.services.AccountingService;
-import de.andrenitze.softpro.services.PlayerService;
-import lombok.Setter;
 import org.java_websocket.WebSocket;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
 import static de.andrenitze.softpro.Main.logger;
 
 public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();
-    @Setter private PlayerService playerService;
 
-    public AccountingServiceImpl(PlayerService playerService) {
-        this.playerService = playerService;
+    public AccountingServiceImpl() {
     }
 
     // Adds a new entry to the in-memory list
@@ -74,8 +71,8 @@ public class AccountingServiceImpl implements AccountingService {
         }
     }
 
-    public List<AccountingEntry> getAccountingEntriesByTick(int gameTick) {
-        return playerService.getPlayers().values().stream()
+    public List<AccountingEntry> getAccountingEntriesByTick(int gameTick, Map<WebSocket, Player> players) {
+        return players.values().stream()
                 .flatMap(player -> getAllEntriesByPlayer(player).stream())
                 .filter(entry -> entry.getDay() == gameTick)
                 .toList();
