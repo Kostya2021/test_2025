@@ -47,7 +47,12 @@ Service classes for **Game** are defined in ```config/GameConfig.java```.
 ## Deployment
 A ```*.jar```-file with all dependencies is build and deployed to an Azure App Service (Java 21 SE runtime) via a Github Action on commit. 
 
-Environment variables (DB_URL, DB_USER, DB_PASSWORD, GAME_SPEED_IN_MILLISECONDS) are set in the Azure App Service configuration.
+The following environment variables can be defined:
+- DB_URL
+- DB_USER
+- DB_PASSWORD
+- GAME_SPEED_IN_MILLISECONDS
+- LOG_LEVEL
 
 ## Test Suite
 ### Unit Tests

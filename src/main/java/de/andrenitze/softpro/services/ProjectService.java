@@ -23,7 +23,7 @@ public interface ProjectService {
     Project getProjectById(int projectId);
     void conductTeamEstimation(int projectId, Player player, int tick);
     void startProject(Project project, int startedAt);
-    void initialize();
-    void randomlySpawnTenders(int tick);
+    void initializeProjectMarket(int level);
+    void spawnTenders(int tick);
     void randomlySpawnLevel1Tenders(int tick, Player player);
 }

@@ -95,10 +95,11 @@ public class GameEventHandler {
     private void handleJoinTenderEvent(WebSocket websocket, String message, int gameTick) {
         Type payloadType = new TypeToken<GameEvent<Integer>>() {}.getType();
         GameEvent<Integer> joinTenderEvent = GameServer.getGson().fromJson(message, payloadType);
+        int projectId = joinTenderEvent.getPayload();
 
         try {
             for (Project project : projectService.getProjects()) {
-                if (project.getId() == joinTenderEvent.getPayload()) {
+                if (project.getId() == projectId) {
                     Player player = playerService.getPlayer(websocket);
                     project.addParty(player);
 
@@ -336,6 +337,13 @@ public class GameEventHandler {
             logger.debug("Cancelling project '{}'...", projectId);
             projectService.cancelProject(player, project, PARTY_CONTRACTOR,
                     gameLifeCycleService.getTick(), gameLifeCycleService.getLevel());
+
+            // Just send the project to the player (cancelledAt has been updated)
+            GameEvent<Project> projectUpdatedEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
+            projectUpdatedEvent.setPayload(project);
+            // Notify all involved parties
+            project.getInvolvedPlayers()
+                    .forEach(p -> messagingService.sendToPlayer(p, projectUpdatedEvent));
         } else {
             logger.warn("Could not cancel project. Project {} not found.", projectId);
         }

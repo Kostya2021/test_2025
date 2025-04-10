@@ -15,6 +15,7 @@ import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.DecisionService;
 import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.PlayerService;
+import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.ObjectiveServiceImpl;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
@@ -214,7 +215,7 @@ public class GameServer extends WebSocketServer {
         Player newPlayer = new Player();
 
         // This needs to be replaced with the current level from the players' user account
-        addPlayerToLobby(webSocket, newPlayer, 1);
+        addPlayerToLobby(webSocket, newPlayer, 2); // First level
     }
 
     private void sendVersionAndGameSpeed(WebSocket webSocket) {
@@ -248,6 +249,7 @@ public class GameServer extends WebSocketServer {
         // Get the PlayerService instance from the game context
         GamePlayerServiceImpl playerService = game.getPlayerService();
         GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
+        AccountingServiceImpl accountingService = game.getAccountingService();
 
         game.setEventHandler(new GameEventHandler(
                 game.getMessagingService(),
@@ -265,6 +267,7 @@ public class GameServer extends WebSocketServer {
                 game.getProjectEmployeeService()));
         game.setLifeCycle(lifeCycleService);
         game.getMessagingService().setPlayerService(playerService);
+        game.getProjectService().setAccountingService(accountingService);
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
@@ -302,7 +305,7 @@ public class GameServer extends WebSocketServer {
         player.setXp(0);
 
         // Initialize the projects
-        game.getProjectService().setProjects(new ArrayList<>());
+        //game.getProjectService().setProjects(new ArrayList<>());
 
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);

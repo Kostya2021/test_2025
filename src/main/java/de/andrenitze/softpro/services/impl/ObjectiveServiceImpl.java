@@ -93,6 +93,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
             case OBJECTIVE_17 -> checkObjective17(player, projects, objective);
             case OBJECTIVE_210 -> checkObjective210(player, skillService, objective);
             case OBJECTIVE_220 -> checkObjective220(player, skillService, objective);
+            case OBJECTIVE_221 -> checkObjective221(player, objective);
             case OBJECTIVE_222 -> checkObjective222(player, objective);
             case OBJECTIVE_223 -> checkObjective223(player, objective);
             case OBJECTIVE_230 -> checkObjective230(player, objective);
@@ -196,6 +197,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         return false;
     }
 
+    // Unlock skill "Recruiting I"
     private boolean checkObjective220(Player player, SkillServiceImpl skillService, Objective objective) {
         Map<String, Skill> skills = skillService.getSkillsByPlayer(player);
         if (skills.containsKey("recruiting-1") && skills.get("recruiting-1").isUnlocked()) {
@@ -206,9 +208,22 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         return false;
     }
 
+    // Hire an employee from the talent market
+    private boolean checkObjective221(Player player, Objective objective) {
+        // Go through all employees and check if one has a hiredAt timestamp
+        // (indicating they were hired from the talent market).
+        if (player.getEmployees().stream().anyMatch(employee -> employee.getHiredAt() != 0)) {
+            objective.setCompletedAt(lifeCycleService.getTick());
+            logger.debug("Objective 221 completed: Employee hired from talent market.");
+            return true;
+        }
+        return false;
+    }
+
+    // Give your employee a 10% raise
     private boolean checkObjective222(Player player, Objective objective) {
         if (!player.getEmployees().isEmpty()) {
-            Employee employee = player.getEmployees().getFirst();
+            Employee employee = player.getEmployees().getLast();
             List<SalaryHistoryEntry> history = employee.getSalaryHistory();
 
             if (history.size() > 1) {
@@ -225,6 +240,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         return false;
     }
 
+    // Have a one-to-one with your employee
     private boolean checkObjective223(Player player, Objective objective) {
         if (!player.getEmployees().isEmpty()) {
             Employee employee = player.getEmployees().getFirst();
@@ -241,6 +257,12 @@ public class ObjectiveServiceImpl implements ObjectiveService {
         return false;
     }
 
+    // Train your employee in project management basics
+    private boolean checkObjective224(Player player, Objective objective) {
+        return false;
+    }
+
+    // Build a team of 5 employees
     private boolean checkObjective230(Player player, Objective objective) {
         if (player.getEmployees().size() != objective.getCompletedSteps()) {
             objective.setCompletedSteps(player.getEmployees().size());

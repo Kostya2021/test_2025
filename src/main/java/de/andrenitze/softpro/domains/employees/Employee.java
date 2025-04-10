@@ -58,7 +58,7 @@ public class Employee implements Serializable {
     private int thisYearsSickDays = 0;
     @Getter @Setter
     private float health = 0.0f;
-    @Getter
+    @Getter @Setter
     private String gender;
     @Getter
     private final List<StatusEffect> statusEffects = new ArrayList<>();
@@ -73,15 +73,15 @@ public class Employee implements Serializable {
     public Employee(Integer id) {
         this.id = id;
         String[] generatedName = nameGenerator.generateName();
-        this.firstName = generatedName[0];
-        this.lastName = generatedName[1];
-        this.gender = generatedName[2];
+        setFirstName(generatedName[0]);
+        setLastName(generatedName[1]);
+        setGender(generatedName[2]);
 
-        // Randomize salary between 3000 and 4500
-        this.salary = RANDOM.nextInt(0, 1500) + 3000;
+        // Randomize salary
+        setSalary(RANDOM.nextInt(0, 1500) + 1500, 0);
 
         // Randomize age between 20 and 60
-        this.age = RANDOM.nextInt(40) + MINIMUM_AGE;
+        setAge(RANDOM.nextInt(40) + MINIMUM_AGE);
 
         calculateSatisfaction();
         initializeSickDays();
