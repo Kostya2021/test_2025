@@ -85,11 +85,35 @@ public class GameEventHandler {
                 case ONE_TO_ONE_MEETING -> handleOneToOneMeetingEvent(websocket, message);
                 case TEAM_ESTIMATE_REQUESTED -> handleTeamEstimateRequestedEvent(websocket, message);
                 case PROJECT_CANCEL_REQUESTED -> handleProjectCancelRequestedEvent(websocket, message);
+                case EMPLOYEE_TRAINING_REQUESTED -> handleEmployeeTrainingRequestedEvent(websocket, message);
                 default -> logger.warn("Received unknown event type: {}", event.getType());
             }
         } catch (Exception e) {
             logger.error("Error handling event {}: {}", event.getType(), e.getMessage());
         }
+    }
+
+    private void handleEmployeeTrainingRequestedEvent(WebSocket websocket, String message) {
+        Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
+        GameEvent<HashMap<String, String>> trainingEvent = GameServer.getGson().fromJson(message, payloadType);
+        String training = trainingEvent.getPayload().get("trainingId");
+        int employeeId = Integer.parseInt(trainingEvent.getPayload().get(EMPLOYEE_ID));
+
+        if (training == null) {
+            logger.warn("Could not train employee. Training type is null.");
+            return;
+        }
+
+        Player player = playerService.getPlayer(websocket);
+        Employee employee = player.getEmployeeById(employeeId);
+
+        if (employee == null) {
+            logger.warn("Could not train employee. Employee {} not found.", employeeId);
+            return;
+        }
+
+        employee.train(training);
+        logger.debug("Player {} trained employee {} - {}", player.getId(), employee.getId(), employee.getName());
     }
 
     private void handleJoinTenderEvent(WebSocket websocket, String message, int gameTick) {

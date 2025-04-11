@@ -10,6 +10,12 @@ public class StatusEffect {
     private int cooldown = -1; // How many days the effect lasts (-1 = infinite)
     private Object trigger = null; // The triggering object of the effect (e.g. a project, another employee, etc.)
 
+    public StatusEffect(StatusEffectType type, String description) {
+        this.type = type;
+        this.multiplier = 1.0f; // Default multiplier
+        this.description = description;
+    }
+
     public StatusEffect(StatusEffectType type, float multiplier, String description) {
         this.type = type;
         this.multiplier = multiplier;

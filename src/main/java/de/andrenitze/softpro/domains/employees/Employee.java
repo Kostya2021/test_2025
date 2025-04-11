@@ -21,6 +21,8 @@ public class Employee implements Serializable {
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;
     public static final int JOB_SATISFACTION = 50;
+    public static final String PROJECT_MANAGEMENT_FOUNDATION = "Project Management Foundation";
+    public static final String PROJECT_MANAGEMENT_EXPERT = "Project Management Expert";
     private float sickDayProbability = 0.02f;
     @Getter
     private final Integer id;
@@ -301,6 +303,15 @@ public class Employee implements Serializable {
         calculateSatisfaction();
     }
 
+    // Variant without cooldown and multiplier (for trainings)
+    public void addTraining(String training) {
+        addStatusEffect(new StatusEffect(StatusEffectType.TRAINING,  training));
+
+        // Add lost productivity status effect for training duration
+        addStatusEffect(new StatusEffect(StatusEffectType.PRODUCTIVITY, 0.5f, "Training", 5));
+
+    }
+
     // Variant without cooldown (effect is permanent until removed)
     public void addStatusEffect(StatusEffectType effectType, float multiplier, String description) {
         addStatusEffect(new StatusEffect(effectType, multiplier, description));
@@ -416,8 +427,8 @@ public class Employee implements Serializable {
     public void train(String training) {
         // Add permanent status effect after the training
         switch (training) {
-            case "PROJECT_MANAGEMENT" -> addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.1f, "Training: Productivity");
-            case "QUALITY_ASSURANCE" -> addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.05f, "Training: Quality Assurance");
+            case PROJECT_MANAGEMENT_FOUNDATION -> addTraining(PROJECT_MANAGEMENT_FOUNDATION);
+            case PROJECT_MANAGEMENT_EXPERT -> addTraining(PROJECT_MANAGEMENT_EXPERT);
             default -> logger.warn("Unknown training: {}", training);
         }
     }
