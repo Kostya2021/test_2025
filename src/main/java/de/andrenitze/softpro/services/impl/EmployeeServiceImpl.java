@@ -23,15 +23,14 @@ import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZA
 public class EmployeeServiceImpl implements EmployeeService {
     @Setter private MessagingService messagingService;
     private final ProjectEmployeeMappingImpl projectsEmployeesMap;
-    private final PlayerService playerService;
+    @Setter private PlayerService playerService;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
 
     @Autowired
-    public EmployeeServiceImpl(@Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectsEmployeesMap,
-                               PlayerService playerService) {
+    public EmployeeServiceImpl(@Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectsEmployeesMap) {
         this.projectsEmployeesMap = projectsEmployeesMap;
         this.messagingService = null;
-        this.playerService = playerService;
+        this.playerService = null;
     }
 
     public void simulateEmployeeLives(int gameTick) {

@@ -308,8 +308,7 @@ public class Employee implements Serializable {
         addStatusEffect(new StatusEffect(StatusEffectType.TRAINING,  training));
 
         // Add lost productivity status effect for training duration
-        addStatusEffect(new StatusEffect(StatusEffectType.PRODUCTIVITY, 0.5f, "Training", 5));
-
+        addStatusEffect(new StatusEffect(StatusEffectType.PRODUCTIVITY, 0.1f, "Training", 5));
     }
 
     // Variant without cooldown (effect is permanent until removed)
@@ -398,6 +397,7 @@ public class Employee implements Serializable {
 
     public boolean removeExpiredStatusEffects() {
         boolean removed = statusEffects.removeIf(StatusEffect::isExpired);
+        logger.debug("Removed expired status effects from {}", getName());
         if (removed) {
             calculateSatisfaction();
         }

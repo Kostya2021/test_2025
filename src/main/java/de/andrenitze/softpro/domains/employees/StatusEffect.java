@@ -2,6 +2,8 @@ package de.andrenitze.softpro.domains.employees;
 
 import lombok.Data;
 
+import static de.andrenitze.softpro.Main.logger;
+
 @Data
 public class StatusEffect {
     private StatusEffectType type;
@@ -32,6 +34,7 @@ public class StatusEffect {
     public void cooldown() {
         if (cooldown > 0) {
             cooldown--;
+            logger.debug("Cooldown for effect {}: {}", description, cooldown);
         }
     }
 
