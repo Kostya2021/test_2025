@@ -412,4 +412,13 @@ public class Employee implements Serializable {
         });
         logger.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
     }
+
+    public void train(String training) {
+        // Add permanent status effect after the training
+        switch (training) {
+            case "PROJECT_MANAGEMENT" -> addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.1f, "Training: Productivity");
+            case "QUALITY_ASSURANCE" -> addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.05f, "Training: Quality Assurance");
+            default -> logger.warn("Unknown training: {}", training);
+        }
+    }
 }
