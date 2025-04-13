@@ -2,7 +2,6 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
-import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
@@ -252,7 +251,6 @@ public class Game {
 
         // For all players in the game...
         playerService.getPlayers().forEach((ignored, player) -> {
-            sendAnyNewAccountingEntries(player);
             sendAnyProjectChanges();
             sendAnyPlayerChanges(player);
             sendAnyNewStoryElements(player);
@@ -379,17 +377,6 @@ public class Game {
             }
         } catch (Exception e) {
             logger.error("Error while sending player update: {}", e.getMessage());
-        }
-    }
-
-
-    private void sendAnyNewAccountingEntries(Player player) {
-        // Send any new accounting entries
-        List<AccountingEntry> newEntries = accountingService.getNewEntriesByPlayer(player, lifeCycle.getTick());
-        GameEvent<List<AccountingEntry>> accountingEntriesEvent = new GameEvent<>(EventType.ACCOUNTING_ENTRIES_ADDED);
-        accountingEntriesEvent.setPayload(newEntries);
-        if (!newEntries.isEmpty()) {
-            messagingService.sendToPlayer(player, accountingEntriesEvent);
         }
     }
 
