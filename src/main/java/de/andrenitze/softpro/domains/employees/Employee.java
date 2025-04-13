@@ -397,7 +397,6 @@ public class Employee implements Serializable {
 
     public boolean removeExpiredStatusEffects() {
         boolean removed = statusEffects.removeIf(StatusEffect::isExpired);
-        logger.debug("Removed expired status effects from {}", getName());
         if (removed) {
             calculateSatisfaction();
         }

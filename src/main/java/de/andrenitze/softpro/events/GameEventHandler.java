@@ -4,11 +4,16 @@ import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.TalentMarket;
+import de.andrenitze.softpro.domains.accounting.AccountCategory;
+import de.andrenitze.softpro.domains.accounting.AccountingEntry;
+import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.services.*;
+import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import lombok.Setter;
 import org.java_websocket.WebSocket;
 
 import java.lang.reflect.Type;
@@ -39,6 +44,8 @@ public class GameEventHandler {
     private final GameLifeCycleService gameLifeCycleService;
     private final SkillService skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
+    @Setter
+    private AccountingServiceImpl accountingService;
 
     public GameEventHandler(MessagingService messagingService,
                             GamePlayerServiceImpl playerService,
@@ -56,6 +63,7 @@ public class GameEventHandler {
         this.gameLifeCycleService = gameLifeCycleService;
         this.skillService = skillService;
         this.projectEmployeeService = projectEmployeeService;
+        this.accountingService = null;
     }
 
     public void handleEvent(WebSocket websocket, String message) {
@@ -111,6 +119,13 @@ public class GameEventHandler {
             logger.warn("Could not train employee. Employee {} not found.", employeeId);
             return;
         }
+
+        // Charge for the training
+        AccountingEntry accountingEntry = new AccountingEntry(player, gameLifeCycleService.getTick(),
+                gameLifeCycleService.getLevel(), 2000, AccountCategory.TRAINING, TransactionType.DEBIT,
+                "Training for employee " + employee.getName());
+        accountingService.addEntry(accountingEntry);
+        player.subtractFunds(accountingEntry.getAmount());
 
         employee.train(training);
         logger.debug("Player {} trained employee {} - {}", player.getId(), employee.getId(), employee.getName());

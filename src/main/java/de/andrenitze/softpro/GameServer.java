@@ -15,6 +15,7 @@ import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.DecisionService;
 import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.PlayerService;
+import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.ObjectiveServiceImpl;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
@@ -248,6 +249,8 @@ public class GameServer extends WebSocketServer {
         // Get the PlayerService instance from the game context
         GamePlayerServiceImpl playerService = game.getPlayerService();
         GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
+        AccountingServiceImpl accountingService = game.getAccountingService();
+        accountingService.setPlayerService(playerService);
 
         game.setEventHandler(new GameEventHandler(
                 game.getMessagingService(),
@@ -265,6 +268,8 @@ public class GameServer extends WebSocketServer {
                 game.getProjectEmployeeService()));
         game.setLifeCycle(lifeCycleService);
         game.getMessagingService().setPlayerService(playerService);
+        game.getEmployeeService().setPlayerService(playerService);
+        game.getEventHandler().setAccountingService(accountingService);
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
