@@ -190,7 +190,7 @@ public class Game {
         }
         projectService.createProblemsInProjects(lifeCycle.getTick(), lifeCycle.getLevel());
         accountingService.processMonthlyPayments(lifeCycle.getCurrentDate(), playerService.getPlayers(), lifeCycle.getTick(), lifeCycle.getLevel());
-        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick()));
+        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick(), playerService.getPlayers()));
         employeeService.simulateEmployeeLives(lifeCycle.getTick());
 
         Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycle.getTick());
@@ -251,6 +251,7 @@ public class Game {
 
         // For all players in the game...
         playerService.getPlayers().forEach((ignored, player) -> {
+            sendAnyNewAccountingEntries(player);
             sendAnyProjectChanges();
             sendAnyPlayerChanges(player);
             sendAnyNewStoryElements(player);

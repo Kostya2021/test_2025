@@ -6,6 +6,7 @@ import org.java_websocket.WebSocket;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -13,5 +14,5 @@ import java.util.concurrent.ConcurrentMap;
  */
 public interface AccountingService {
     void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players, int gameTick, int gameLevel);
-    List<AccountingEntry> getAccountingEntriesByTick(int gameTick);
+    List<AccountingEntry> getAccountingEntriesByTick(int gameTick, Map<WebSocket, Player> players);
 }

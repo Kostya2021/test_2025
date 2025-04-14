@@ -61,8 +61,8 @@ public class GameConfig {
 
     @Bean
     @Scope("prototype")
-    public AccountingServiceImpl accountingService(PlayerService playerService) {
-        return new AccountingServiceImpl(playerService);
+    public AccountingServiceImpl accountingService() {
+        return new AccountingServiceImpl();
     }
 
     @Bean
@@ -74,9 +74,8 @@ public class GameConfig {
     @Bean
     @Scope("prototype")
     public ProjectServiceImpl projectService(SkillServiceImpl skillService,
-                                             AccountingServiceImpl accountingService,
                                              ProjectEmployeeMappingImpl projectEmployeeMapping) {
-        return new ProjectServiceImpl(accountingService, skillService, projectEmployeeMapping);
+        return new ProjectServiceImpl(skillService, projectEmployeeMapping);
     }
 
     @Bean

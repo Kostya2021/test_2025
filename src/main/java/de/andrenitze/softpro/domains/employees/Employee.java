@@ -303,14 +303,6 @@ public class Employee implements Serializable {
         calculateSatisfaction();
     }
 
-    // Variant without cooldown and multiplier (for trainings)
-    public void addTraining(String training) {
-        addStatusEffect(new StatusEffect(StatusEffectType.TRAINING,  training));
-
-        // Add lost productivity status effect for training duration
-        addStatusEffect(new StatusEffect(StatusEffectType.PRODUCTIVITY, 0.1f, "Training", 5));
-    }
-
     // Variant without cooldown (effect is permanent until removed)
     public void addStatusEffect(StatusEffectType effectType, float multiplier, String description) {
         addStatusEffect(new StatusEffect(effectType, multiplier, description));
@@ -367,11 +359,10 @@ public class Employee implements Serializable {
         // -10% health (absolute, recovers only slowly)
         // Slightly increased chance of sick days
         if (effect.equals(CRUNCH_MODE)) {
-            String reason = "Crunch mode";
             int cooldown = 20;
-            addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.5f, reason, cooldown);
-            addStatusEffect(StatusEffectType.SATISFACTION, 0.8f, reason, cooldown);
-            addStatusEffect(StatusEffectType.HEALTH, 0.90f, reason, cooldown);
+            addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.5f, CRUNCH_MODE, cooldown);
+            addStatusEffect(StatusEffectType.SATISFACTION, 0.8f, CRUNCH_MODE, cooldown);
+            addStatusEffect(StatusEffectType.HEALTH, 0.90f, CRUNCH_MODE, cooldown);
 
             // Increment max and annual sick days with every "crunch mode", because it's stressful
             remainingAnnualSickDays += 1;
@@ -384,10 +375,9 @@ public class Employee implements Serializable {
             // +15% satisfaction (forever)
             // +15% health (forever)
             if (effect.equals(TEAM_SPIRIT)) {
-                String reason = "Team spirit";
-                addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, reason);
-                addStatusEffect(StatusEffectType.SATISFACTION, 1.15f, reason);
-                addStatusEffect(StatusEffectType.HEALTH, 1.15f, reason);
+                addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, TEAM_SPIRIT);
+                addStatusEffect(StatusEffectType.SATISFACTION, 1.15f, TEAM_SPIRIT);
+                addStatusEffect(StatusEffectType.HEALTH, 1.15f, TEAM_SPIRIT);
 
                 // Decrease maximum sick days by 2 because of the positive effect on health
                 remainingAnnualSickDays -= 2;
@@ -430,5 +420,15 @@ public class Employee implements Serializable {
             case PROJECT_MANAGEMENT_EXPERT -> addTraining(PROJECT_MANAGEMENT_EXPERT);
             default -> logger.warn("Unknown training: {}", training);
         }
+    }
+
+    public void removeStatusEffectsByReason(String reason) {
+        statusEffects.removeIf(effect -> {
+            if (effect.getDescription().equals(reason) && effect.getType() == StatusEffectType.SATISFACTION) {
+                calculateSatisfaction();
+            }
+            return effect.getDescription().equals(reason);
+        });
+        logger.debug("Removed status effects with reason {} from {}", reason, getName());
     }
 }

@@ -48,15 +48,15 @@ public class ProjectServiceImpl implements ProjectService {
     @Getter @Setter private List<Project> projects = new ArrayList<>();
     @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
-    @Getter private final AccountingServiceImpl accountingService;
+    @Getter @Setter private AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
     private final Map<Integer, Project> previousProjectStates = new HashMap<>();
 
     @Autowired
-    public ProjectServiceImpl(AccountingServiceImpl accountingService, SkillServiceImpl skillService,
+    public ProjectServiceImpl(SkillServiceImpl skillService,
                               ProjectEmployeeMappingService projectEmployeeService) {
-        this.accountingService = accountingService;
+        this.accountingService = null;
         this.skillService = skillService;
         this.projectEmployeeService = projectEmployeeService;
 
@@ -140,6 +140,8 @@ public class ProjectServiceImpl implements ProjectService {
             AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, level, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
+
+            logger.debug("Accounting entry for project {}: {} € profit in tick {}", project.getName(), profit, currentTick);
 
             // Calculate player's XP gained in this project
             float xp = calculateXP(project);
