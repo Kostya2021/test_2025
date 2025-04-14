@@ -251,7 +251,6 @@ public class Game {
 
         // For all players in the game...
         playerService.getPlayers().forEach((ignored, player) -> {
-            sendAnyNewAccountingEntries(player);
             sendAnyProjectChanges();
             sendAnyPlayerChanges(player);
             sendAnyNewStoryElements(player);

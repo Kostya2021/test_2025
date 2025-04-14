@@ -313,6 +313,15 @@ public class Employee implements Serializable {
         addStatusEffect(new StatusEffect(effectType, multiplier, description, cooldown));
     }
 
+    // Variant without cooldown and multiplier (for trainings)
+    public void addTraining(String training) {
+        addStatusEffect(new StatusEffect(StatusEffectType.TRAINING,  training));
+
+        // Add lost productivity status effect for training duration
+        addStatusEffect(new StatusEffect(StatusEffectType.PRODUCTIVITY, 0.5f, "Training", 5));
+
+    }
+
     public Integer getExperience() {
         // Count the days of experience in all projects
         Integer totalExperience = 0;
