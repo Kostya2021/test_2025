@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.Main.logger;
+import static de.andrenitze.softpro.domains.employees.Employee.PROJECT_MANAGEMENT_FOUNDATION;
 
 @Service
 @Primary
@@ -96,6 +97,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
             case OBJECTIVE_221 -> checkObjective221(player, objective);
             case OBJECTIVE_222 -> checkObjective222(player, objective);
             case OBJECTIVE_223 -> checkObjective223(player, objective);
+            case OBJECTIVE_224 -> checkObjective224(player, objective);
             case OBJECTIVE_230 -> checkObjective230(player, objective);
             case OBJECTIVE_231 -> checkObjective231(player, skillService, objective);
             case OBJECTIVE_31 -> checkObjective31(player, projects, objective);
@@ -243,7 +245,7 @@ public class ObjectiveServiceImpl implements ObjectiveService {
     // Have a one-to-one with your employee
     private boolean checkObjective223(Player player, Objective objective) {
         if (!player.getEmployees().isEmpty()) {
-            Employee employee = player.getEmployees().getFirst();
+            Employee employee = player.getEmployees().getLast();
             List<StatusEffect> statusEffects = employee.getStatusEffects();
 
             if (statusEffects.stream().anyMatch(statusEffect ->
@@ -259,6 +261,19 @@ public class ObjectiveServiceImpl implements ObjectiveService {
 
     // Train your employee in project management basics
     private boolean checkObjective224(Player player, Objective objective) {
+        // Look for corresponding StatusEffect of type TRAINING and description "Project Management Foundation"
+        if (!player.getEmployees().isEmpty()) {
+            Employee employee = player.getEmployees().getLast();
+            List<StatusEffect> statusEffects = employee.getStatusEffects();
+
+            if (statusEffects.stream().anyMatch(statusEffect ->
+                    statusEffect.getType() == StatusEffectType.TRAINING
+                            && statusEffect.getDescription().equals(PROJECT_MANAGEMENT_FOUNDATION))) {
+                objective.setCompletedAt(lifeCycleService.getTick());
+                logger.debug("Objective 224 completed: Employee trained in project management.");
+                return true;
+            }
+        }
         return false;
     }
 

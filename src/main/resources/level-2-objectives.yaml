@@ -18,12 +18,12 @@ missions:
         id: 223
       - title: Train your employee in project management basics
         id: 224
-  - title: The sky is the limit
-    order: 3
-    objectives:
-      - title: Build a team of 5 employees
-        id: 230
-        totalSteps: 5
+  #- title: The sky is the limit
+  #  order: 3
+  #  objectives:
+  #    - title: Build a team of 5 employees
+  #      id: 230
+  #      totalSteps: 5
     #  - title: Unlock skill "Team Lead"
     #    id: 231
     #  - title: Let the Team Lead staff a project
