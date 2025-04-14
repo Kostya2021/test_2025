@@ -2,6 +2,8 @@ package de.andrenitze.softpro.domains.employees;
 
 import lombok.Data;
 
+import static de.andrenitze.softpro.Main.logger;
+
 @Data
 public class StatusEffect {
     private StatusEffectType type;
@@ -9,6 +11,12 @@ public class StatusEffect {
     private String description; // How the effect appears in the UI
     private int cooldown = -1; // How many days the effect lasts (-1 = infinite)
     private Object trigger = null; // The triggering object of the effect (e.g. a project, another employee, etc.)
+
+    public StatusEffect(StatusEffectType type, String description) {
+        this.type = type;
+        this.multiplier = 1.0f; // Default multiplier
+        this.description = description;
+    }
 
     public StatusEffect(StatusEffectType type, float multiplier, String description) {
         this.type = type;
@@ -26,6 +34,7 @@ public class StatusEffect {
     public void cooldown() {
         if (cooldown > 0) {
             cooldown--;
+            logger.debug("Cooldown for effect {}: {}", description, cooldown);
         }
     }
 

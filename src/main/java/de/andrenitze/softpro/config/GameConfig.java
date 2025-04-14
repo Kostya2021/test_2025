@@ -88,9 +88,8 @@ public class GameConfig {
     @Bean
     @Scope("prototype")
     public EmployeeServiceImpl employeeService(MessagingServiceImpl messagingService,
-                                               ProjectEmployeeMappingImpl projectEmployeeMappingImpl,
-                                               GamePlayerServiceImpl playerService){
-        EmployeeServiceImpl service = new EmployeeServiceImpl(projectEmployeeMappingImpl, playerService);
+                                               ProjectEmployeeMappingImpl projectEmployeeMappingImpl){
+        EmployeeServiceImpl service = new EmployeeServiceImpl(projectEmployeeMappingImpl);
         service.setMessagingService(messagingService);
         return service;
     }

@@ -215,7 +215,7 @@ public class GameServer extends WebSocketServer {
         Player newPlayer = new Player();
 
         // This needs to be replaced with the current level from the players' user account
-        addPlayerToLobby(webSocket, newPlayer, 2); // First level
+        addPlayerToLobby(webSocket, newPlayer, 1); // First level
     }
 
     private void sendVersionAndGameSpeed(WebSocket webSocket) {
@@ -250,6 +250,7 @@ public class GameServer extends WebSocketServer {
         GamePlayerServiceImpl playerService = game.getPlayerService();
         GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
         AccountingServiceImpl accountingService = game.getAccountingService();
+        accountingService.setPlayerService(playerService);
 
         game.setEventHandler(new GameEventHandler(
                 game.getMessagingService(),
@@ -267,7 +268,8 @@ public class GameServer extends WebSocketServer {
                 game.getProjectEmployeeService()));
         game.setLifeCycle(lifeCycleService);
         game.getMessagingService().setPlayerService(playerService);
-        game.getProjectService().setAccountingService(accountingService);
+        game.getEmployeeService().setPlayerService(playerService);
+        game.getEventHandler().setAccountingService(accountingService);
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);

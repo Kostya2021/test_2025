@@ -21,6 +21,8 @@ public class Employee implements Serializable {
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;
     public static final int JOB_SATISFACTION = 50;
+    public static final String PROJECT_MANAGEMENT_FOUNDATION = "Project Management Foundation";
+    public static final String PROJECT_MANAGEMENT_EXPERT = "Project Management Expert";
     private float sickDayProbability = 0.02f;
     @Getter
     private final Integer id;
@@ -409,6 +411,15 @@ public class Employee implements Serializable {
             return effect.getTrigger() == trigger;
         });
         logger.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
+    }
+
+    public void train(String training) {
+        // Add permanent status effect after the training
+        switch (training) {
+            case PROJECT_MANAGEMENT_FOUNDATION -> addTraining(PROJECT_MANAGEMENT_FOUNDATION);
+            case PROJECT_MANAGEMENT_EXPERT -> addTraining(PROJECT_MANAGEMENT_EXPERT);
+            default -> logger.warn("Unknown training: {}", training);
+        }
     }
 
     public void removeStatusEffectsByReason(String reason) {
