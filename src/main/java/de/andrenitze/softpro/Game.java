@@ -14,6 +14,7 @@ import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import de.andrenitze.softpro.types.Savegame;
 import lombok.Getter;
 import lombok.Setter;
 import org.java_websocket.WebSocket;
@@ -27,6 +28,7 @@ import java.net.ConnectException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -420,6 +422,11 @@ public class Game {
                     player.getMissions().size(),
                     level + 1);
 
+            // Save the game, if user is logged in with a valid user account
+            if (!Objects.equals(player.getJwtSubject(), "")) {
+                saveGame(player);
+            }
+
             // Only increase level for existing levels
             if (level < numberOfLevelsInTheGame) {
                 lifeCycle.setLevel(level + 1);
@@ -453,6 +460,16 @@ public class Game {
 
         // Let the Game class handle player removal
         removePlayer(webSocket);
+    }
+
+    /**
+     * Save the game state for a player by their JWT's "sub" as ID.
+     * @param player
+     */
+    private void saveGame(Player player) {
+        logger.debug("Saving game for player with JWT sub {}.", player.getJwtSubject());
+        Savegame savegame = new Savegame();
+        //saveGameRepository.save(savegame);
     }
 
     private GameOverStats createGameOverStats(Game game, Player player, int tick) {
