@@ -41,7 +41,7 @@ public class Player {
 
     @Getter @EqualsAndHashCode.Include
     private final UUID id;
-    @Getter @Setter @EqualsAndHashCode.Include
+    @Getter @Setter
     private String jwtSubject;
     @Getter
     private String name;
