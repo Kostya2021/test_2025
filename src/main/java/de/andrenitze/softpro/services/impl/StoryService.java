@@ -1,7 +1,7 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.objectives.Objective;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
 

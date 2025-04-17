@@ -1,7 +1,7 @@
 package de.andrenitze.softpro.services.impl.player;
 
-import de.andrenitze.softpro.Player;
-import de.andrenitze.softpro.TalentMarket;
+import de.andrenitze.softpro.domains.employees.TalentMarket;
+import de.andrenitze.softpro.domains.players.Player;
 import org.java_websocket.WebSocket;
 import org.springframework.stereotype.Service;
 

@@ -1,6 +1,6 @@
 package de.andrenitze.softpro.services;
 
-import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.players.Player;
 
 /**
  * Service für die Verwaltung von Spieler-Skills.

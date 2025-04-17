@@ -5,13 +5,14 @@ import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.objectives.Objective;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectSummary;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
-import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import de.andrenitze.softpro.types.Savegame;
@@ -28,7 +29,6 @@ import java.net.ConnectException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -422,8 +422,8 @@ public class Game {
                     player.getMissions().size(),
                     level + 1);
 
-            // Save the game, if user is logged in with a valid user account
-            if (!Objects.equals(player.getJwtSubject(), "")) {
+            // If user is logged in with a valid user account, save the game state
+            if (!player.getJwtSubject().isEmpty()) {
                 saveGame(player);
             }
 
@@ -463,8 +463,9 @@ public class Game {
     }
 
     /**
-     * Save the game state for a player by their JWT's "sub" as ID.
-     * @param player
+     * Save the game state for an authenticated player.
+     *
+     * @param player The player whose game state should be saved (must be authenticated to use JWT's "sub" as ID.
      */
     private void saveGame(Player player) {
         logger.debug("Saving game for player with JWT sub {}.", player.getJwtSubject());

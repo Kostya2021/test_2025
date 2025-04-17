@@ -1,11 +1,14 @@
 package de.andrenitze.softpro.config;
 
 import de.andrenitze.softpro.Game;
-import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
+import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.events.GameEventPublisher;
-import de.andrenitze.softpro.services.*;
+import de.andrenitze.softpro.services.EmployeeService;
+import de.andrenitze.softpro.services.MessagingService;
+import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
+import de.andrenitze.softpro.services.ProjectService;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.springframework.context.ApplicationContext;

@@ -1,8 +1,8 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;

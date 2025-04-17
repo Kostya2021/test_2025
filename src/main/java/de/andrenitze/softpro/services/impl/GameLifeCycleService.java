@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.services;
+package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.config.Config;
 import lombok.Getter;

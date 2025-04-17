@@ -1,4 +1,4 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.domains.players;
 
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.employees.Employee;

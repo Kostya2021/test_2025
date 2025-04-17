@@ -2,8 +2,8 @@ package de.andrenitze.softpro.config;
 
 import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
-import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.PlayerService;
+import de.andrenitze.softpro.services.impl.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;

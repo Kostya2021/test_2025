@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.SalaryHistoryEntry;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
@@ -8,9 +7,9 @@ import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.objectives.Mission;
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.objectives.ObjectiveId;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.skills.Skill;
-import de.andrenitze.softpro.services.GameLifeCycleService;
 import de.andrenitze.softpro.services.ObjectiveService;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;

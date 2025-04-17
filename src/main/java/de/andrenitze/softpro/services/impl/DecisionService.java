@@ -1,8 +1,8 @@
-package de.andrenitze.softpro.services;
+package de.andrenitze.softpro.services.impl;
 
+import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
-import de.andrenitze.softpro.config.DatabaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

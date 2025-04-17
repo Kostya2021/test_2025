@@ -1,10 +1,10 @@
 package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.Game;
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.services.GameLifeCycleService;
+import de.andrenitze.softpro.services.impl.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.SkillServiceImpl;
 import de.andrenitze.softpro.services.impl.StoryService;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;

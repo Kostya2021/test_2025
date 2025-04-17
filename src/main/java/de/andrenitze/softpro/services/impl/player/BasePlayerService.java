@@ -1,6 +1,6 @@
 package de.andrenitze.softpro.services.impl.player;
 
-import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.services.PlayerService;
 import org.java_websocket.WebSocket;
 

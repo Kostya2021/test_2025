@@ -1,6 +1,6 @@
 package main.java.de.andrenitze.softpro;
 
-import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.players.Player;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.Test;
 

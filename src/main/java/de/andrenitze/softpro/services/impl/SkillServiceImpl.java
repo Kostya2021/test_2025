@@ -2,7 +2,7 @@ package de.andrenitze.softpro.services.impl;
 
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.GameServer;
-import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.SkillService;
 

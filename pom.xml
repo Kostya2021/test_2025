@@ -294,7 +294,7 @@
                             <class>de.andrenitze.softpro.domains.objectives.Objectives</class>
                             <class>de.andrenitze.softpro.domains.story.StoryElement</class>
                             <class>de.andrenitze.softpro.domains.story.StoryElements</class>
-                            <class>de.andrenitze.softpro.Player</class>
+                            <class>de.andrenitze.softpro.domains.players.Player</class>
                             <class>de.andrenitze.softpro.domains.employees.Employee</class>
                             <class>de.andrenitze.softpro.domains.projects.Project</class>
                             <class>de.andrenitze.softpro.domains.story.AvatarType</class>

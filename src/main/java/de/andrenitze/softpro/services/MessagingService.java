@@ -1,7 +1,7 @@
 package de.andrenitze.softpro.services;
 
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;

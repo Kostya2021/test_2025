@@ -1,7 +1,7 @@
 package de.andrenitze.softpro.services;
 
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
+import de.andrenitze.softpro.domains.players.Player;
 import org.java_websocket.WebSocket;
 
 import java.time.LocalDate;
