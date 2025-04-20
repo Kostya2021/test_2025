@@ -71,4 +71,11 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         String json = gson.toJson(player);
         return gson.fromJson(json, Player.class);
     }
+
+    public Player getPlayer(Player player) {
+        return players.values().stream()
+                .filter(p -> p.getId().equals(player.getId()))
+                .findFirst()
+                .orElse(null);
+    }
 }

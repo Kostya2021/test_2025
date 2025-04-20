@@ -5,6 +5,8 @@ import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.SkillService;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.File;
 import java.io.FileReader;
@@ -21,6 +23,8 @@ import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
 public class SkillServiceImpl implements SkillService {
     public static final String JSON = ".json";
+    @Setter
+    @Getter
     private final ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
 
@@ -47,6 +51,16 @@ public class SkillServiceImpl implements SkillService {
         logger.debug("Player {} unlocked skill {}", player.getId(), skillName);
         saveSkills(player);
         addPermanentStatusEffectsToAllEmployees();
+    }
+
+    @Override
+    public void setSkills(Player player, HashMap<String, Skill> skills) {
+        if (playersSkills.containsKey(player)) {
+            playersSkills.put(player, skills);
+            logger.debug("Skills for player {} set to {}", player.getId(), skills);
+        } else {
+            logger.warn("Player {} not found in skills manager. Cannot set skills.", player.getId());
+        }
     }
 
     public boolean playerHasSkill(Player player, String skillName) {

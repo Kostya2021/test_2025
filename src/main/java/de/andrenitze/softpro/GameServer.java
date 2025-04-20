@@ -4,6 +4,8 @@ import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
+import de.andrenitze.softpro.domains.GameState;
+import de.andrenitze.softpro.domains.Savegame;
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.decisions.LevelDecisions;
 import de.andrenitze.softpro.domains.employees.Employee;
@@ -13,6 +15,7 @@ import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.events.*;
+import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.DecisionService;
@@ -46,6 +49,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -55,6 +59,7 @@ public class GameServer extends WebSocketServer {
     private final GameFactory gameFactory;
     private final LobbyPlayerServiceImpl lobbyPlayerService;
     private final GameLifeCycleService gameLifeCycleService;
+    private final SavegameRepository savegameRepository;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -86,11 +91,14 @@ public class GameServer extends WebSocketServer {
      */
     @Autowired
     public GameServer(GameFactory gameFactory,
-                      LobbyPlayerServiceImpl lobbyPlayerService, GameLifeCycleService gameLifeCycleService) {
+                      LobbyPlayerServiceImpl lobbyPlayerService,
+                      GameLifeCycleService gameLifeCycleService,
+                      SavegameRepository saveGameRepository) {
         super(new InetSocketAddress(DEFAULT_PORT));
         this.gameFactory = gameFactory;
         this.lobbyPlayerService = lobbyPlayerService;
         this.gameLifeCycleService = gameLifeCycleService;
+        this.savegameRepository = saveGameRepository;
     }
 
     @Override
@@ -271,6 +279,12 @@ public class GameServer extends WebSocketServer {
         game.getEmployeeService().setPlayerService(playerService);
         game.getEventHandler().setAccountingService(accountingService);
 
+        Optional<GameState> gameState = loadGame(player);
+        if (gameState.isPresent()) {
+            logger.debug("Loading saved game state for player {}...", player.getId());
+            game.restoreGameState(gameState.get(), player);
+        }
+
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         logger.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
@@ -305,9 +319,6 @@ public class GameServer extends WebSocketServer {
         player.initializeObjectives(level);
         player.initializeFunds(level);
         player.setXp(0);
-
-        // Initialize the projects
-        //game.getProjectService().setProjects(new ArrayList<>());
 
         // Make sure the skills are initialized
         game.getSkillService().addPlayer(player);
@@ -516,14 +527,14 @@ public class GameServer extends WebSocketServer {
         short runningGames = (short) gameContexts.values().stream().filter(Game::isRunning).count();
 
         GameEvent<Map<String, Object>> updateLobbyEvent = new GameEvent<>(EventType.UPDATE_LOBBY);
-                Map<String, Object> payload = new HashMap<>();
-                payload.put("runningGames", runningGames);
-                payload.put("players", lobbyPlayerService.getPlayers().values());
-                payload.put("dailyHighScores", anonymizedDailyHighScores);
-                payload.put("monthlyHighScores", anonymizedMonthlyHighScores);
-                payload.put("quarterlyHighScores", anonymizedQuarterlyHighScores);
-                updateLobbyEvent.setPayload(payload);
-                broadcast(gson.toJson(updateLobbyEvent));
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("runningGames", runningGames);
+        payload.put("players", lobbyPlayerService.getPlayers().values());
+        payload.put("dailyHighScores", anonymizedDailyHighScores);
+        payload.put("monthlyHighScores", anonymizedMonthlyHighScores);
+        payload.put("quarterlyHighScores", anonymizedQuarterlyHighScores);
+        updateLobbyEvent.setPayload(payload);
+        broadcast(gson.toJson(updateLobbyEvent));
         logLobbyState();
     }
 
@@ -680,11 +691,57 @@ public class GameServer extends WebSocketServer {
         broadcastLobbyState();
     }
 
+    /**
+     * Save the game state for an authenticated player.
+     *
+     * @param player The player whose game state should be saved (must be authenticated to use JWT's "sub" as ID.
+     */
+    public void saveGame(Game game, Player player) {
+        String userId = player.getJwtSubject();
+        GameState gameState = game.exportState(player);
+
+        if (gameState == null) {
+            logger.warn("GameState is null – skipping save for player {}", userId);
+            return;
+        }
+
+        String gameStateJson = gson.toJson(gameState);
+
+        Savegame savegame = savegameRepository.findByUserId(userId)
+                .orElseGet(Savegame::new);
+
+        savegame.setUserId(userId);
+        savegame.setLevel(gameState.getLevel());
+        savegame.setGameStateJson(gameStateJson);
+        savegame.setLastUpdated(Instant.now());
+
+        savegameRepository.save(savegame);
+    }
+
+
+    private Optional<GameState> loadGame(Player player) {
+        return savegameRepository.findByUserId(player.getJwtSubject())
+                .map(savegame -> {
+                    try {
+                        return gson.fromJson(savegame.getGameStateJson(), GameState.class);
+                    } catch (JsonSyntaxException e) {
+                        logger.warn("Failed to parse GameState for user {}: {}", player.getJwtSubject(), e.getMessage());
+                        return null;
+                    }
+                });
+    }
+
     @EventListener
     public void handleGameOverEvent(GlobalGameOverEvent event) {
         Game.GameOverData data = event.getGameOverData();
         logger.debug("🚨 Global listener received GameOverEvent from game.");
         logger.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
+
+        // If player is logged in with a valid user account, save the game state
+        if (!data.player().getJwtSubject().isEmpty()) {
+            saveGame(data.game(), data.player());
+        }
+
         movePlayerBackToLobby(data.game(), data.player(), data.webSocket());
         saveGameOverStats(data.webSocket(), data.player(), data.stats());
         checkAndBroadcastHighScore(data.stats());

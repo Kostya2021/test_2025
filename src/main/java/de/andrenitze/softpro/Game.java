@@ -2,6 +2,7 @@ package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
+import de.andrenitze.softpro.domains.GameState;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import de.andrenitze.softpro.domains.employees.Employee;
@@ -15,7 +16,6 @@ import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
-import de.andrenitze.softpro.types.Savegame;
 import lombok.Getter;
 import lombok.Setter;
 import org.java_websocket.WebSocket;
@@ -422,11 +422,6 @@ public class Game {
                     player.getMissions().size(),
                     level + 1);
 
-            // If user is logged in with a valid user account, save the game state
-            if (!player.getJwtSubject().isEmpty()) {
-                saveGame(player);
-            }
-
             // Only increase level for existing levels
             if (level < numberOfLevelsInTheGame) {
                 lifeCycle.setLevel(level + 1);
@@ -460,17 +455,6 @@ public class Game {
 
         // Let the Game class handle player removal
         removePlayer(webSocket);
-    }
-
-    /**
-     * Save the game state for an authenticated player.
-     *
-     * @param player The player whose game state should be saved (must be authenticated to use JWT's "sub" as ID.
-     */
-    private void saveGame(Player player) {
-        logger.debug("Saving game for player with JWT sub {}.", player.getJwtSubject());
-        Savegame savegame = new Savegame();
-        //saveGameRepository.save(savegame);
     }
 
     private GameOverStats createGameOverStats(Game game, Player player, int tick) {
@@ -514,6 +498,37 @@ public class Game {
 
     public int getLevel() {
         return lifeCycle.getLevel();
+    }
+
+    public void restoreGameState(GameState gameState, Player player) {
+        // TODO Hier die Wiederherstellung des Zustands für den Spieler
+
+        player.setXp(gameState.getXp());
+
+        if (gameState.getEmployees() != null) {
+            playerService.getPlayer(player).setEmployees(gameState.getEmployees());
+        }
+
+        if (gameState.getDecisions() != null) {
+            //playerService.getPlayer(player).setDecisions(LEVEL?, gameState.getDecisions());
+        }
+
+        if (gameState.getSkills() != null) {
+            skillService.setSkills(player, gameState.getSkills());
+        }
+
+        logger.debug("Game state successfully restored for player {}.", player.getId());
+    }
+
+    public GameState exportState(Player player) {
+        GameState gameState = new GameState();
+        gameState.setXp(player.getXp());
+        gameState.setEmployees(player.getEmployees());
+        gameState.setDecisions(player.getDecisionsByLevel(lifeCycle.getLevel()));
+
+        // TODO Export more game state...
+
+        return gameState;
     }
 
     public record GameOverData(WebSocket webSocket, Player player, GameOverStats stats, Game game) {}

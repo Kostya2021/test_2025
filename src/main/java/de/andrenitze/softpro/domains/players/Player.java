@@ -54,7 +54,7 @@ public class Player {
     @Getter @Setter
     private float funds;
     @Getter @Setter
-    private ArrayList<Employee> employees = new ArrayList<>();
+    private List<Employee> employees = new ArrayList<>();
     @Getter @Setter
     private List<Mission> missions;
     @Getter @Setter
