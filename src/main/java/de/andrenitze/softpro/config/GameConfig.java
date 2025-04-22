@@ -11,16 +11,17 @@ import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
-
-import static de.andrenitze.softpro.Main.logger;
 
 @Configuration
 @ComponentScan("de.andrenitze.softpro")
 public class GameConfig {
+    private static final Logger log = LoggerFactory.getLogger(GameConfig.class);
     public GameConfig(ApplicationContext parentContext) {
-        logger.debug("GameConfig with parentContext '{}' created.", parentContext.getId());
+        log.debug("GameConfig with parentContext '{}' created.", parentContext.getId());
     }
 
     @Bean

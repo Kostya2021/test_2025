@@ -7,6 +7,8 @@ import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.SkillService;
 import lombok.Getter;
 import lombok.Setter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileReader;
@@ -18,14 +20,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.Main.logger;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
+@Setter
+@Getter
 public class SkillServiceImpl implements SkillService {
+    private static final Logger log = LoggerFactory.getLogger(SkillServiceImpl.class);
     public static final String JSON = ".json";
-    @Setter
-    @Getter
-    private final ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
+    private ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
 
     public SkillServiceImpl() {
@@ -34,7 +36,7 @@ public class SkillServiceImpl implements SkillService {
         try {
             loadAllSkills();
         } catch (IOException e) {
-            logger.error("Failed to load skills: {}", e.getMessage());
+            log.error("Failed to load skills: {}", e.getMessage());
         }
     }
 
@@ -48,7 +50,7 @@ public class SkillServiceImpl implements SkillService {
         HashMap<String, Skill> skills = playersSkills.get(player);
         skills.putIfAbsent(skillName, skill);
         playersSkills.put(player, skills);
-        logger.debug("Player {} unlocked skill {}", player.getId(), skillName);
+        log.debug("Player {} unlocked skill {}", player.getId(), skillName);
         saveSkills(player);
         addPermanentStatusEffectsToAllEmployees();
     }
@@ -57,9 +59,9 @@ public class SkillServiceImpl implements SkillService {
     public void setSkills(Player player, HashMap<String, Skill> skills) {
         if (playersSkills.containsKey(player)) {
             playersSkills.put(player, skills);
-            logger.debug("Skills for player {} set to {}", player.getId(), skills);
+            log.debug("Skills for player {} set to {}", player.getId(), skills);
         } else {
-            logger.warn("Player {} not found in skills manager. Cannot set skills.", player.getId());
+            log.warn("Player {} not found in skills manager. Cannot set skills.", player.getId());
         }
     }
 
@@ -75,7 +77,7 @@ public class SkillServiceImpl implements SkillService {
 
     public void addPlayer(Player player) {
         if (playersSkills.containsKey(player)) {
-            logger.debug("Player {} already exists in the skillsManager. No override will occur.", player.getId());
+            log.debug("Player {} already exists in the skillsManager. No override will occur.", player.getId());
         } else {
             loadSkills(player);
         }
@@ -95,9 +97,9 @@ public class SkillServiceImpl implements SkillService {
             FileWriter writer = new FileWriter(SKILLS_DIRECTORY + player.getId() + JSON);
             GameServer.getGson().toJson(playersSkills.get(player), writer);
             writer.close();
-            logger.debug("Skills for player saved to {}", SKILLS_DIRECTORY + player.getId() + JSON);
+            log.debug("Skills for player saved to {}", SKILLS_DIRECTORY + player.getId() + JSON);
         } catch (IOException e) {
-            logger.error("Failed to save skills for player {}: {}", player.getId(), e.getMessage());
+            log.error("Failed to save skills for player {}: {}", player.getId(), e.getMessage());
         }
     }
 
@@ -113,12 +115,12 @@ public class SkillServiceImpl implements SkillService {
                 }
                 playersSkills.put(player, skills);
                 reader.close();
-                logger.debug("Skills for player {} loaded from {}", player.getId(), SKILLS_DIRECTORY + player.getId() + JSON);
+                log.debug("Skills for player {} loaded from {}", player.getId(), SKILLS_DIRECTORY + player.getId() + JSON);
             } else {
                 saveSkills(player); // Create a new file if it does not exist
             }
         } catch (IOException e) {
-            logger.error("Failed to load skills for player {}: {}", player.getId(), e.getMessage());
+            log.error("Failed to load skills for player {}: {}", player.getId(), e.getMessage());
         }
     }
 
@@ -152,9 +154,9 @@ public class SkillServiceImpl implements SkillService {
     private void deleteOldFile(File file) throws IOException {
         try {
             if (Files.deleteIfExists(file.toPath())) {
-                logger.debug("Deleted old skills file: {}", file.getPath());
+                log.debug("Deleted old skills file: {}", file.getPath());
             } else {
-                logger.error("Failed to delete old skills file: {}", file.getPath());
+                log.error("Failed to delete old skills file: {}", file.getPath());
             }
         } catch (IOException e) {
             throw new IOException();
@@ -169,10 +171,10 @@ public class SkillServiceImpl implements SkillService {
             Player player = findPlayerById(playerId);
             if (player != null) {
                 playersSkills.put(player, skills);
-                logger.debug("{} skills for player {} loaded from {}", skills.size(), player.getId(), file.getPath());
+                log.debug("{} skills for player {} loaded from {}", skills.size(), player.getId(), file.getPath());
             }
         } catch (IOException e) {
-            logger.error("Failed to load skills from file {}: {}", file.getPath(), e.getMessage());
+            log.error("Failed to load skills from file {}: {}", file.getPath(), e.getMessage());
         }
     }
 
@@ -185,13 +187,13 @@ public class SkillServiceImpl implements SkillService {
 
     public void addPermanentStatusEffectsToAllEmployees() {
         playersSkills.keySet().forEach(player -> {
-            logger.debug("Checking for permanent status effects for player {}", player.getId());
+            log.debug("Checking for permanent status effects for player {}", player.getId());
 
             // The only permanent status effect is TEAM_SPIRIT
             if (playerHasSkill(player, TEAM_SPIRIT)) {
-                logger.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
+                log.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
                 player.getEmployees().forEach(employee -> {
-                    logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
+                    log.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
                     employee.addComplexStatusEffect(TEAM_SPIRIT);
                 });
             }

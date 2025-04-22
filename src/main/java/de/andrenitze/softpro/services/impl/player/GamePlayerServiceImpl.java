@@ -3,16 +3,18 @@ package de.andrenitze.softpro.services.impl.player;
 import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.players.Player;
 import org.java_websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.GameServer.gson;
-import static de.andrenitze.softpro.Main.logger;
 
 @Service
 public class GamePlayerServiceImpl extends BasePlayerService {
+    private static final Logger log = LoggerFactory.getLogger(GamePlayerServiceImpl.class);
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final TalentMarket talentMarket;
     private final Map<UUID, Player> previousPlayerStates = new HashMap<>();
@@ -23,20 +25,20 @@ public class GamePlayerServiceImpl extends BasePlayerService {
 
     @Override
     public void addPlayer(WebSocket webSocket, Player player) {
-        logger.debug("Adding player {}...", player.getId());
+        log.debug("Adding player {}...", player.getId());
         try {
             if (hasWebSocket(webSocket)) {
-                logger.warn("Player already exists in the game. Ignoring request to add player.");
+                log.warn("Player already exists in the game. Ignoring request to add player.");
                 return;
             } else if (getPlayers().size() >= MAX_NUMBER_OF_PLAYERS_PER_GAME) {
-                logger.warn("Game is full. Cannot add player.");
+                log.warn("Game is full. Cannot add player.");
                 return;
             }
 
             players.put(webSocket, player);
-            logger.debug("Added player {} to game.", player.getId());
+            log.debug("Added player {} to game.", player.getId());
         } catch (Exception e) {
-            logger.error("Could not add player to game: {}", e.getMessage());
+            log.error("Could not add player to game: {}", e.getMessage());
         }
     }
 

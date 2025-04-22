@@ -2,6 +2,8 @@ package de.andrenitze.softpro.domains.employees;
 
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.ProjectType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,13 +11,13 @@ import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.Main.logger;
 
 /**
  * The TalentMarket class is a singleton class that holds all the available talents in a running game instance
  * which are currently not employed by a player.
  */
 public class TalentMarket {
+    private static final Logger log = LoggerFactory.getLogger(TalentMarket.class);
     private final Map<Integer, Employee> talents = new HashMap<>();
     public final EmployeeIdGenerator employeeIdGenerator;
 
@@ -30,7 +32,7 @@ public class TalentMarket {
             Employee employee = new Employee(generateNewEmployeeId());
             addTalent(employee);
         }
-        logger.debug("Talent market initialized with {} employees.", getTalents().size());
+        log.debug("Talent market initialized with {} employees.", getTalents().size());
     }
 
     public synchronized List<Employee> generateFirstEmployees() {

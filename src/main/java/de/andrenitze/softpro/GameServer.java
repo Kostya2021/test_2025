@@ -53,7 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class GameServer extends WebSocketServer {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private static final Logger log = LoggerFactory.getLogger(GameServer.class);
     private final GameFactory gameFactory;
     private final LobbyPlayerServiceImpl lobbyPlayerService;
     private final GameLifeCycleService gameLifeCycleService;
@@ -104,7 +104,7 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onStart() {
         init();
-        logger.info("Server started successfully");
+        log.info("Server started successfully");
     }
 
     public void init() {
@@ -118,15 +118,15 @@ public class GameServer extends WebSocketServer {
         try {
             hostAddress = InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
-            logger.error("Could not get host address", e);
+            log.error("Could not get host address", e);
         }
         int port = getPort();
         String serverAddress = String.format("ws://%s:%d", hostAddress, port);
-        logger.info("Starting server at {}", serverAddress);
+        log.info("Starting server at {}", serverAddress);
     }
 
     private void gracefulShutdown() {
-        logger.info("Shutting down server...");
+        log.info("Shutting down server...");
         // Disconnect all client connections for lobby...
         for (WebSocket client : lobbyPlayerService.getPlayers().keySet()) {
             client.close();
@@ -138,18 +138,18 @@ public class GameServer extends WebSocketServer {
                 client.close();
             }
         }
-        logger.info("Server stopped.");
+        log.info("Server stopped.");
     }
 
     private void fetchHighScore() {
-        logger.info("Fetching high-score from database");
+        log.info("Fetching high-score from database");
 
         List<GameOverStats> highScores = gameOverStatsDAO.getCurrentHighScores();
 
         if (highScores != null && !highScores.isEmpty()) {
             processHighScores(highScores);
         } else {
-            logger.info("No high-scores found in database");
+            log.info("No high-scores found in database");
         }
     }
 
@@ -177,30 +177,30 @@ public class GameServer extends WebSocketServer {
                 quarterly.add(highScore);
                 break;
             default:
-                logger.warn("Unknown period: {}", highScore.getPeriod());
+                log.warn("Unknown period: {}", highScore.getPeriod());
         }
     }
 
     private void updateHighScores(List<GameOverStats> daily, List<GameOverStats> monthly, List<GameOverStats> quarterly) {
         if (!daily.isEmpty()) {
             this.dailyHighScores = daily;
-            logger.info("Daily high-scores fetched from database");
+            log.info("Daily high-scores fetched from database");
         } else {
-            logger.info("No daily high-scores set for today, yet.");
+            log.info("No daily high-scores set for today, yet.");
         }
 
         if (!monthly.isEmpty()) {
             this.monthlyHighScores = monthly;
-            logger.info("Monthly high-scores fetched from database");
+            log.info("Monthly high-scores fetched from database");
         } else {
-            logger.info("No monthly high-scores set for this month, yet.");
+            log.info("No monthly high-scores set for this month, yet.");
         }
 
         if (!quarterly.isEmpty()) {
             this.quarterlyHighScores = quarterly;
-            logger.info("Quarterly high-scores fetched from database");
+            log.info("Quarterly high-scores fetched from database");
         } else {
-            logger.info("No quarterly high-scores set for this quarter, yet.");
+            log.info("No quarterly high-scores set for this quarter, yet.");
         }
     }
 
@@ -208,13 +208,13 @@ public class GameServer extends WebSocketServer {
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
         // First, check if Spring Boot database connection is available. If not, close the WebSocket.
         if (gameOverStatsDAO == null) {
-            logger.error("Database connection is not available. Closing WebSocket.");
+            log.error("Database connection is not available. Closing WebSocket.");
             webSocket.close();
             return;
         }
 
         // When a new WebSocket connection is opened, it's a player joining the lobby
-        logger.info("Client {} connected", webSocket.getRemoteSocketAddress());
+        log.info("Client {} connected", webSocket.getRemoteSocketAddress());
 
         sendVersionAndGameSpeed(webSocket);
 
@@ -236,7 +236,7 @@ public class GameServer extends WebSocketServer {
             versionEvent.setPayload(payload);
             webSocket.send(GameServer.getGson().toJson(versionEvent));
         } catch (IOException e) {
-            logger.error("Could not load application.properties file");
+            log.error("Could not load application.properties file");
         }
     }
 
@@ -248,7 +248,7 @@ public class GameServer extends WebSocketServer {
      * @param player Player         The player to be added to the game
      */
     private void createGame(WebSocket webSocket, Player player, int level) {
-        logger.debug("Creating new game instance for player {}", player.getId());
+        log.debug("Creating new game instance for player {}", player.getId());
         AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
         Game game = gameContext.getBean(Game.class);
 
@@ -278,21 +278,21 @@ public class GameServer extends WebSocketServer {
 
         Optional<GameState> gameState = loadGame(player);
         if (gameState.isPresent()) {
-            logger.debug("Loading saved game state for player {}...", player.getId());
+            log.debug("Loading saved game state for player {}...", player.getId());
             game.restoreGameState(gameState.get(), player);
         }
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
-        logger.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
+        log.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
         game.prepareLevelForPlayer(level);
         try {
             game.getPlayerService().addPlayer(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         } catch (Exception e) {
-            logger.error("Could not add player to game: {}", e.getMessage());
+            log.error("Could not add player to game: {}", e.getMessage());
             return;
         }
-        logger.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), lifeCycleService.getLevel(), player.getId());
+        log.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), lifeCycleService.getLevel(), player.getId());
         prepareForNextLevel(player, game);
 
         // Notify player about next level
@@ -307,7 +307,7 @@ public class GameServer extends WebSocketServer {
      */
     private void prepareForNextLevel(Player player, Game game) {
         int level = game.getLevel();
-        logger.debug("Preparing game for level {} and player {}", level, player.getId());
+        log.debug("Preparing game for level {} and player {}", level, player.getId());
 
         // Give player chance to prepare for the next level (read up, make decisions etc.)
         player.setReady(false);
@@ -367,7 +367,7 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
-        logger.debug("Connection closed: {} - Reason: {} - Remote: {}", webSocket.getRemoteSocketAddress(), reason, remote);
+        log.debug("Connection closed: {} - Reason: {} - Remote: {}", webSocket.getRemoteSocketAddress(), reason, remote);
         removeDisconnectedClient(webSocket);
         broadcastLobbyState();
     }
@@ -375,7 +375,7 @@ public class GameServer extends WebSocketServer {
     private void removeDisconnectedClient(WebSocket webSocket) {
         Player player = lobbyPlayerService.removePlayer(webSocket);
         if (player != null) {
-            logger.debug("Removed player {} from lobby", player.getId());
+            log.debug("Removed player {} from lobby", player.getId());
 
             // Go through game contexts, find the corresponding game and remove player references from the game
             for (Map.Entry<AnnotationConfigApplicationContext, Game> entry : gameContexts.entrySet()) {
@@ -389,7 +389,7 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onMessage(WebSocket webSocket, String message) {
-        logger.debug("received message from {}: {}", webSocket.getRemoteSocketAddress(), message);
+        log.debug("received message from {}: {}", webSocket.getRemoteSocketAddress(), message);
 
         try {
             GameEvent<?> genericGameEvent = gson.fromJson(message, GameEvent.class);
@@ -402,7 +402,7 @@ public class GameServer extends WebSocketServer {
                 forwardEventToGame(webSocket, message);
             }
         } catch (JSONException | JsonSyntaxException e) {
-            logger.error("Received invalid websocket message: {}", e.getMessage());
+            log.error("Received invalid websocket message: {}", e.getMessage());
         }
     }
 
@@ -417,7 +417,7 @@ public class GameServer extends WebSocketServer {
     private DecisionService decisionService;
 
     private void handlePlayerReadyEvent(WebSocket webSocket, String message) {
-        logger.debug("GameServer/Lobby: Handling PLAYER_READY event for WebSocket {}", webSocket.getRemoteSocketAddress());
+        log.debug("GameServer/Lobby: Handling PLAYER_READY event for WebSocket {}", webSocket.getRemoteSocketAddress());
         try {
             Player player = lobbyPlayerService.getPlayer(webSocket);
 
@@ -433,7 +433,7 @@ public class GameServer extends WebSocketServer {
             startReadyGames();
             broadcastLobbyState();
         } catch (Exception e) {
-            logger.error("Websocket message was malformed! {}", e.getMessage(), e);
+            log.error("Websocket message was malformed! {}", e.getMessage(), e);
         }
     }
 
@@ -455,7 +455,7 @@ public class GameServer extends WebSocketServer {
             webSocket.send(gson.toJson(playerUpdateEvent));
 
             broadcastLobbyState();
-            logger.info("{} changed name to {}", oldName, newName);
+            log.info("{} changed name to {}", oldName, newName);
         }
     }
 
@@ -468,14 +468,14 @@ public class GameServer extends WebSocketServer {
         boolean forwarded = false;
         for (Game game : gameContexts.values()) {
             if (game.getPlayerService().hasWebSocket(webSocket)) {
-                logger.debug("Forwarding message to game instance: {}", game.hashCode());
+                log.debug("Forwarding message to game instance: {}", game.hashCode());
                 game.getEventHandler().handleEvent(webSocket, message);
                 forwarded = true;
                 break;
             }
         }
         if (!forwarded) {
-            logger.warn("No game instance found for WebSocket: {}", webSocket.getRemoteSocketAddress());
+            log.warn("No game instance found for WebSocket: {}", webSocket.getRemoteSocketAddress());
         }
     }
 
@@ -497,7 +497,7 @@ public class GameServer extends WebSocketServer {
                 }
 
                 if (game == null) {
-                    logger.error("Could not find game instance for player {}", player.getValue().getId());
+                    log.error("Could not find game instance for player {}", player.getValue().getId());
                     return;
                 }
 
@@ -508,7 +508,7 @@ public class GameServer extends WebSocketServer {
 
     public void broadcastLobbyState() {
         JSONArray playersList = new JSONArray();
-        logger.debug("Broadcasting lobby state to {} players in lobby.", lobbyPlayerService.getPlayers().size());
+        log.debug("Broadcasting lobby state to {} players in lobby.", lobbyPlayerService.getPlayers().size());
         for (Map.Entry<WebSocket, Player> entry : lobbyPlayerService.getPlayers().entrySet()) {
             Player readyPlayer = entry.getValue();
             JSONObject player = new JSONObject();
@@ -539,7 +539,7 @@ public class GameServer extends WebSocketServer {
     }
 
     private void logLobbyState() {
-        logger.debug("Players in lobby/briefing: {} | Players in running games: {} | Active game contexts: {}",
+        log.debug("Players in lobby/briefing: {} | Players in running games: {} | Active game contexts: {}",
                 lobbyPlayerService.getPlayers().size(),
                 gameContexts.values().stream().filter(Game::isRunning).count(),
                 gameContexts.size());
@@ -583,18 +583,18 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onMessage(WebSocket webSocket, ByteBuffer message) {
-        logger.debug("received ByteBuffer from {}", webSocket.getRemoteSocketAddress());
+        log.debug("received ByteBuffer from {}", webSocket.getRemoteSocketAddress());
     }
 
     @Override
     public void onError(WebSocket webSocket, Exception ex) {
         // Most likely a player dropped out of the game and the WebSocket connection is gone
         if (webSocket != null) {
-            logger.warn("Connection {} was closed unexpectedly.", webSocket.getRemoteSocketAddress());
+            log.warn("Connection {} was closed unexpectedly.", webSocket.getRemoteSocketAddress());
             // Kick player and close game if empty
             removeDisconnectedClient(webSocket);
         } else {
-            logger.warn("An error occurred on a connection. {}", (Object) ex.getStackTrace());
+            log.warn("An error occurred on a connection. {}", (Object) ex.getStackTrace());
         }
     }
 
@@ -617,9 +617,9 @@ public class GameServer extends WebSocketServer {
     public List<GameOverStats> getCurrentHighScores() {
         List<GameOverStats> highScores = gameOverStatsDAO.getCurrentHighScores();
         if (highScores != null && !highScores.isEmpty()) {
-            logger.info("Current high score fetched successfully.");
+            log.info("Current high score fetched successfully.");
         } else {
-            logger.warn("No high score found for today.");
+            log.warn("No high score found for today.");
         }
         return highScores;
     }
@@ -633,9 +633,9 @@ public class GameServer extends WebSocketServer {
 
         // Save high-score in a separate thread (optional: make async!)
         if (gameOverStatsDAO.saveGameOverStats(goStats)) {
-            logger.debug("Game stats of player in game {} saved successfully.", goStats.getGameId());
+            log.debug("Game stats of player in game {} saved successfully.", goStats.getGameId());
         } else {
-            logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
+            log.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
         }
     }
 
@@ -695,7 +695,7 @@ public class GameServer extends WebSocketServer {
         GameState gameState = game.exportState(player);
 
         if (gameState == null) {
-            logger.warn("GameState is null – skipping save for player {}", userId);
+            log.warn("GameState is null – skipping save for player {}", userId);
             return;
         }
 
@@ -719,7 +719,7 @@ public class GameServer extends WebSocketServer {
                     try {
                         return gson.fromJson(savegame.getGameStateJson(), GameState.class);
                     } catch (JsonSyntaxException e) {
-                        logger.warn("Failed to parse GameState for user {}: {}", player.getJwtSubject(), e.getMessage());
+                        log.warn("Failed to parse GameState for user {}: {}", player.getJwtSubject(), e.getMessage());
                         return null;
                     }
                 });
@@ -728,8 +728,8 @@ public class GameServer extends WebSocketServer {
     @EventListener
     public void handleGameOverEvent(GlobalGameOverEvent event) {
         Game.GameOverData data = event.getGameOverData();
-        logger.debug("🚨 Global listener received GameOverEvent from game.");
-        logger.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
+        log.debug("🚨 Global listener received GameOverEvent from game.");
+        log.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
 
         // If player is logged in with a valid user account, save the game state
         if (!data.player().getJwtSubject().isEmpty()) {
@@ -743,9 +743,9 @@ public class GameServer extends WebSocketServer {
 
     @EventListener
     public void handleEmptyGameEvent(GlobalGameEmptyEvent event) {
-        logger.info("🚨 Global listener received GameEmptyEvent from game.");
+        log.info("🚨 Global listener received GameEmptyEvent from game.");
         Game game = event.getGame();
-        logger.debug("Game {} is empty. Removing...", game.hashCode());
+        log.debug("Game {} is empty. Removing...", game.hashCode());
         removeGame(game);
         logLobbyState();
     }

@@ -6,6 +6,8 @@ import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.services.AccountingService;
 import org.java_websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -13,9 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
-import static de.andrenitze.softpro.Main.logger;
-
 public class AccountingServiceImpl implements AccountingService {
+    private static final Logger log = LoggerFactory.getLogger(AccountingServiceImpl.class);
     private final List<AccountingEntry> entries = new ArrayList<>();
 
     public AccountingServiceImpl() {
@@ -24,7 +25,7 @@ public class AccountingServiceImpl implements AccountingService {
     // Adds a new entry to the in-memory list
     public synchronized void addEntry(AccountingEntry entry) {
         if (entry == null) {
-            logger.error("Tried to add a null entry.");
+            log.error("Tried to add a null entry.");
             return;
         }
 

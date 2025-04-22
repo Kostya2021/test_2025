@@ -38,7 +38,7 @@ import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.M
 @Component
 @Scope("prototype")
 public class Game {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger log = LoggerFactory.getLogger(Game.class);
     @Getter private StoryService storyService;
     @Getter private GamePlayerServiceImpl playerService;
     @Getter private SkillServiceImpl skillService;
@@ -107,11 +107,11 @@ public class Game {
     }
 
     public void start() {
-        logger.debug("start()'ing game loop with {} players.", playerService.getPlayers().size());
+        log.debug("start()'ing game loop with {} players.", playerService.getPlayers().size());
 
         // CHeck if there is at least one player in this game instance
         if (playerService.getPlayers().isEmpty()) {
-            logger.error("No players in this game. Cannot start.");
+            log.error("No players in this game. Cannot start.");
             return;
         }
 
@@ -145,7 +145,7 @@ public class Game {
             progressGameTime();
         }, 750, lifeCycle.getGameSpeedInMilliseconds(), TimeUnit.MILLISECONDS);
 
-        logger.info("A new game has started with {} players in level {}.", playerService.getPlayers().size(), lifeCycle.getLevel());
+        log.info("A new game has started with {} players in level {}.", playerService.getPlayers().size(), lifeCycle.getLevel());
     }
 
     /**
@@ -230,7 +230,7 @@ public class Game {
                             GameEvent<Project> complianceProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
                             complianceProjectEvent.setPayload(project);
                             messagingService.sendToPlayer(player, complianceProjectEvent);
-                            logger.debug("New compliance project spawned for all players: {}", project.getName());
+                            log.debug("New compliance project spawned for all players: {}", project.getName());
                         });
                     }
                 });
@@ -265,7 +265,7 @@ public class Game {
 
         // If time elapsed is more than 20 ms and game is not currently shutting down
         if (timeElapsedInMilliseconds >= 20 && lifeCycle.isRunning()) {
-            logger.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+            log.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
     }
 
@@ -274,7 +274,7 @@ public class Game {
      */
     void prepareLevelForPlayer(int level) {
         setLevel(level);
-        logger.debug("Preparing level {} for player.", lifeCycle.getLevel());
+        log.debug("Preparing level {} for player.", lifeCycle.getLevel());
 
         if (lifeCycle.getLevel() != 1) {
             projectService.initializeProjectMarket(level);
@@ -290,16 +290,16 @@ public class Game {
             case 2 -> levelConsequencesService.triggerLevel2Consequences();
             case 3 -> levelConsequencesService.triggerLevel3Consequences();
             case MAX_NUMBER_OF_PLAYERS_PER_GAME -> levelConsequencesService.triggerLevel4Consequences();
-            default -> logger.warn("No level consequences for level {}", lifeCycle.getLevel());
+            default -> log.warn("No level consequences for level {}", lifeCycle.getLevel());
         }
 
         // Add permanent status effects to players
         playerService.getPlayers().forEach((ignored, somePlayerInTheGame) -> {
-            logger.debug("Checking for permanent status effects for player {}", somePlayerInTheGame.getId());
+            log.debug("Checking for permanent status effects for player {}", somePlayerInTheGame.getId());
             if (skillService.playerHasSkill(somePlayerInTheGame, TEAM_SPIRIT)) {
-                logger.debug("Player {} has the skill {}", somePlayerInTheGame.getId(), TEAM_SPIRIT);
+                log.debug("Player {} has the skill {}", somePlayerInTheGame.getId(), TEAM_SPIRIT);
                 somePlayerInTheGame.getEmployees().forEach(employee -> {
-                    logger.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
+                    log.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
                     employee.addComplexStatusEffect(TEAM_SPIRIT);
                 });
             }
@@ -307,7 +307,7 @@ public class Game {
 
         playerService.getPlayers().forEach((ignored, somePlayerInTheGame) -> {
             if (somePlayerInTheGame.getDecisionsByLevel(lifeCycle.getLevel()).isEmpty()) {
-                logger.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), lifeCycle.getLevel());
+                log.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), lifeCycle.getLevel());
             }
         });
     }
@@ -347,7 +347,7 @@ public class Game {
                 Project previousState = projectService.getPreviousState(project.getId());
 
                 if (previousState == null || project.hasChanged(previousState)) {
-                    logger.debug("Project '{}' has changed since last tick. Sending new state.", project.getName());
+                    log.debug("Project '{}' has changed since last tick. Sending new state.", project.getName());
 
                     try {
                         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
@@ -356,7 +356,7 @@ public class Game {
 
                         projectService.updatePreviousState(project);
                     } catch (Exception e) {
-                        logger.error("Error while sending project update: {}", e.getMessage());
+                        log.error("Error while sending project update: {}", e.getMessage());
                     }
                 }
             }
@@ -368,7 +368,7 @@ public class Game {
             Player previousState = playerService.getPreviousState(player);
 
             if (previousState == null || player.hasChanged(previousState)) {
-                logger.debug("Player '{}' has changed since last tick. Sending new state.", player.getId());
+                log.debug("Player '{}' has changed since last tick. Sending new state.", player.getId());
 
                 GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
                 playerUpdateEvent.setPayload(player);
@@ -378,21 +378,21 @@ public class Game {
                 playerService.updatePreviousState(player);
             }
         } catch (Exception e) {
-            logger.error("Error while sending player update: {}", e.getMessage());
+            log.error("Error while sending player update: {}", e.getMessage());
         }
     }
 
     private void checkObjectivesCriteriaAndSendRewards() {
         playerService.getPlayers().forEach((ignored, player) -> {
             if (objectiveService.areThereObjectivesUpdates(player)) {
-                logger.debug("Sending updated objectives to player.");
+                log.debug("Sending updated objectives to player.");
                 try {
                     List<Objective> allActiveObjectives = player.getObjectivesUntilThisTick(lifeCycle.getTick());
                     GameEvent<List<Objective>> objectivesUpdatedEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
                     objectivesUpdatedEvent.setPayload(allActiveObjectives);
                     messagingService.sendToPlayer(player, GameServer.getGson().toJson(objectivesUpdatedEvent));
                 } catch (Exception e) {
-                    logger.error("Error while sending updated objectives to player {}: {}", player.getId(), e.getMessage());
+                    log.error("Error while sending updated objectives to player {}: {}", player.getId(), e.getMessage());
                 }
             }
         });
@@ -409,7 +409,7 @@ public class Game {
     private void handleGameOver(Player player, WebSocket webSocket) {
         int numberOfLevelsInTheGame = 3;
         int level = lifeCycle.getLevel();
-        logger.debug("Game over for player {}.", player.getId());
+        log.debug("Game over for player {}.", player.getId());
         boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt(lifeCycle.getLevel());
 
         GameOverStats goStats = createGameOverStats(this, player, lifeCycle.getTick());
@@ -417,7 +417,7 @@ public class Game {
 
         if (playerHasWon) {
             // Keep the player in the game and prepare for the next level
-            logger.debug("Player {} has completed all {} missions. Moving to next level ({}).",
+            log.debug("Player {} has completed all {} missions. Moving to next level ({}).",
                     player.hashCode(),
                     player.getMissions().size(),
                     level + 1);
@@ -425,12 +425,12 @@ public class Game {
             // Only increase level for existing levels
             if (level < numberOfLevelsInTheGame) {
                 lifeCycle.setLevel(level + 1);
-                logger.debug("Player {} has reached level {}.", player.getId(), lifeCycle.getLevel());
+                log.debug("Player {} has reached level {}.", player.getId(), lifeCycle.getLevel());
             } else {
-                logger.debug("Player {} has reached the final level.", player.getId());
+                log.debug("Player {} has reached the final level.", player.getId());
             }
         } else {
-            logger.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
+            log.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
         }
 
         // Send GAME_OVER event after decision
@@ -479,7 +479,7 @@ public class Game {
         try {
             distributions = decisionDAO.getVoteDistributionByLevel(lifeCycle.getLevel());
         } catch (Exception e) {
-            logger.warn("Could not fetch vote distributions from database: {}", e.getMessage());
+            log.warn("Could not fetch vote distributions from database: {}", e.getMessage());
         }
         goStats.setCommunityVotes(distributions);
 
@@ -489,10 +489,10 @@ public class Game {
     public void removePlayer(Player player) {
         boolean removed = playerService.removePlayer(player);
         if (removed) {
-            logger.debug("Player {} removed from game.", player.getId());
+            log.debug("Player {} removed from game.", player.getId());
             closeGameIfNoPlayersLeft();
         } else {
-            logger.warn("Player could not be removed from game.");
+            log.warn("Player could not be removed from game.");
         }
     }
 
@@ -517,7 +517,7 @@ public class Game {
             skillService.setSkills(player, gameState.getSkills());
         }
 
-        logger.debug("Game state successfully restored for player {}.", player.getId());
+        log.debug("Game state successfully restored for player {}.", player.getId());
     }
 
     public GameState exportState(Player player) {
@@ -558,14 +558,14 @@ public class Game {
     public void closeGameIfNoPlayersLeft() {
         int numberOfPlayers = playerService.getPlayers().size();
         if (numberOfPlayers == 0) {
-            logger.debug("I ({}) have no players left. Closing...", this.hashCode());
+            log.debug("I ({}) have no players left. Closing...", this.hashCode());
             shutdownGameLoop(gameLoop);
 
             // After game loop is shut down, fire event for GameServer to handle context clean-up, high-score etc.
             GlobalGameEmptyEvent globalGameEmptyEvent = new GlobalGameEmptyEvent(this, this);
             eventPublisher.publishGameEmptyEvent(globalGameEmptyEvent);
         } else {
-            logger.debug("I ({}) have {} player(s). Staying alive.", this.hashCode(), numberOfPlayers);
+            log.debug("I ({}) have {} player(s). Staying alive.", this.hashCode(), numberOfPlayers);
         }
     }
 

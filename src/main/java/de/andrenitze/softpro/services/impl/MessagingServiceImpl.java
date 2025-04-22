@@ -11,16 +11,18 @@ import de.andrenitze.softpro.services.MessagingService;
 import de.andrenitze.softpro.services.PlayerService;
 import lombok.Setter;
 import org.java_websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
-import static de.andrenitze.softpro.Main.logger;
 
 @Setter
 public class MessagingServiceImpl implements MessagingService {
+    private static final Logger log = LoggerFactory.getLogger(MessagingServiceImpl.class);
     private PlayerService playerService;
 
     @Autowired
@@ -75,7 +77,7 @@ public class MessagingServiceImpl implements MessagingService {
 
     public void sendToPlayer(Player player, String message) {
         if (playerService.getPlayers() == null || !playerService.getPlayers().containsValue(player)) {
-            logger.debug("Player {} is not in the game. Not sending event: {}", player.getId(), message);
+            log.debug("Player {} is not in the game. Not sending event: {}", player.getId(), message);
             return;
         }
 

@@ -5,6 +5,8 @@ import de.andrenitze.softpro.GameServer;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -14,12 +16,12 @@ import java.lang.reflect.Type;
 import java.util.List;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.Main.logger;
 
 @Setter
 @Getter
 @NoArgsConstructor
 public class ProblemGenerator {
+    private static final Logger log = LoggerFactory.getLogger(ProblemGenerator.class);
     private static final String DEFAULT_FILE_PATH = "level-1-problems.yaml";
     private static final String FILE_PATH_TEMPLATE = "level-%d-problems.yaml";
 
@@ -28,7 +30,7 @@ public class ProblemGenerator {
     public void loadProblemsByLevel(int level) {
         String filePath = String.format(FILE_PATH_TEMPLATE, level);
         if (!loadProblemsFromFile(filePath)) {
-            logger.warn("File {} not found. Falling back to default problems file: {}", filePath, DEFAULT_FILE_PATH);
+            log.warn("File {} not found. Falling back to default problems file: {}", filePath, DEFAULT_FILE_PATH);
             loadProblemsFromFile(DEFAULT_FILE_PATH); // fallback to default file
         }
     }
@@ -41,10 +43,10 @@ public class ProblemGenerator {
             InputStreamReader reader = new InputStreamReader(inputStream);
             Type problemListType = new TypeToken<List<Problem>>() {}.getType();
             this.problems = GameServer.getGson().fromJson(convertYamlToJson(reader), problemListType);
-            logger.debug("Loaded {} problems from file: {}", problems.size(), filePath);
+            log.debug("Loaded {} problems from file: {}", problems.size(), filePath);
             return true;
         } catch (IOException e) {
-            logger.error("Error loading problems from file: {}. {}", filePath, e.getMessage());
+            log.error("Error loading problems from file: {}. {}", filePath, e.getMessage());
             this.problems = List.of();
             return false;
         }

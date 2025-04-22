@@ -8,11 +8,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Service
 public class DecisionService {
-
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DecisionService.class);
     private final DecisionDAO decisionDao;
 
     @Autowired
@@ -25,7 +23,7 @@ public class DecisionService {
         try {
             decisionDao.saveDecisions(playerId, level, decisions);
         } catch (Exception e) {
-            logger.error("Could not persist player decisions to database: {}", e.getMessage());
+            log.error("Could not persist player decisions to database: {}", e.getMessage());
         }
     }
 }

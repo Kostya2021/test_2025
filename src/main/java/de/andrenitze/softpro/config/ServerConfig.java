@@ -6,23 +6,24 @@ import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Configuration
 @ComponentScan("de.andrenitze.softpro")
 @PropertySource("classpath:application.properties")
 public class ServerConfig {
     private final ApplicationContext parentContext;
+    private static final Logger log = LoggerFactory.getLogger(ServerConfig.class);
 
     public ServerConfig(ApplicationContext parentContext) {
         this.parentContext = parentContext;
-        logger.debug("GlobalConfig with parentContext '{}' created.", parentContext.getId());
+        log.debug("GlobalConfig with parentContext '{}' created.", parentContext.getId());
     }
 
     @Bean

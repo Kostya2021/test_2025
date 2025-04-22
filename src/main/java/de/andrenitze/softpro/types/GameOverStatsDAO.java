@@ -1,15 +1,16 @@
 package de.andrenitze.softpro.types;
 
 import de.andrenitze.softpro.domains.GameOverStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.Timestamp;
 import java.util.List;
 
-import static de.andrenitze.softpro.Main.logger;
-
 public class GameOverStatsDAO {
+    private static final Logger log = LoggerFactory.getLogger(GameOverStatsDAO.class);
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -36,7 +37,7 @@ public class GameOverStatsDAO {
             });
             return affectedRows > 0;
         } catch (Exception e) {
-            logger.error("Failed to save game stats for game {}: {}", goStats.getGameId(), e.getMessage(), e);
+            log.error("Failed to save game stats for game {}: {}", goStats.getGameId(), e.getMessage(), e);
             return false;
         }
     }
@@ -54,7 +55,7 @@ public class GameOverStatsDAO {
         try {
             return jdbcTemplate.query(sql, gameOverStatsRowMapper);
         } catch (Exception e) {
-            logger.error("Could not fetch high-score from database: {}", e.getMessage(), e);
+            log.error("Could not fetch high-score from database: {}", e.getMessage(), e);
             return List.of();
         }
     }

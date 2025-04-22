@@ -11,7 +11,7 @@ import java.util.Properties;
 
 @SpringBootApplication
 public class Main {
-    public static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(Main.class.getName());
     private static final int CONNECTION_LOST_TIMEOUT = 5;
 
     public static void main(String[] args) {
@@ -21,15 +21,15 @@ public class Main {
             GameServer gameServer = context.getBean(GameServer.class);
             gameServer.setConnectionLostTimeout(CONNECTION_LOST_TIMEOUT);
             String version = loadVersion();
-            logger.info("Starting ThatSoftwareGame server version {}", version);
+            log.info("Starting ThatSoftwareGame server version {}", version);
             gameServer.run();
             gameServer.start();
         } catch (IOException e) {
-            logger.warn("Could not load application.properties file. {}", e.toString());
+            log.warn("Could not load application.properties file. {}", e.toString());
         } catch (Exception e) {
-            logger.error(e.toString());
+            log.error(e.toString());
         } finally {
-            logger.error("Server stopped.");
+            log.error("Server stopped.");
         }
     }
 

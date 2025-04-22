@@ -4,6 +4,8 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
@@ -11,12 +13,11 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Getter
 @Service
 @Primary
 public class ProjectEmployeeMappingImpl implements ProjectEmployeeMappingService {
+    private static final Logger log = LoggerFactory.getLogger(ProjectEmployeeMappingImpl.class);
     private final ConcurrentMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
 
     public void assignEmployeeToProject(Employee employee, Project project) {
@@ -25,7 +26,7 @@ public class ProjectEmployeeMappingImpl implements ProjectEmployeeMappingService
         if (!employees.contains(employee)) {
             employees.add(employee);
             projectEmployeesMap.put(project, employees);
-            logger.debug("{} assigned to {}", employee.getName(), project.getName());
+            log.debug("{} assigned to {}", employee.getName(), project.getName());
         }
     }
 
@@ -34,7 +35,7 @@ public class ProjectEmployeeMappingImpl implements ProjectEmployeeMappingService
         if (employees != null && employees.contains(employee)) {
             employees.remove(employee);
             projectEmployeesMap.put(project, employees);
-            logger.debug("{} unassigned from {}", employee.getName(), project.getName());
+            log.debug("{} unassigned from {}", employee.getName(), project.getName());
         }
     }
 
