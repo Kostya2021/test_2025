@@ -70,17 +70,6 @@ public class Game {
         log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
     }
 
-    // Mandatory services are injected here
-    /*
-    public Game(StoryService storyService, GamePlayerServiceImpl playerService, SkillServiceImpl skillService, GameLifeCycleService lifeCycle) {
-        this.storyService = storyService;
-        this.playerService = playerService;
-        this.skillService = skillService;
-        this.lifeCycle = lifeCycle;
-    }
-
-     */
-
     public void start() {
         log.debug("start()'ing game loop with {} players.", playerService.getPlayers().size());
 
