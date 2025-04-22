@@ -13,9 +13,8 @@ import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -34,8 +33,8 @@ import static java.lang.Math.*;
 
 @Service
 @Primary
+@Slf4j
 public class ProjectServiceImpl implements ProjectService {
-    private final Logger log = LoggerFactory.getLogger(this.getClass());
     public static final int STALE_TENDERS_KILL_DAYS = 548;
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)

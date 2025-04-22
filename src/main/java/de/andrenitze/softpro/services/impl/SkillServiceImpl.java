@@ -7,8 +7,7 @@ import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.SkillService;
 import lombok.Getter;
 import lombok.Setter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileReader;
@@ -24,8 +23,8 @@ import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
 @Setter
 @Getter
+@Slf4j
 public class SkillServiceImpl implements SkillService {
-    private static final Logger log = LoggerFactory.getLogger(SkillServiceImpl.class);
     public static final String JSON = ".json";
     private ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
@@ -65,6 +64,16 @@ public class SkillServiceImpl implements SkillService {
         }
     }
 
+    @Override
+    public void initializePlayer(Player player) {
+        if (playersSkills.containsKey(player)) {
+            log.debug("Player {} already exists in the skills manager. No override will occur.", player.getId());
+        } else {
+            loadSkills(player);
+        }
+        playersSkills.putIfAbsent(player, new HashMap<>());
+    }
+
     public boolean playerHasSkill(Player player, String skillName) {
         HashMap<String, Skill> skills = playersSkills.get(player);
         if (skills == null) {
@@ -73,15 +82,6 @@ public class SkillServiceImpl implements SkillService {
 
         Skill skill = skills.get(skillName);
         return skill != null && skill.isUnlocked();
-    }
-
-    public void addPlayer(Player player) {
-        if (playersSkills.containsKey(player)) {
-            log.debug("Player {} already exists in the skillsManager. No override will occur.", player.getId());
-        } else {
-            loadSkills(player);
-        }
-        playersSkills.putIfAbsent(player, new HashMap<>());
     }
 
     public Map<String, Skill> getSkillsByPlayer(Player player) {

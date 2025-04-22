@@ -1,15 +1,13 @@
 package de.andrenitze.softpro.events;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 @Component
+@Slf4j
 public class GameEventForwarder {
-    private static final Logger log = LoggerFactory.getLogger(GameEventForwarder.class);
-
     private final ApplicationEventPublisher parentEventPublisher;
 
     public GameEventForwarder(ApplicationEventPublisher parentEventPublisher) {

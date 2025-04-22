@@ -1,17 +1,15 @@
 package de.andrenitze.softpro.types;
 
 import de.andrenitze.softpro.domains.GameOverStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.Timestamp;
 import java.util.List;
 
+@Slf4j
 public class GameOverStatsDAO {
-    private static final Logger log = LoggerFactory.getLogger(GameOverStatsDAO.class);
-
     private final JdbcTemplate jdbcTemplate;
 
     public GameOverStatsDAO(JdbcTemplate jdbcTemplate) {

@@ -6,8 +6,7 @@ import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -17,9 +16,9 @@ import org.springframework.context.annotation.PropertySource;
 @Configuration
 @ComponentScan("de.andrenitze.softpro")
 @PropertySource("classpath:application.properties")
+@Slf4j
 public class ServerConfig {
     private final ApplicationContext parentContext;
-    private static final Logger log = LoggerFactory.getLogger(ServerConfig.class);
 
     public ServerConfig(ApplicationContext parentContext) {
         this.parentContext = parentContext;

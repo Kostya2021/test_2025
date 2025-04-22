@@ -5,8 +5,7 @@ import de.andrenitze.softpro.GameServer;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -20,8 +19,8 @@ import static de.andrenitze.softpro.GameServer.RANDOM;
 @Setter
 @Getter
 @NoArgsConstructor
+@Slf4j
 public class ProblemGenerator {
-    private static final Logger log = LoggerFactory.getLogger(ProblemGenerator.class);
     private static final String DEFAULT_FILE_PATH = "level-1-problems.yaml";
     private static final String FILE_PATH_TEMPLATE = "level-%d-problems.yaml";
 

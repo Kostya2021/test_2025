@@ -4,8 +4,7 @@ import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.Getter;
 import lombok.Setter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.beans.Transient;
 import java.io.Serial;
@@ -16,8 +15,8 @@ import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
+@Slf4j
 public class Employee implements Serializable {
-    private static final Logger log = LoggerFactory.getLogger(Employee.class);
     @Serial
     private static final long serialVersionUID = 1L;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;

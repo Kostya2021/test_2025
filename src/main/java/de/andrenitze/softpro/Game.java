@@ -15,12 +15,13 @@ import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -35,76 +36,50 @@ import java.util.concurrent.TimeUnit;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.MAX_NUMBER_OF_PLAYERS_PER_GAME;
 
+@Slf4j
 @Component
-@Scope("prototype")
+@Getter
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@RequiredArgsConstructor
 public class Game {
-    private final Logger log = LoggerFactory.getLogger(Game.class);
-    @Getter private StoryService storyService;
-    @Getter private GamePlayerServiceImpl playerService;
-    @Getter private SkillServiceImpl skillService;
-    @Getter private AccountingServiceImpl accountingService;
-    @Getter private MessagingServiceImpl messagingService;
-    @Getter private TalentMarket talentMarket;
-    @Getter private ProjectServiceImpl projectService;
-    @Getter private EmployeeServiceImpl employeeService;
-    @Getter @Setter private GameEventHandler eventHandler;
-    @Getter private GameEventPublisher eventPublisher;
-    @Getter private ProjectEmployeeMappingImpl projectEmployeeService;
-    @Setter @Getter private GameLifeCycleService lifeCycle;
-    @Setter private ObjectiveServiceImpl objectiveService;
-    private LevelConsequencesService levelConsequencesService;
+    private final StoryService                   storyService;
+    private final GamePlayerServiceImpl playerService;
+    private final SkillServiceImpl skillService;
+    private final AccountingServiceImpl accountingService;
+    private final MessagingServiceImpl messagingService;
+    private final TalentMarket                   talentMarket;
+    private final ProjectServiceImpl projectService;
+    private final EmployeeServiceImpl employeeService;
+    private final GameEventHandler               eventHandler;
+    private final GameEventPublisher             eventPublisher;
+    private final ProjectEmployeeMappingImpl  projectEmployeeService;
+    private final GameLifeCycleService           lifeCycle;
+    private final LevelConsequencesService       levelConsequencesService;
+    private final ObjectiveServiceImpl objectiveService;
+
     private ScheduledExecutorService gameLoop;
+
     @Autowired
     private DecisionDAO decisionDAO;
 
-    /**
-     * Creates a new Game instance.
-     * <p>
-     * A ThreadPool with a single Thread is used to run the game logic in a loop.
-     * Changes in the game's state can be sent to the players as GameEvents.
-     */
-    @Autowired
-    public Game(SkillServiceImpl skillService,
-                AccountingServiceImpl accountingService,
-                MessagingServiceImpl messagingService,
-                GamePlayerServiceImpl playerService,
-                ProjectServiceImpl projectService,
-                EmployeeServiceImpl employeeService,
-                GameEventHandler eventHandler,
-                GameEventPublisher eventPublisher,
-                LevelConsequencesService levelConsequencesService,
-                GameLifeCycleService lifeCycle,
-                ProjectEmployeeMappingImpl projectEmployeeMapping,
-                StoryService storyService) {
-        this.talentMarket = new TalentMarket();
-        this.talentMarket.clear();
-
-        this.skillService = skillService;
-        this.accountingService = accountingService;
-        this.messagingService = messagingService;
-        this.playerService = playerService;
-        this.projectService = projectService;
-        this.employeeService = employeeService;
-        this.eventHandler = eventHandler;
-        this.eventPublisher = eventPublisher;
-        this.levelConsequencesService = levelConsequencesService;
-        this.lifeCycle = lifeCycle;
-        this.projectEmployeeService = projectEmployeeMapping;
-        this.storyService = storyService;
-
-        // Don't initialize the talent market for level 1
+    @PostConstruct
+    void init() {
         if (lifeCycle.getLevel() != 1) {
             talentMarket.initialize();
         }
+        log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
     }
 
     // Mandatory services are injected here
+    /*
     public Game(StoryService storyService, GamePlayerServiceImpl playerService, SkillServiceImpl skillService, GameLifeCycleService lifeCycle) {
         this.storyService = storyService;
         this.playerService = playerService;
         this.skillService = skillService;
         this.lifeCycle = lifeCycle;
     }
+
+     */
 
     public void start() {
         log.debug("start()'ing game loop with {} players.", playerService.getPlayers().size());
@@ -193,7 +168,7 @@ public class Game {
         projectService.createProblemsInProjects(lifeCycle.getTick(), lifeCycle.getLevel());
         accountingService.processMonthlyPayments(lifeCycle.getCurrentDate(), playerService.getPlayers(), lifeCycle.getTick(), lifeCycle.getLevel());
         messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick(), playerService.getPlayers()));
-        employeeService.simulateEmployeeLives(lifeCycle.getTick());
+        employeeService.simulateEmployeeLives(lifeCycle.getTick(), playerService.getPlayers());
 
         Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycle.getTick());
         for (Map.Entry<Player, List<Objective>> entry : newObjectivesMap.entrySet()) {

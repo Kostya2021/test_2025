@@ -4,15 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.Getter;
 import lombok.Setter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
+@Slf4j
 public class MissionsLoader {
-    private static final Logger log = LoggerFactory.getLogger(MissionsLoader.class);
     private MissionsLoader() {
         // Private constructor to hide the implicit public one
     }

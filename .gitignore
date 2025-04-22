@@ -1,5 +1,6 @@
 .idea
 .gitignore
+.scannerwork
 logs
 softpro.iml
 target

@@ -13,9 +13,8 @@ import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.ObjectiveService;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -29,8 +28,8 @@ import static de.andrenitze.softpro.domains.employees.Employee.PROJECT_MANAGEMEN
 
 @Service
 @Primary
+@Slf4j
 public class ObjectiveServiceImpl implements ObjectiveService {
-    private static final Logger log = LoggerFactory.getLogger(ObjectiveServiceImpl.class);
     private final GamePlayerServiceImpl playerService;
     private final GameLifeCycleService lifeCycleService;
     private final ProjectServiceImpl projectService;

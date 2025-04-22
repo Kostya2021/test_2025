@@ -2,9 +2,8 @@ package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.players.Player;
+import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -13,8 +12,8 @@ import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.GameServer.gson;
 
 @Service
+@Slf4j
 public class GamePlayerServiceImpl extends BasePlayerService {
-    private static final Logger log = LoggerFactory.getLogger(GamePlayerServiceImpl.class);
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final TalentMarket talentMarket;
     private final Map<UUID, Player> previousPlayerStates = new HashMap<>();

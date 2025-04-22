@@ -15,4 +15,5 @@ public interface SkillService {
     void addPermanentStatusEffectsToAllEmployees();
     void unlockSkill(Player player, String skillName, int unlockSkillPoints);
     void setSkills(Player player, HashMap<String, Skill> skillsMap);
+    void initializePlayer(Player player);
 }

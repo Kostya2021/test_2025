@@ -8,8 +8,7 @@ import de.andrenitze.softpro.domains.objectives.Objectives;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,8 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Slf4j
 public class Player {
-    private static final Logger log = LoggerFactory.getLogger(Player.class);
     static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
     static {
         INITIAL_FUNDS.put(1, 25000f);

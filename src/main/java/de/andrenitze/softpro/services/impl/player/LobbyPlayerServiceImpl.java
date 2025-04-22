@@ -2,17 +2,16 @@ package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.domains.players.Player;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 @Getter
 @Service
 @Scope("singleton")
+@Slf4j
 public class LobbyPlayerServiceImpl extends BasePlayerService {
-    private static final Logger log = LoggerFactory.getLogger(LobbyPlayerServiceImpl.class);
     public LobbyPlayerServiceImpl() {
         super();
     }

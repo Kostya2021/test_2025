@@ -13,11 +13,12 @@ import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.services.*;
 import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.GameLifeCycleService;
-import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
-import lombok.Setter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Type;
 import java.util.*;
@@ -25,8 +26,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+@RequiredArgsConstructor
+@Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@Slf4j
 public class GameEventHandler {
-    private static final Logger log = LoggerFactory.getLogger(GameEventHandler.class);
     public static final String TEAM_SPIRIT = "team-spirit";
     public static final String CRUNCH_MODE = "crunch-mode";
     public static final String PARTY_CONTRACTOR = "contractor";
@@ -43,27 +47,7 @@ public class GameEventHandler {
     private final GameLifeCycleService gameLifeCycleService;
     private final SkillService skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
-    @Setter
-    private AccountingServiceImpl accountingService;
-
-    public GameEventHandler(MessagingService messagingService,
-                            GamePlayerServiceImpl playerService,
-                            EmployeeService employeeService,
-                            TalentMarket talentMarket,
-                            ProjectService projectService,
-                            GameLifeCycleService gameLifeCycleService,
-                            SkillService skillService,
-                            ProjectEmployeeMappingService projectEmployeeService) {
-        this.messagingService = messagingService;
-        this.playerService = playerService;
-        this.employeeService = employeeService;
-        this.talentMarket = talentMarket;
-        this.projectService = projectService;
-        this.gameLifeCycleService = gameLifeCycleService;
-        this.skillService = skillService;
-        this.projectEmployeeService = projectEmployeeService;
-        this.accountingService = null;
-    }
+    private final AccountingServiceImpl accountingService;
 
     public void handleEvent(WebSocket websocket, String message) {
         GameEvent<?> event = GameServer.getGson().fromJson(message, GameEvent.class);

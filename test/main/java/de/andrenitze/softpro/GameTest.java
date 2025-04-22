@@ -4,10 +4,6 @@ import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.services.impl.GameLifeCycleService;
-import de.andrenitze.softpro.services.impl.SkillServiceImpl;
-import de.andrenitze.softpro.services.impl.StoryService;
-import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +19,7 @@ class GameTest {
 
     @BeforeEach
     void setUp() {
-        game = new Game(mock(StoryService.class), mock(GamePlayerServiceImpl.class), mock(SkillServiceImpl.class), mock(GameLifeCycleService.class));
+        //game = new Game();
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();
 

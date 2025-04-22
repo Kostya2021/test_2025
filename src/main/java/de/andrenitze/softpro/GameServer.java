@@ -13,18 +13,19 @@ import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.projects.RiskLevel;
-import de.andrenitze.softpro.events.*;
+import de.andrenitze.softpro.events.EventType;
+import de.andrenitze.softpro.events.GameEvent;
+import de.andrenitze.softpro.events.GlobalGameEmptyEvent;
+import de.andrenitze.softpro.events.GlobalGameOverEvent;
 import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
-import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.DecisionService;
 import de.andrenitze.softpro.services.impl.GameLifeCycleService;
-import de.andrenitze.softpro.services.impl.ObjectiveServiceImpl;
-import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.build.ToStringPlugin;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
@@ -32,9 +33,6 @@ import org.java_websocket.server.WebSocketServer;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -52,14 +50,14 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@Slf4j
 public class GameServer extends WebSocketServer {
-    private static final Logger log = LoggerFactory.getLogger(GameServer.class);
     private final GameFactory gameFactory;
     private final LobbyPlayerServiceImpl lobbyPlayerService;
     private final GameLifeCycleService gameLifeCycleService;
     private final SavegameRepository savegameRepository;
-    @Autowired
-    private GameOverStatsDAO gameOverStatsDAO;
+    private final GameOverStatsDAO gameOverStatsDAO;
+    private final DecisionService decisionService;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -89,7 +87,6 @@ public class GameServer extends WebSocketServer {
     /**
      * Creates a GameServer instance to manage games and players.
      */
-    @Autowired
     public GameServer(GameFactory gameFactory,
                       LobbyPlayerServiceImpl lobbyPlayerService,
                       GameLifeCycleService gameLifeCycleService,
@@ -99,6 +96,8 @@ public class GameServer extends WebSocketServer {
         this.lobbyPlayerService = lobbyPlayerService;
         this.gameLifeCycleService = gameLifeCycleService;
         this.savegameRepository = saveGameRepository;
+        this.gameOverStatsDAO = gameFactory.getGameOverStatsDAO();
+        this.decisionService = gameFactory.getDecisionService();
     }
 
     @Override
@@ -252,29 +251,7 @@ public class GameServer extends WebSocketServer {
         AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
         Game game = gameContext.getBean(Game.class);
 
-        // Get the PlayerService instance from the game context
-        GamePlayerServiceImpl playerService = game.getPlayerService();
         GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
-        AccountingServiceImpl accountingService = game.getAccountingService();
-
-        game.setEventHandler(new GameEventHandler(
-                game.getMessagingService(),
-                playerService,
-                game.getEmployeeService(),
-                game.getTalentMarket(),
-                game.getProjectService(),
-                lifeCycleService,
-                game.getSkillService(),
-                game.getProjectEmployeeService()));
-        game.setObjectiveService(new ObjectiveServiceImpl(playerService,
-                lifeCycleService,
-                game.getProjectService(),
-                game.getSkillService(),
-                game.getProjectEmployeeService()));
-        game.setLifeCycle(lifeCycleService);
-        game.getMessagingService().setPlayerService(playerService);
-        game.getEmployeeService().setPlayerService(playerService);
-        game.getEventHandler().setAccountingService(accountingService);
 
         Optional<GameState> gameState = loadGame(player);
         if (gameState.isPresent()) {
@@ -318,7 +295,7 @@ public class GameServer extends WebSocketServer {
         player.setXp(0);
 
         // Make sure the skills are initialized
-        game.getSkillService().addPlayer(player);
+        game.getSkillService().initializePlayer(player);
 
         // For level 1, generate the player as his/her own first and only employee
         if (level == 1) {
@@ -413,9 +390,6 @@ public class GameServer extends WebSocketServer {
      * @param webSocket  The WebSocket connection to the client
      * @param message    The message received from the client
      */
-    @Autowired
-    private DecisionService decisionService;
-
     private void handlePlayerReadyEvent(WebSocket webSocket, String message) {
         log.debug("GameServer/Lobby: Handling PLAYER_READY event for WebSocket {}", webSocket.getRemoteSocketAddress());
         try {

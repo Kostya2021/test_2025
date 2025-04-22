@@ -2,6 +2,7 @@ package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -9,8 +10,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@Slf4j
 public class DecisionService {
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DecisionService.class);
     private final DecisionDAO decisionDao;
 
     @Autowired
