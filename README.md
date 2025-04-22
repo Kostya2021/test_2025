@@ -52,7 +52,7 @@ A ```*.jar```-file with all dependencies is build and deployed to an Azure App S
 The following environment variables can be defined:
 - DB_URL
 - DB_USER
-- DB_PASSWORD
+- SPRING_DATASOURCE_PASSWORD (formerly DB_PASSWORD)
 - GAME_SPEED_IN_MILLISECONDS
 - LOG_LEVEL
 
