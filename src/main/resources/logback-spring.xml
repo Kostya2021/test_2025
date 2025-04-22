@@ -1,19 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <property name="LOG_PATH" value="logs"/>
-    <property name="LOG_PATTERN" value="[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n"/>
+    <!-- Use variables from application.properties -->
+    <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH}/spring.log}"/>
+    <property name="LOG_PATTERN" value="${LOG_PATTERN:-%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n}"/>
+    <property name="LOG_LEVEL_ROOT" value="${logging.level.root:-INFO}"/>
 
+    <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>${LOG_PATTERN}</pattern>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level){FATAL=red blink, ERROR=red, WARN=yellow, INFO=blue, DEBUG=cyan, TRACE=magenta} %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
+    <!-- Rolling File Appender -->
     <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/app.log</file>
+        <file>${LOG_FILE}</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/archive/app.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
-            <!-- Keep 30 days of history -->
+            <!-- Daily rotation -->
+            <fileNamePattern>${LOG_PATH}/spring-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- 30 day retention -->
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
@@ -21,7 +28,8 @@
         </encoder>
     </appender>
 
-    <root level="INFO">
+    <!-- Root Logger mit Console und Rolling File -->
+    <root level="${LOG_LEVEL_ROOT}">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ROLLING_FILE"/>
     </root>

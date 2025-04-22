@@ -84,6 +84,7 @@ public class ProjectServiceImpl implements ProjectService {
                 addEarnedValueForEachEmployee(project, employees, tick);
 
                 if (project.isCompleted()) {
+                    log.debug("Project {} completed.", project.getName());
                     handleProjectCompletion(project, employees, tick, level);
 
                     // Remove the project from the employees map to avoid memory leaks

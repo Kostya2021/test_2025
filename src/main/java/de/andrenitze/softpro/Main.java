@@ -1,10 +1,10 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.config.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -15,21 +15,18 @@ public class Main {
     private static final int CONNECTION_LOST_TIMEOUT = 5;
 
     public static void main(String[] args) {
-        try (AnnotationConfigApplicationContext context =
-                     new AnnotationConfigApplicationContext(ServerConfig.class)) {
-
+        ConfigurableApplicationContext context = SpringApplication.run(Main.class, args);
+        try {
             GameServer gameServer = context.getBean(GameServer.class);
-            gameServer.setConnectionLostTimeout(CONNECTION_LOST_TIMEOUT);
+            gameServer.setConnectionLostTimeout(5);
             String version = loadVersion();
             log.info("Starting ThatSoftwareGame server version {}", version);
             gameServer.run();
-            gameServer.start();
         } catch (IOException e) {
-            log.warn("Could not load application.properties file. {}", e.toString());
-        } catch (Exception e) {
-            log.error(e.toString());
+            log.error("Error loading version: {}", e.getMessage());
         } finally {
-            log.error("Server stopped.");
+            log.info("Shutting down ThatSoftwareGame server");
+            SpringApplication.exit(context, () -> 0);
         }
     }
 
