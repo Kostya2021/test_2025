@@ -1,6 +1,5 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.GameState;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
@@ -25,7 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.net.ConnectException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +54,8 @@ public class Game {
     @Setter private ObjectiveServiceImpl objectiveService;
     private LevelConsequencesService levelConsequencesService;
     private ScheduledExecutorService gameLoop;
+    @Autowired
+    private DecisionDAO decisionDAO;
 
     /**
      * Creates a new Game instance.
@@ -460,6 +460,7 @@ public class Game {
     private GameOverStats createGameOverStats(Game game, Player player, int tick) {
         int deliveredProjects = 0;
         int projectsVolume = 0;
+
         for (Project project : game.getProjectService().getProjects()) {
             if (project.isCompleted() && project.playerWasInvolved(player)) {
                 deliveredProjects++;
@@ -474,11 +475,10 @@ public class Game {
         goStats.setPlayedSeconds(tick * lifeCycle.getGameSpeedInMilliseconds() / 1000);
         goStats.setLevel(lifeCycle.getLevel());
 
-        DecisionDAO dao = new DecisionDAO(DatabaseConfig.getDataSource());
         Map<Integer, List<OptionVoteDistribution>> distributions = null;
         try {
-            distributions = dao.getVoteDistributionByLevel(lifeCycle.getLevel());
-        } catch (ConnectException e) {
+            distributions = decisionDAO.getVoteDistributionByLevel(lifeCycle.getLevel());
+        } catch (Exception e) {
             logger.warn("Could not fetch vote distributions from database: {}", e.getMessage());
         }
         goStats.setCommunityVotes(distributions);

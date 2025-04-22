@@ -2,7 +2,6 @@ package de.andrenitze.softpro;
 
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.GameState;
 import de.andrenitze.softpro.domains.Savegame;
@@ -40,7 +39,6 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -60,6 +58,8 @@ public class GameServer extends WebSocketServer {
     private final LobbyPlayerServiceImpl lobbyPlayerService;
     private final GameLifeCycleService gameLifeCycleService;
     private final SavegameRepository savegameRepository;
+    @Autowired
+    private GameOverStatsDAO gameOverStatsDAO;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -143,7 +143,6 @@ public class GameServer extends WebSocketServer {
 
     private void fetchHighScore() {
         logger.info("Fetching high-score from database");
-        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(DatabaseConfig.getDataSource());
 
         List<GameOverStats> highScores = gameOverStatsDAO.getCurrentHighScores();
 
@@ -207,11 +206,9 @@ public class GameServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket webSocket, ClientHandshake handshake) {
-        // First, check if a database connection is available. If not, don't allow any connections.
-        try {
-            DatabaseConfig.getDataSource().getConnection().close();
-        } catch (Exception e) {
-            logger.error("Database connection not available. Refusing websocket connection.");
+        // First, check if Spring Boot database connection is available. If not, close the WebSocket.
+        if (gameOverStatsDAO == null) {
+            logger.error("Database connection is not available. Closing WebSocket.");
             webSocket.close();
             return;
         }
@@ -416,27 +413,30 @@ public class GameServer extends WebSocketServer {
      * @param webSocket  The WebSocket connection to the client
      * @param message    The message received from the client
      */
+    @Autowired
+    private DecisionService decisionService;
+
     private void handlePlayerReadyEvent(WebSocket webSocket, String message) {
         logger.debug("GameServer/Lobby: Handling PLAYER_READY event for WebSocket {}", webSocket.getRemoteSocketAddress());
         try {
             Player player = lobbyPlayerService.getPlayer(webSocket);
-            DecisionService decisionService = new DecisionService();
 
             Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
             GameEvent<LevelDecisions> playerReadyEvent = GameServer.getGson().fromJson(message, payloadType);
             int level = playerReadyEvent.getPayload().level();
             List<Decision> decisions = playerReadyEvent.getPayload().decisions();
             player.setDecisions(level, decisions);
+
             decisionService.saveDecisionsAsync(player.getId().toString(), gameLifeCycleService.getLevel(), player.getDecisionsByLevel(level));
 
             player.setReady(true);
             startReadyGames();
             broadcastLobbyState();
         } catch (Exception e) {
-            logger.debug(e.getMessage());
-            logger.error("Websocket message was malformed!");
+            logger.error("Websocket message was malformed! {}", e.getMessage(), e);
         }
     }
+
 
     private void handlePlayerNameUpdatedEvent(WebSocket webSocket, String message) {
         Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
@@ -615,16 +615,28 @@ public class GameServer extends WebSocketServer {
     }
 
     public List<GameOverStats> getCurrentHighScores() {
-        DataSource dataSource = DatabaseConfig.getDataSource();
-        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
-
         List<GameOverStats> highScores = gameOverStatsDAO.getCurrentHighScores();
-        if (highScores != null) {
+        if (highScores != null && !highScores.isEmpty()) {
             logger.info("Current high score fetched successfully.");
         } else {
             logger.warn("No high score found for today.");
         }
         return highScores;
+    }
+
+    public void saveGameOverStats(WebSocket webSocket, Player player, GameOverStats goStats) {
+        // Complete the infos for the database
+        goStats.setPlayerName(player.getName());
+        goStats.setFinishedAt(new Date());
+        goStats.setGameId(String.valueOf(this.hashCode()));
+        goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
+
+        // Save high-score in a separate thread (optional: make async!)
+        if (gameOverStatsDAO.saveGameOverStats(goStats)) {
+            logger.debug("Game stats of player in game {} saved successfully.", goStats.getGameId());
+        } else {
+            logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
+        }
     }
 
     public void removeGame(Game game) {
@@ -638,24 +650,6 @@ public class GameServer extends WebSocketServer {
         if (context != null) {
             context.close(); // Properly destruct the game context with all its beans
             gameContexts.remove(context);
-        }
-    }
-
-    public void saveGameOverStats(WebSocket webSocket, Player player, GameOverStats goStats) {
-        DataSource dataSource = DatabaseConfig.getDataSource();
-        GameOverStatsDAO gameOverStatsDAO = new GameOverStatsDAO(dataSource);
-
-        // Complete the infos for the database
-        goStats.setPlayerName(player.getName());
-        goStats.setFinishedAt(new Date());
-        goStats.setGameId(String.valueOf(this.hashCode()));
-        goStats.setIpAddress(webSocket.getRemoteSocketAddress().toString());
-
-        // Save high-score in a separate thread
-        if (gameOverStatsDAO.saveGameOverStats(goStats)) {
-            logger.debug("Game stats of player in game {} saved successfully.", goStats.getGameId());
-        } else {
-            logger.warn("Game stats of player in game {} could not be saved!", goStats.getGameId());
         }
     }
 

@@ -3,11 +3,13 @@ package de.andrenitze.softpro;
 import de.andrenitze.softpro.config.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.io.IOException;
 import java.util.Properties;
 
+@SpringBootApplication
 public class Main {
     public static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
     private static final int CONNECTION_LOST_TIMEOUT = 5;

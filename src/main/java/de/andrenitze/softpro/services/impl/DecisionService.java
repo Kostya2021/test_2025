@@ -1,33 +1,31 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.config.DatabaseConfig;
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
 
-import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
+import static de.andrenitze.softpro.Main.logger;
+
+@Service
 public class DecisionService {
-    private static final Logger logger = LoggerFactory.getLogger(DecisionService.class);
-    private final DecisionDAO decisionDao;
-    private final ExecutorService executorService;
 
-    public DecisionService() {
-        this.decisionDao = new DecisionDAO(DatabaseConfig.getDataSource());
-        this.executorService = Executors.newSingleThreadExecutor();
+    private final DecisionDAO decisionDao;
+
+    @Autowired
+    public DecisionService(DecisionDAO decisionDao) {
+        this.decisionDao = decisionDao;
     }
 
+    @Async
     public void saveDecisionsAsync(String playerId, int level, List<Decision> decisions) {
-        executorService.submit(() -> {
-            try {
-                decisionDao.saveDecisions(playerId, level, decisions);
-            } catch (SQLException e) {
-                logger.error("Could not persist player decisions to database: {}", e.getMessage());
-            }
-        });
+        try {
+            decisionDao.saveDecisions(playerId, level, decisions);
+        } catch (Exception e) {
+            logger.error("Could not persist player decisions to database: {}", e.getMessage());
+        }
     }
 }
