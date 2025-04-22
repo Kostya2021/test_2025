@@ -251,14 +251,6 @@ public class GameServer extends WebSocketServer {
         AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
         Game game = gameContext.getBean(Game.class);
 
-        GameLifeCycleService lifeCycleService = gameContext.getBean(GameLifeCycleService.class);
-
-        Optional<GameState> gameState = loadGame(player);
-        if (gameState.isPresent()) {
-            log.debug("Loading saved game state for player {}...", player.getId());
-            game.restoreGameState(gameState.get(), player);
-        }
-
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         log.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
@@ -269,12 +261,12 @@ public class GameServer extends WebSocketServer {
             log.error("Could not add player to game: {}", e.getMessage());
             return;
         }
-        log.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), lifeCycleService.getLevel(), player.getId());
+        log.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), game.getLevel(), player.getId());
         prepareForNextLevel(player, game);
 
         // Notify player about next level
         GameEvent<Integer> levelUpdateEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
-        levelUpdateEvent.setPayload(lifeCycleService.getLevel());
+        levelUpdateEvent.setPayload(game.getLevel());
         webSocket.send(gson.toJson(levelUpdateEvent));
     }
 
@@ -375,6 +367,8 @@ public class GameServer extends WebSocketServer {
                 handlePlayerReadyEvent(webSocket, message);
             } else if (EventType.PLAYER_NAME_UPDATED.equals(genericGameEvent.getType())) {
                 handlePlayerNameUpdatedEvent(webSocket, message);
+            } else if (EventType.USER_LOGGED_IN.equals(genericGameEvent.getType())) {
+                handleUserLogin(webSocket, message);
             } else {
                 forwardEventToGame(webSocket, message);
             }
@@ -436,6 +430,33 @@ public class GameServer extends WebSocketServer {
     private String sanitizePlayerName(String name) {
         return name.substring(0, Math.min(MAX_PLAYER_NAME_LENGTH, name.length()))
                 .replaceAll("[^\\p{L}\\p{M}\\s]", "").trim();
+    }
+
+    private void handleUserLogin(WebSocket webSocket, String message) {
+        // Parse "userId" and "sub" strings from the message
+        Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
+        GameEvent<HashMap<String, String>> loginEvent = GameServer.getGson().fromJson(message, payloadType);
+        UUID userId = UUID.fromString(loginEvent.getPayload().get("userId"));
+        String sub = loginEvent.getPayload().get("sub");
+
+        // Find player by websocket connection (and compare with userId)
+        Player player = lobbyPlayerService.getPlayer(webSocket);
+        if (player == null || sub == null || !player.getId().equals(userId)) {
+            log.warn("Player not found for websocket connection or provided userId.");
+            return;
+        }
+
+        // Update player with sub for identification after next login
+        player.setJwtSubject(sub);
+
+        // Reload game state if save game exists
+        Optional<GameState> gameState = loadGame(player);
+        if (gameState.isPresent()) {
+            log.debug("Loading saved game state for player {}...", player.getId());
+            // TODO
+            //player.restoreGameState(gameState.get());
+        }
+
     }
 
     private void forwardEventToGame(WebSocket webSocket, String message) {

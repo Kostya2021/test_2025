@@ -83,10 +83,4 @@ public class AccountingServiceImpl implements AccountingService {
                 .filter(entry -> entry.getDay() == gameTick)
                 .toList();
     }
-
-    public List<AccountingEntry> getNewEntriesByPlayer(Player player, int tick) {
-        return entries.stream()
-                .filter(e -> e.getPlayer().equals(player) && e.getDay() == tick)
-                .toList();
-    }
 }

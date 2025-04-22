@@ -5,9 +5,7 @@ import de.andrenitze.softpro.domains.players.Player;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -17,7 +15,6 @@ import static de.andrenitze.softpro.GameServer.gson;
 
 @Service
 @Slf4j
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Primary
 @RequiredArgsConstructor
 public class GamePlayerServiceImpl extends BasePlayerService {

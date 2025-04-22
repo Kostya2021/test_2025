@@ -25,7 +25,7 @@ public class GameLifeCycleService {
     @Getter
     private LocalDate currentDate;
     @Getter @Setter
-    private int level;
+    private int level = 1;
 
     public GameLifeCycleService() {
         this.tick = 0;

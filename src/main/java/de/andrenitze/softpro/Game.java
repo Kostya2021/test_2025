@@ -20,7 +20,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -42,25 +41,23 @@ import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.M
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
 public class Game {
-    private final StoryService                   storyService;
-    private final GamePlayerServiceImpl playerService;
-    private final SkillServiceImpl skillService;
-    private final AccountingServiceImpl accountingService;
-    private final MessagingServiceImpl messagingService;
-    private final TalentMarket                   talentMarket;
-    private final ProjectServiceImpl projectService;
-    private final EmployeeServiceImpl employeeService;
-    private final GameEventHandler               eventHandler;
-    private final GameEventPublisher             eventPublisher;
-    private final ProjectEmployeeMappingImpl  projectEmployeeService;
-    private final GameLifeCycleService           lifeCycle;
-    private final LevelConsequencesService       levelConsequencesService;
-    private final ObjectiveServiceImpl objectiveService;
+    private final StoryService                  storyService;
+    private final GamePlayerServiceImpl         playerService;
+    private final SkillServiceImpl              skillService;
+    private final AccountingServiceImpl         accountingService;
+    private final MessagingServiceImpl          messagingService;
+    private final TalentMarket                  talentMarket;
+    private final ProjectServiceImpl            projectService;
+    private final EmployeeServiceImpl           employeeService;
+    private final GameEventHandler              eventHandler;
+    private final GameEventPublisher            eventPublisher;
+    private final ProjectEmployeeMappingImpl    projectEmployeeService;
+    private final GameLifeCycleService          lifeCycle;
+    private final LevelConsequencesService      levelConsequencesService;
+    private final ObjectiveServiceImpl          objectiveService;
+    private final DecisionDAO                   decisionDAO;
 
     private ScheduledExecutorService gameLoop;
-
-    @Autowired
-    private DecisionDAO decisionDAO;
 
     @PostConstruct
     void init() {
@@ -280,7 +277,7 @@ public class Game {
         lifeCycle.setLevel(level);
         projectService.loadProblems(level);
         projectService.initializeProjectMarket(level);
-        storyService.loadStory(level);
+        storyService.init(level);
     }
 
     private void sendAnyNewStoryElements(Player player) {

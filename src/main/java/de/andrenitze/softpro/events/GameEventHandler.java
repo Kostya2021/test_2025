@@ -21,7 +21,10 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +65,6 @@ public class GameEventHandler {
             switch (event.getType()) {
                 case PAUSE -> gameLifeCycleService.pause();
                 case RESUME -> gameLifeCycleService.resume();
-                case USER_LOGGED_IN -> handleUserLogin(websocket, message);
                 case JOIN_TENDER -> handleJoinTenderEvent(websocket, message, gameLifeCycleService.getTick());
                 case ASSIGN_EMPLOYEE -> handleAssignEmployeeEvent(websocket, message);
                 case UNASSIGN_EMPLOYEE -> handleUnassignEmployeeEvent(websocket, message);
@@ -83,24 +85,6 @@ public class GameEventHandler {
         } catch (Exception e) {
             log.error("Error handling event {}: {}", event.getType(), e.getMessage());
         }
-    }
-
-    private void handleUserLogin(WebSocket webSocket, String message) {
-        // Parse "userId" and "sub" strings from the message
-        Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
-        GameEvent<HashMap<String, String>> loginEvent = GameServer.getGson().fromJson(message, payloadType);
-        UUID userId = UUID.fromString(loginEvent.getPayload().get("userId"));
-        String sub = loginEvent.getPayload().get("sub");
-
-        // Find player by websocket connection (and compare with userId)
-        Player player = playerService.getPlayer(webSocket);
-        if (player == null || sub == null || !player.getId().equals(userId)) {
-            log.warn("Player not found for websocket connection or provided userId.");
-            return;
-        }
-
-        // Update player with sub for identification after next login
-        player.setJwtSubject(sub);
     }
 
     private void handleEmployeeTrainingRequestedEvent(WebSocket websocket, String message) {
