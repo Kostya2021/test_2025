@@ -2,8 +2,12 @@ package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.players.Player;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -13,14 +17,13 @@ import static de.andrenitze.softpro.GameServer.gson;
 
 @Service
 @Slf4j
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@Primary
+@RequiredArgsConstructor
 public class GamePlayerServiceImpl extends BasePlayerService {
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final TalentMarket talentMarket;
     private final Map<UUID, Player> previousPlayerStates = new HashMap<>();
-
-    public GamePlayerServiceImpl(TalentMarket talentMarket) {
-        this.talentMarket = talentMarket;
-    }
 
     @Override
     public void addPlayer(WebSocket webSocket, Player player) {

@@ -5,9 +5,14 @@ import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.SkillService;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileReader;
@@ -24,12 +29,16 @@ import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 @Setter
 @Getter
 @Slf4j
+@Service
+@RequiredArgsConstructor
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class SkillServiceImpl implements SkillService {
     public static final String JSON = ".json";
     private ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
 
-    public SkillServiceImpl() {
+    @PostConstruct
+    public void init() {
         playersSkills = new ConcurrentHashMap<>();
 
         try {

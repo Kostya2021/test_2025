@@ -11,12 +11,16 @@ import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.*;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -34,6 +38,8 @@ import static java.lang.Math.*;
 @Service
 @Primary
 @Slf4j
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
     public static final int STALE_TENDERS_KILL_DAYS = 548;
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
@@ -47,18 +53,15 @@ public class ProjectServiceImpl implements ProjectService {
     @Getter @Setter private List<Project> projects = new ArrayList<>();
     @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
-    @Getter @Setter private AccountingServiceImpl accountingService;
+    @Lazy
+    @Getter
+    private final AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
     private final Map<Integer, Project> previousProjectStates = new HashMap<>();
 
-    @Autowired
-    public ProjectServiceImpl(SkillServiceImpl skillService,
-                              ProjectEmployeeMappingService projectEmployeeService) {
-        this.accountingService = null;
-        this.skillService = skillService;
-        this.projectEmployeeService = projectEmployeeService;
-
+    @PostConstruct
+    public void init() {
         // Initialize the projects list
         setProjects(new ArrayList<>());
     }

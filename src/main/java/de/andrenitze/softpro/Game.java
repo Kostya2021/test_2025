@@ -65,7 +65,7 @@ public class Game {
     @PostConstruct
     void init() {
         if (lifeCycle.getLevel() != 1) {
-            talentMarket.initialize();
+            talentMarket.init();
         }
         log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
     }

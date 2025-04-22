@@ -13,6 +13,7 @@ import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.ObjectiveService;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.context.annotation.Lazy;
@@ -29,22 +30,14 @@ import static de.andrenitze.softpro.domains.employees.Employee.PROJECT_MANAGEMEN
 @Service
 @Primary
 @Slf4j
+@RequiredArgsConstructor
 public class ObjectiveServiceImpl implements ObjectiveService {
+    @Lazy
     private final GamePlayerServiceImpl playerService;
     private final GameLifeCycleService lifeCycleService;
     private final ProjectServiceImpl projectService;
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
-
-    public ObjectiveServiceImpl(@Lazy GamePlayerServiceImpl playerService, GameLifeCycleService lifeCycleService,
-                                ProjectServiceImpl projectService, SkillServiceImpl skillService,
-                                ProjectEmployeeMappingService projectEmployeeService) {
-        this.playerService = playerService;
-        this.lifeCycleService = lifeCycleService;
-        this.projectService = projectService;
-        this.skillService = skillService;
-        this.projectEmployeeService = projectEmployeeService;
-    }
 
     public Map<Player, List<Objective>> getNewObjectives(int currentTick) {
         Map<Player, List<Objective>> newObjectivesMap = new HashMap<>();

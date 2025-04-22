@@ -5,8 +5,13 @@ import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.services.AccountingService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,11 +20,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
 @Slf4j
+@Service
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@Primary
+@RequiredArgsConstructor
 public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();
-
-    public AccountingServiceImpl() {
-    }
 
     // Adds a new entry to the in-memory list
     public synchronized void addEntry(AccountingEntry entry) {

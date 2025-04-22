@@ -4,21 +4,24 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 @Service
 @Primary
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@RequiredArgsConstructor
 public class LevelConsequencesService {
     public static final String RESTORE_LOST_DATA = "Restore lost data";
     public static final int BACKUP_BLUES_LEVEL = 2;
+    @Lazy
     private final GamePlayerServiceImpl playerService;
+    @Lazy
     private final TalentMarket talentMarket;
-
-    public LevelConsequencesService(GamePlayerServiceImpl playerService, TalentMarket talentMarket) {
-        this.playerService = playerService;
-        this.talentMarket = talentMarket;
-    }
 
     public void triggerLevel1Consequences() {
         playerService.getPlayers().forEach((ignored, player) -> {
