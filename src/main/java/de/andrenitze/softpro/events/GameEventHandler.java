@@ -65,6 +65,7 @@ public class GameEventHandler {
             switch (event.getType()) {
                 case PAUSE -> gameLifeCycleService.pause();
                 case RESUME -> gameLifeCycleService.resume();
+                case PLAYER_NAME_UPDATED -> handlePlayerNameUpdatedEvent(websocket, message);
                 case JOIN_TENDER -> handleJoinTenderEvent(websocket, message, gameLifeCycleService.getTick());
                 case ASSIGN_EMPLOYEE -> handleAssignEmployeeEvent(websocket, message);
                 case UNASSIGN_EMPLOYEE -> handleUnassignEmployeeEvent(websocket, message);
@@ -84,6 +85,24 @@ public class GameEventHandler {
             }
         } catch (Exception e) {
             log.error("Error handling event {}: {}", event.getType(), e.getMessage());
+        }
+    }
+
+    private void handlePlayerNameUpdatedEvent(WebSocket websocket, String message) {
+        if (gameLifeCycleService.getLevel() == 1) {
+            // Find first employee of player
+            Player player = playerService.getPlayer(websocket);
+            Employee employee = player.getEmployees().getFirst();
+
+            // Change employee's name to player's name
+            if (employee != null) {
+                String name = player.getName();
+                employee.setFirstName(name.split(" ")[0]);
+                employee.setLastName(name.split(" ")[1]);
+                messagingService.sendEmployeeUpdate(player, employee);
+            } else {
+                log.warn("Could not update employee name. Employee not found.");
+            }
         }
     }
 

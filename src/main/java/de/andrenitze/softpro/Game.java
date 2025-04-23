@@ -116,119 +116,123 @@ public class Game {
      * Order is important, because some methods depend on the state of others (side effects are likely).
      */
     private void progressGameTime() {
-        if (lifeCycle.isPaused()) {
-            return;
-        }
+        try {
+            if (lifeCycle.isPaused()) {
+                return;
+            }
 
-        lifeCycle.nextTick();
+            lifeCycle.nextTick();
 
-        long startTime = System.nanoTime();
+            long startTime = System.nanoTime();
 
-        List<Project> updatedProjects = projectService.conductWorkOnAllProjects(
-                lifeCycle.getTick(), lifeCycle.getLevel(), lifeCycle.getCurrentDate()
-        );
+            List<Project> updatedProjects = projectService.conductWorkOnAllProjects(
+                    lifeCycle.getTick(), lifeCycle.getLevel(), lifeCycle.getCurrentDate()
+            );
 
-        for (Project project : updatedProjects) {
-            projectService.getProjectSummaryIfProgressChanged(project, lifeCycle.getTick())
-                    .ifPresent(summary -> {
-                        GameEvent<ProjectSummary> event = new GameEvent<>(EventType.PROJECT_UPDATED);
-                        event.setPayload(summary);
-                        project.getInvolvedPlayers().forEach(player ->
-                                messagingService.sendToPlayer(player, event)
-                        );
-                    });
-        }
-
-
-        projectService.cancelOverdueProjects(lifeCycle.getTick(), lifeCycle.getLevel());
-        projectService.evaluateTenderProcesses(lifeCycle.getTick());
-        // Things not to do in the first level
-        // The "level" param in the other methods are used for a similar decision and might be removed in the future.
-        if (lifeCycle.getLevel() != 1) {
-            projectService.spawnTenders(lifeCycle.getTick());
-            projectService.spawnComplianceProjects(lifeCycle.getTick());
-            notifyPlayersAboutStaleTenders();
-            projectService.startStaleProjects(lifeCycle.getTick());
-        } else {
-            // Generate player-specific (easy) tenders in level 1
-            projectService.randomlySpawnLevel1Tenders(lifeCycle.getTick(), playerService.getRandomPlayer());
-        }
-        projectService.createProblemsInProjects(lifeCycle.getTick(), lifeCycle.getLevel());
-        accountingService.processMonthlyPayments(lifeCycle.getCurrentDate(), playerService.getPlayers(), lifeCycle.getTick(), lifeCycle.getLevel());
-        messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick(), playerService.getPlayers()));
-        employeeService.simulateEmployeeLives(lifeCycle.getTick(), playerService.getPlayers());
-
-        Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycle.getTick());
-        for (Map.Entry<Player, List<Objective>> entry : newObjectivesMap.entrySet()) {
-            Player player = entry.getKey();
-            List<Objective> allObjectives = player.getObjectivesUntilThisTick(lifeCycle.getTick());
-            GameEvent<List<Objective>> gameEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
-            gameEvent.setPayload(allObjectives);
-            messagingService.sendToPlayer(player, gameEvent);
-        }
-        checkObjectivesCriteriaAndSendRewards();
-
-        // Send updates for all projects which have been completed or cancelled in this tick
-        projectService.getProjects().stream()
-                .filter(project -> project.isCompleted() && project.getCompletedAt() == lifeCycle.getTick() ||
-                        project.getCancelledAt() == lifeCycle.getTick())
-                .forEach(project -> project.getInvolvedPlayers().forEach(player ->
-                        messagingService.sendProjectUpdate(player, project)));
-
-        // Send project tenders published in this tick
-        projectService.getProjects().stream()
-                .filter(project -> project.getPublishedAt() == lifeCycle.getTick())
-                .forEach(project -> {
-                    // Broadcast new tenders
-                    GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
-                    newTenderEvent.setPayload(project);
-                    messagingService.broadcast(newTenderEvent);
-
-                    // If the tender is a compliance project, send individual events to all players
-                    if (project.getType() == ProjectType.COMPLIANCE) {
-                        project.getInvolvedPlayers().forEach(player -> {
-                            project.addParty(player); // Important for frontend
-
-                            // Immediately assign project (hence PROJECT_RECEIVED, not NEW_TENDER)
-                            GameEvent<Project> complianceProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
-                            complianceProjectEvent.setPayload(project);
-                            messagingService.sendToPlayer(player, complianceProjectEvent);
-                            log.debug("New compliance project spawned for all players: {}", project.getName());
+            for (Project project : updatedProjects) {
+                projectService.getProjectSummaryIfProgressChanged(project, lifeCycle.getTick())
+                        .ifPresent(summary -> {
+                            GameEvent<ProjectSummary> event = new GameEvent<>(EventType.PROJECT_UPDATED);
+                            event.setPayload(summary);
+                            project.getInvolvedPlayers().forEach(player ->
+                                    messagingService.sendToPlayer(player, event)
+                            );
                         });
-                    }
-                });
-
-        // Send force-started project notification
-        projectService.getProjects().stream()
-                .filter(project -> project.getStartedAt() == lifeCycle.getTick())
-                .forEach(project -> {
-                    GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
-                    HashMap<String, Integer> payload = new HashMap<>();
-                    payload.put("projectId", project.getId());
-                    payload.put("startedAt", project.getStartedAt());
-                    projectStartedEvent.setPayload(payload);
-
-                    // Notify involved players about forced start
-                    project.getInvolvedPlayers().forEach(player ->
-                            messagingService.sendToPlayer(player, projectStartedEvent));
-                });
+            }
 
 
-        // For all players in the game...
-        playerService.getPlayers().forEach((ignored, player) -> {
-            sendAnyProjectChanges();
-            sendAnyPlayerChanges(player);
-            sendAnyNewStoryElements(player);
-        });
+            projectService.cancelOverdueProjects(lifeCycle.getTick(), lifeCycle.getLevel());
+            projectService.evaluateTenderProcesses(lifeCycle.getTick());
+            // Things not to do in the first level
+            // The "level" param in the other methods are used for a similar decision and might be removed in the future.
+            if (lifeCycle.getLevel() != 1) {
+                projectService.spawnTenders(lifeCycle.getTick());
+                projectService.spawnComplianceProjects(lifeCycle.getTick());
+                notifyPlayersAboutStaleTenders();
+                projectService.startStaleProjects(lifeCycle.getTick());
+            } else {
+                // Generate player-specific (easy) tenders in level 1
+                projectService.randomlySpawnLevel1Tenders(lifeCycle.getTick(), playerService.getRandomPlayer());
+            }
+            projectService.createProblemsInProjects(lifeCycle.getTick(), lifeCycle.getLevel());
+            accountingService.processMonthlyPayments(lifeCycle.getCurrentDate(), playerService.getPlayers(), lifeCycle.getTick(), lifeCycle.getLevel());
+            messagingService.sendNewAccountingEntries(accountingService.getAccountingEntriesByTick(lifeCycle.getTick(), playerService.getPlayers()));
+            employeeService.simulateEmployeeLives(lifeCycle.getTick(), playerService.getPlayers());
 
-        checkGameOverConditions();
+            Map<Player, List<Objective>> newObjectivesMap = objectiveService.getNewObjectives(lifeCycle.getTick());
+            for (Map.Entry<Player, List<Objective>> entry : newObjectivesMap.entrySet()) {
+                Player player = entry.getKey();
+                List<Objective> allObjectives = player.getObjectivesUntilThisTick(lifeCycle.getTick());
+                GameEvent<List<Objective>> gameEvent = new GameEvent<>(EventType.OBJECTIVES_UPDATED);
+                gameEvent.setPayload(allObjectives);
+                messagingService.sendToPlayer(player, gameEvent);
+            }
+            checkObjectivesCriteriaAndSendRewards();
 
-        long endTime = System.nanoTime();
-        long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
+            // Send updates for all projects which have been completed or cancelled in this tick
+            projectService.getProjects().stream()
+                    .filter(project -> project.isCompleted() && project.getCompletedAt() == lifeCycle.getTick() ||
+                            project.getCancelledAt() == lifeCycle.getTick())
+                    .forEach(project -> project.getInvolvedPlayers().forEach(player ->
+                            messagingService.sendProjectUpdate(player, project)));
 
-        // If time elapsed is more than 20 ms and game is not currently shutting down
-        if (timeElapsedInMilliseconds >= 20 && lifeCycle.isRunning()) {
-            log.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+            // Send project tenders published in this tick
+            projectService.getProjects().stream()
+                    .filter(project -> project.getPublishedAt() == lifeCycle.getTick())
+                    .forEach(project -> {
+                        // Broadcast new tenders
+                        GameEvent<Project> newTenderEvent = new GameEvent<>(EventType.NEW_TENDER);
+                        newTenderEvent.setPayload(project);
+                        messagingService.broadcast(newTenderEvent);
+
+                        // If the tender is a compliance project, send individual events to all players
+                        if (project.getType() == ProjectType.COMPLIANCE) {
+                            project.getInvolvedPlayers().forEach(player -> {
+                                project.addParty(player); // Important for frontend
+
+                                // Immediately assign project (hence PROJECT_RECEIVED, not NEW_TENDER)
+                                GameEvent<Project> complianceProjectEvent = new GameEvent<>(EventType.PROJECT_RECEIVED);
+                                complianceProjectEvent.setPayload(project);
+                                messagingService.sendToPlayer(player, complianceProjectEvent);
+                                log.debug("New compliance project spawned for all players: {}", project.getName());
+                            });
+                        }
+                    });
+
+            // Send force-started project notification
+            projectService.getProjects().stream()
+                    .filter(project -> project.getStartedAt() == lifeCycle.getTick())
+                    .forEach(project -> {
+                        GameEvent<HashMap<String, Integer>> projectStartedEvent = new GameEvent<>(EventType.PROJECT_STARTED);
+                        HashMap<String, Integer> payload = new HashMap<>();
+                        payload.put("projectId", project.getId());
+                        payload.put("startedAt", project.getStartedAt());
+                        projectStartedEvent.setPayload(payload);
+
+                        // Notify involved players about forced start
+                        project.getInvolvedPlayers().forEach(player ->
+                                messagingService.sendToPlayer(player, projectStartedEvent));
+                    });
+
+
+            // For all players in the game...
+            playerService.getPlayers().forEach((ignored, player) -> {
+                sendAnyProjectChanges();
+                sendAnyPlayerChanges(player);
+                sendAnyNewStoryElements(player);
+            });
+
+            checkGameOverConditions();
+
+            long endTime = System.nanoTime();
+            long timeElapsedInMilliseconds = (endTime - startTime) / 1000000;
+
+            // If time elapsed is more than 20 ms and game is not currently shutting down
+            if (timeElapsedInMilliseconds >= 20 && lifeCycle.isRunning()) {
+                log.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
+            }
+        } catch (Exception e) {
+            log.error("Error in game loop: {}", e.getMessage());
         }
     }
 

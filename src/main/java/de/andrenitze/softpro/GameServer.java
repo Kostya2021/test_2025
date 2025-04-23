@@ -414,11 +414,12 @@ public class GameServer extends WebSocketServer {
 
 
     private void handlePlayerNameUpdatedEvent(WebSocket webSocket, String message) {
+        // Parse player
         Type payloadType = new TypeToken<GameEvent<Player>>() {}.getType();
-        GameEvent<Player> updatedPlayerEvent = gson.fromJson(message, payloadType);
-        Player updatedPlayer = updatedPlayerEvent.getPayload();
+        GameEvent<Player> playerNameUpdateEvent = GameServer.getGson().fromJson(message, payloadType);
+        Player playerOnlyWithNewName = playerNameUpdateEvent.getPayload();
 
-        String newName = sanitizePlayerName(updatedPlayer.getName());
+        String newName = sanitizePlayerName(playerOnlyWithNewName.getName());
         if (newName.length() >= 2) {
             Player player = lobbyPlayerService.getPlayer(webSocket);
             String oldName = player.getName();
@@ -430,6 +431,10 @@ public class GameServer extends WebSocketServer {
             webSocket.send(gson.toJson(playerUpdateEvent));
 
             broadcastLobbyState();
+
+            // Only for renaming the level 1 employee
+            forwardEventToGame(webSocket, message);
+
             log.debug("{} changed name to {}", oldName, newName);
         }
     }
@@ -445,6 +450,7 @@ public class GameServer extends WebSocketServer {
         GameEvent<HashMap<String, String>> loginEvent = GameServer.getGson().fromJson(message, payloadType);
         UUID userId = UUID.fromString(loginEvent.getPayload().get("userId"));
         String sub = loginEvent.getPayload().get("sub");
+        String name = loginEvent.getPayload().get("name");
 
         // Find player by websocket connection (and compare with userId)
         Player player = lobbyPlayerService.getPlayer(webSocket);
@@ -455,6 +461,9 @@ public class GameServer extends WebSocketServer {
 
         // Update player with sub for identification after next login
         player.setJwtSubject(sub);
+
+        // Use user name from authentication as player name
+        player.setName(name);
 
         // Reload game state if save game exists
         Optional<GameState> gameState = loadGame(player);
