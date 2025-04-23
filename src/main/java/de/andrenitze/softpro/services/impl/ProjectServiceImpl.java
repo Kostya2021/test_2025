@@ -756,7 +756,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     public void randomlySpawnLevel1Tenders(int tick, Player player) {
         // Don't spawn tenders until first mission is completed
-        if (player.getMissions().getFirst().isNotCompleted()) {
+        if (player.getMissions() == null || player.getMissions().getFirst().isNotCompleted()) {
             return;
         }
 
