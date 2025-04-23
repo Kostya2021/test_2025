@@ -220,7 +220,7 @@ public class GameServer extends WebSocketServer {
         Player newPlayer = new Player();
 
         // This needs to be replaced with the current level from the players' user account
-        addPlayerToLobby(webSocket, newPlayer, 1); // First level
+        addPlayerToLobby(webSocket, newPlayer);
     }
 
     private void sendVersionAndGameSpeed(WebSocket webSocket) {
@@ -246,7 +246,7 @@ public class GameServer extends WebSocketServer {
      * @param webSocket WebSocket   The WebSocket connection to the client
      * @param player Player         The player to be added to the game
      */
-    private void createGame(WebSocket webSocket, Player player, int level) {
+    private void createGame(WebSocket webSocket, Player player) {
         log.debug("Creating new game instance for player {}", player.getId());
         AnnotationConfigApplicationContext gameContext = gameFactory.buildGameInstance();
         Game game = gameContext.getBean(Game.class);
@@ -254,7 +254,7 @@ public class GameServer extends WebSocketServer {
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         log.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
-        game.prepareLevelForPlayer(level);
+        game.prepareLevelForPlayer();
         try {
             game.getPlayerService().addPlayer(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         } catch (Exception e) {
@@ -462,6 +462,7 @@ public class GameServer extends WebSocketServer {
 
             if (game != null) {
                 game.restoreGameState(state, player);
+                game.prepareLevelForPlayer();
 
                 // Now notify the player about the restored game state
                 GameEvent<Player> playerUpdatedEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
@@ -615,9 +616,9 @@ public class GameServer extends WebSocketServer {
         }
     }
 
-    public void addPlayerToLobby(WebSocket webSocket, Player player, int level) {
+    public void addPlayerToLobby(WebSocket webSocket, Player player) {
         lobbyPlayerService.addPlayer(webSocket, player);
-        createGame(webSocket, player, level);
+        createGame(webSocket, player);
 
         // Send player state to the client
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
@@ -696,7 +697,7 @@ public class GameServer extends WebSocketServer {
         gamePlayerService.removePlayer(player);
 
         // Keep the level to create a correct new game instance (the old game context is already destroyed)
-        addPlayerToLobby(webSocket, player, game.getLevel());
+        addPlayerToLobby(webSocket, player);
         player.setReady(false);
 
         broadcastLobbyState();
@@ -749,8 +750,9 @@ public class GameServer extends WebSocketServer {
         log.debug("🚨 Global listener received GameOverEvent from game.");
         log.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
 
-        // If player is logged in with a valid user account, save the game state
-        if (!data.player().getJwtSubject().isEmpty()) {
+        // If player is logged in and has won the level, save the game state
+        if (data.player().getJwtSubject() != null
+                && Objects.equals(data.stats().getReport(), "win")) {
             saveGame(data.game(), data.player());
         }
 
