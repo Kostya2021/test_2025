@@ -423,7 +423,7 @@ public class GameServer extends WebSocketServer {
             webSocket.send(gson.toJson(playerUpdateEvent));
 
             broadcastLobbyState();
-            log.info("{} changed name to {}", oldName, newName);
+            log.debug("{} changed name to {}", oldName, newName);
         }
     }
 
@@ -472,6 +472,9 @@ public class GameServer extends WebSocketServer {
                 GameEvent<Integer> levelUpdateEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
                 levelUpdateEvent.setPayload(game.getLevel());
                 webSocket.send(gson.toJson(levelUpdateEvent));
+
+                // Update lobby
+                broadcastLobbyState();
             } else {
                 log.warn("Game instance not found for player {}. Game could not be loaded.", player.getId());
             }
@@ -719,7 +722,7 @@ public class GameServer extends WebSocketServer {
                 .orElseGet(Savegame::new);
 
         savegame.setUserId(userId);
-        savegame.setLevel(gameState.getLevel());
+        savegame.setLevel(game.getLevel());
         savegame.setGameStateJson(gameStateJson);
         savegame.setLastUpdated(Instant.now());
 

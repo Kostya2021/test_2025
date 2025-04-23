@@ -27,10 +27,7 @@ public class GameState {
 
     public void setPlayer(Player player) {
         // Remove missions as they are initialized with the new level
-        if (this.player != null) {
-            this.player.clearMissions();
-        }
-
+        player.clearMissions();
         this.player = player;
     }
 }
