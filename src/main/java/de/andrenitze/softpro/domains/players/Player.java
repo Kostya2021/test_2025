@@ -40,8 +40,9 @@ public class Player {
     }
     protected static final int[] XP_LEVEL_THRESHOLDS = {125, 200, 350, 600, 800, 1000, 1200, 1400, 1600};
 
-    @Getter @EqualsAndHashCode.Include
-    private final UUID id;
+    // This id is only used as identification for the current session. Will change on loading new games.
+    @Getter @Setter @EqualsAndHashCode.Include
+    private UUID id;
     @Getter @Setter
     private String jwtSubject;
     @Getter
@@ -74,7 +75,8 @@ public class Player {
     private int skillPoints = 0;
 
     @EqualsAndHashCode.Exclude
-    private final Map<Integer, List<Decision>> decisions = new HashMap<>();
+    @Getter @Setter
+    private Map<Integer, List<Decision>> decisions = new HashMap<>();
 
     public Player() {
         this(generatePlayerName(), generateCompanyName());
@@ -265,7 +267,7 @@ public class Player {
         this.employees.remove(employee);
     }
 
-    public void setDecisions(int level, List<Decision> decisions) {
+    public void setDecisionsForLevel(int level, List<Decision> decisions) {
         this.decisions.put(level, decisions);
     }
 
@@ -311,5 +313,9 @@ public class Player {
                 !Objects.equals(this.xp, player.getXp()) ||
                 !Objects.equals(this.xpLevel, player.getXpLevel()) ||
                 !Objects.equals(this.skillPoints, player.getSkillPoints());
+    }
+
+    public void clearMissions() {
+        this.missions.clear();
     }
 }

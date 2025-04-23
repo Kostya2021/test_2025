@@ -11,6 +11,7 @@ import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectSummary;
 import de.andrenitze.softpro.domains.projects.ProjectType;
+import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.impl.*;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -462,16 +464,32 @@ public class Game {
     }
 
     public void restoreGameState(GameState gameState, Player player) {
-        // TODO Hier die Wiederherstellung des Zustands für den Spieler
-
-        player.setXp(gameState.getXp());
-
-        if (gameState.getEmployees() != null) {
-            playerService.getPlayer(player).setEmployees(gameState.getEmployees());
+        if (player == null || gameState.getPlayer() == null) {
+            log.error("Player or game state is null. Cannot restore game state.");
+            return;
         }
 
-        if (gameState.getDecisions() != null) {
-            //playerService.getPlayer(player).setDecisions(LEVEL?, gameState.getDecisions());
+        if (!Objects.equals(player.getJwtSubject(), gameState.getPlayer().getJwtSubject())) {
+            log.error("Player subject mismatch. Cannot restore game state.");
+            return;
+        }
+
+        // Restore game state);
+        this.setLevel(gameState.getLevel());
+
+        // Restore player state
+        player.setName(gameState.getPlayer().getName());
+        player.setCompany(gameState.getPlayer().getCompany());
+        player.setXp(gameState.getPlayer().getXp());
+        player.setXpLevel(gameState.getPlayer().getXpLevel());
+        player.setSkillPoints(gameState.getPlayer().getSkillPoints());
+
+        if (gameState.getPlayer().getEmployees() != null) {
+            player.setEmployees(gameState.getPlayer().getEmployees());
+        }
+
+        if (gameState.getPlayer().getDecisions() != null) {
+            player.setDecisions(gameState.getPlayer().getDecisions());
         }
 
         if (gameState.getSkills() != null) {
@@ -483,11 +501,12 @@ public class Game {
 
     public GameState exportState(Player player) {
         GameState gameState = new GameState();
-        gameState.setXp(player.getXp());
-        gameState.setEmployees(player.getEmployees());
-        gameState.setDecisions(player.getDecisionsByLevel(lifeCycle.getLevel()));
 
-        // TODO Export more game state...
+        gameState.setLevel(getLevel());
+        gameState.setPlayer(player);
+        gameState.setAccountingEntries(accountingService.getAllEntriesByPlayer(player));
+        gameState.setProjects(projectService.getProjectsByPlayer(player));
+        gameState.setSkills((HashMap<String, Skill>) skillService.getSkillsByPlayer(player));
 
         return gameState;
     }

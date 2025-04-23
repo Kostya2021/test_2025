@@ -17,10 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -38,7 +36,6 @@ import static java.lang.Math.*;
 @Service
 @Primary
 @Slf4j
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
     public static final int STALE_TENDERS_KILL_DAYS = 548;

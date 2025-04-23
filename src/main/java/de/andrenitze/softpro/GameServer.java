@@ -393,7 +393,7 @@ public class GameServer extends WebSocketServer {
             GameEvent<LevelDecisions> playerReadyEvent = GameServer.getGson().fromJson(message, payloadType);
             int level = playerReadyEvent.getPayload().level();
             List<Decision> decisions = playerReadyEvent.getPayload().decisions();
-            player.setDecisions(level, decisions);
+            player.setDecisionsForLevel(level, decisions);
 
             decisionService.saveDecisionsAsync(player.getId().toString(), gameLifeCycleService.getLevel(), player.getDecisionsByLevel(level));
 
@@ -453,10 +453,29 @@ public class GameServer extends WebSocketServer {
         Optional<GameState> gameState = loadGame(player);
         if (gameState.isPresent()) {
             log.debug("Loading saved game state for player {}...", player.getId());
-            // TODO
-            //player.restoreGameState(gameState.get());
-        }
+            GameState state = gameState.get();
+            // Find game context for the player
+            Game game = gameContexts.values().stream()
+                    .filter(g -> g.getPlayerService().hasWebSocket(webSocket))
+                    .findFirst()
+                    .orElse(null);
 
+            if (game != null) {
+                game.restoreGameState(state, player);
+
+                // Now notify the player about the restored game state
+                GameEvent<Player> playerUpdatedEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
+                playerUpdatedEvent.setPayload(player);
+                webSocket.send(gson.toJson(playerUpdatedEvent));
+
+                // Send level update event
+                GameEvent<Integer> levelUpdateEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
+                levelUpdateEvent.setPayload(game.getLevel());
+                webSocket.send(gson.toJson(levelUpdateEvent));
+            } else {
+                log.warn("Game instance not found for player {}. Game could not be loaded.", player.getId());
+            }
+        }
     }
 
     private void forwardEventToGame(WebSocket webSocket, String message) {
@@ -705,6 +724,7 @@ public class GameServer extends WebSocketServer {
         savegame.setLastUpdated(Instant.now());
 
         savegameRepository.save(savegame);
+        log.debug("Game state for player {} saved successfully.", userId);
     }
 
 

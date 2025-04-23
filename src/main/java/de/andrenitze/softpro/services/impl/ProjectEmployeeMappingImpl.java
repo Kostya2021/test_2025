@@ -6,9 +6,7 @@ import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,7 +18,6 @@ import java.util.concurrent.ConcurrentMap;
 @Primary
 @Slf4j
 @RequiredArgsConstructor
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class ProjectEmployeeMappingImpl implements ProjectEmployeeMappingService {
     private final ConcurrentMap<Project, ArrayList<Employee>> projectEmployeesMap = new ConcurrentHashMap<>();
 

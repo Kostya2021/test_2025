@@ -10,6 +10,6 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 public class GameConfig {
     public GameConfig(ApplicationContext parentContext) {
-        log.debug("GameConfig with parentContext '{}' created.", parentContext.getId());
+        log.debug("GameConfig with parentContext '{}' created.", parentContext.getDisplayName());
     }
 }

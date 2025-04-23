@@ -3,8 +3,6 @@ package de.andrenitze.softpro.services.impl;
 import de.andrenitze.softpro.config.Config;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -14,7 +12,6 @@ import java.time.LocalDate;
  */
 @Getter
 @Component
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class GameLifeCycleService {
     @Getter
     private final int gameSpeedInMilliseconds;

@@ -419,4 +419,8 @@ public class Project implements Serializable {
                 || hasEconomyChanged(other)
                 || hasMetaChanged(other);
     }
+
+    public void clearInvolvedParties() {
+        this.involvedParties.clear();
+    }
 }

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -25,6 +27,7 @@ public class Savegame {
 
     @Lob
     @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
     private String gameStateJson;
 
     @Column(nullable = false)
