@@ -66,7 +66,7 @@ public class Game {
         if (lifeCycle.getLevel() != 1) {
             talentMarket.init();
         }
-        log.debug("Game {} wired", hashCode());
+        log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
     }
 
     public void start() {
@@ -116,7 +116,6 @@ public class Game {
      * Order is important, because some methods depend on the state of others (side effects are likely).
      */
     private void progressGameTime() {
-        try {
         if (lifeCycle.isPaused()) {
             return;
         }
@@ -231,17 +230,17 @@ public class Game {
         if (timeElapsedInMilliseconds >= 20 && lifeCycle.isRunning()) {
             log.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
         }
-        } catch (Exception e) {
-            log.error("Error while processing game tick: {}", e.getMessage());
-        }
     }
 
-    void prepareLevelForPlayer() {
-        initialize();
+    /**
+     * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
+     */
+    void prepareLevelForPlayer(int level) {
+        setLevel(level);
         log.debug("Preparing level {} for player.", lifeCycle.getLevel());
 
         if (lifeCycle.getLevel() != 1) {
-            projectService.initializeProjectMarket(getLevel());
+            projectService.initializeProjectMarket(level);
 
             GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
             employeeEvent.setPayload(talentMarket.getTalents());
@@ -276,9 +275,7 @@ public class Game {
         });
     }
 
-    // Central method to initialize the game (e.g. after a player has logged in or just connected anonymously)
-    private void initialize() {
-        int level = lifeCycle.getLevel();
+    private void setLevel(int level) {
         lifeCycle.setLevel(level);
         projectService.loadProblems(level);
         projectService.initializeProjectMarket(level);
@@ -295,11 +292,8 @@ public class Game {
     }
 
     private void notifyPlayersAboutStaleTenders() {
+        // Notify players about stale tenders
         List<Project> staleTenders = projectService.getStaleTenders(lifeCycle.getTick());
-        if (staleTenders.isEmpty()) {
-            return;
-        }
-
         GameEvent<List<Project>> staleTendersEvent = new GameEvent<>(EventType.TENDERS_REMOVED);
         staleTendersEvent.setPayload(staleTenders);
         messagingService.broadcast(staleTendersEvent);
@@ -480,6 +474,9 @@ public class Game {
             return;
         }
 
+        // Restore game state);
+        this.setLevel(gameState.getLevel());
+
         // Restore player state
         player.setName(gameState.getPlayer().getName());
         player.setCompany(gameState.getPlayer().getCompany());
@@ -487,8 +484,9 @@ public class Game {
         player.setXpLevel(gameState.getPlayer().getXpLevel());
         player.setSkillPoints(gameState.getPlayer().getSkillPoints());
 
-        // Projects and accounting entries are only for history, don't restore them.
-        // Also lave out employees for now (complex because of global ids / talent market reassignment).
+        if (gameState.getPlayer().getEmployees() != null) {
+            player.setEmployees(gameState.getPlayer().getEmployees());
+        }
 
         if (gameState.getPlayer().getDecisions() != null) {
             player.setDecisions(gameState.getPlayer().getDecisions());
@@ -498,10 +496,7 @@ public class Game {
             skillService.setSkills(player, gameState.getSkills());
         }
 
-        // After rehydrating the player, trigger loading of missions/objectives, story, and consequences
-        this.prepareLevelForPlayer();
-
-        log.debug("Game state (level {}) successfully restored for player {}.", getLevel(), player.getId());
+        log.debug("Game state successfully restored for player {}.", player.getId());
     }
 
     public GameState exportState(Player player) {
