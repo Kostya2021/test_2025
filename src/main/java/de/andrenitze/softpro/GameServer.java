@@ -262,7 +262,7 @@ public class GameServer extends WebSocketServer {
             return;
         }
         log.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), game.getLevel(), player.getId());
-        prepareForNextLevel(player, game);
+        prepareForNextLevel(player, game, level);
 
         // Notify player about next level
         GameEvent<Integer> levelUpdateEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
@@ -274,9 +274,11 @@ public class GameServer extends WebSocketServer {
      * Prepare the player and game instance for the next level while player is in "BRIEFING" state.
      * This can be in the lobby OR on the briefing screen.
      */
-    private void prepareForNextLevel(Player player, Game game) {
-        int level = game.getLevel();
+    private void prepareForNextLevel(Player player, Game game, int level) {
         log.debug("Preparing game for level {} and player {}", level, player.getId());
+
+        // Notify life cycle service about the new level
+        gameLifeCycleService.setLevel(level);
 
         // Give player chance to prepare for the next level (read up, make decisions etc.)
         player.setReady(false);
@@ -388,6 +390,11 @@ public class GameServer extends WebSocketServer {
         log.debug("GameServer/Lobby: Handling PLAYER_READY event for WebSocket {}", webSocket.getRemoteSocketAddress());
         try {
             Player player = lobbyPlayerService.getPlayer(webSocket);
+
+            if (player == null) {
+                log.warn("Player not found for WebSocket connection.");
+                return;
+            }
 
             Type payloadType = new TypeToken<GameEvent<LevelDecisions>>() {}.getType();
             GameEvent<LevelDecisions> playerReadyEvent = GameServer.getGson().fromJson(message, payloadType);
@@ -692,14 +699,12 @@ public class GameServer extends WebSocketServer {
     public void movePlayerBackToLobby(Game game, Player player, WebSocket webSocket) {
         PlayerService gamePlayerService = game.getPlayerService();
 
-        // Move player from game to lobby
-        gamePlayerService.removePlayer(player);
-
-        // Keep the level to create a correct new game instance (the old game context is already destroyed)
+        // Rescue the level from dying game instance to create a correct new one
         addPlayerToLobby(webSocket, player, game.getLevel());
         player.setReady(false);
 
-        broadcastLobbyState();
+        // Remove player from game instance
+        gamePlayerService.removePlayer(player);
     }
 
     /**
@@ -749,14 +754,19 @@ public class GameServer extends WebSocketServer {
         log.debug("🚨 Global listener received GameOverEvent from game.");
         log.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
 
-        // If player is logged in with a valid user account, save the game state
-        if (!data.player().getJwtSubject().isEmpty()) {
+        // If player is logged in and has a JWT subject, save the game state
+        if (data.player().getJwtSubject() != null &&
+                Objects.equals(data.stats().getReport(), "win")) {
             saveGame(data.game(), data.player());
         }
 
-        movePlayerBackToLobby(data.game(), data.player(), data.webSocket());
-        saveGameOverStats(data.webSocket(), data.player(), data.stats());
-        checkAndBroadcastHighScore(data.stats());
+        try {
+            movePlayerBackToLobby(data.game(), data.player(), data.webSocket());
+            saveGameOverStats(data.webSocket(), data.player(), data.stats());
+            checkAndBroadcastHighScore(data.stats());
+        } catch (Exception e) {
+            log.error("Could not move player back to lobby: {}", e.getMessage());
+        }
     }
 
     @EventListener

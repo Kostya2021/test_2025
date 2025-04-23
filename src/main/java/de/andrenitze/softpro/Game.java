@@ -236,7 +236,7 @@ public class Game {
      * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
      */
     void prepareLevelForPlayer(int level) {
-        setLevel(level);
+        initialize(level);
         log.debug("Preparing level {} for player.", lifeCycle.getLevel());
 
         if (lifeCycle.getLevel() != 1) {
@@ -275,7 +275,8 @@ public class Game {
         });
     }
 
-    private void setLevel(int level) {
+    // Call this method after creating the game instance and before starting the game loop.
+    private void initialize(int level) {
         lifeCycle.setLevel(level);
         projectService.loadProblems(level);
         projectService.initializeProjectMarket(level);
@@ -474,9 +475,6 @@ public class Game {
             return;
         }
 
-        // Restore game state);
-        this.setLevel(gameState.getLevel());
-
         // Restore player state
         player.setName(gameState.getPlayer().getName());
         player.setCompany(gameState.getPlayer().getCompany());
@@ -495,6 +493,9 @@ public class Game {
         if (gameState.getSkills() != null) {
             skillService.setSkills(player, gameState.getSkills());
         }
+
+        // Trigger loading of missions/objectives, story, and consequences
+        prepareLevelForPlayer(getLevel());
 
         log.debug("Game state successfully restored for player {}.", player.getId());
     }
