@@ -1,8 +1,8 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.config.Config;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -14,7 +14,8 @@ import java.time.LocalDate;
 @Component
 public class GameLifeCycleService {
     @Getter
-    private final int gameSpeedInMilliseconds;
+    @Value("${GAME_SPEED_IN_MILLISECONDS}")
+    private int gameSpeedInMilliseconds;
     @Setter
     private int tick;
     private boolean paused;
@@ -27,9 +28,6 @@ public class GameLifeCycleService {
     public GameLifeCycleService() {
         this.tick = 0;
         this.currentDate = LocalDate.now();
-
-        String gameSpeed = Config.getProperty("GAME_SPEED_IN_MILLISECONDS");
-        gameSpeedInMilliseconds = Integer.parseInt(gameSpeed);
     }
 
     public void pause() {

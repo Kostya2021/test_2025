@@ -49,10 +49,12 @@ Service classes for **Game** are defined in ```config/GameConfig.java```.
 ## Deployment
 A ```*.jar```-file with all dependencies is build and deployed to an Azure App Service (Java 21 SE runtime) via a GitHub Action on commit. 
 
-The following environment variables can be defined:
-- DB_URL
-- DB_USER
-- SPRING_DATASOURCE_PASSWORD (formerly DB_PASSWORD)
+The following environment variables must be set:
+- SPRING_DATASOURCE_URL
+- SPRING_DATASOURCE_USERNAME
+- SPRING_DATASOURCE_PASSWORD
+- SPRING_DATASOURCE_DRIVER-CLASS-NAME
+- SPRING_JPA_HIBERNATE_DIALECT
 - GAME_SPEED_IN_MILLISECONDS
 - LOG_LEVEL
 
