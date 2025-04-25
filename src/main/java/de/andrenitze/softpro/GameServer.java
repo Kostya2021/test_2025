@@ -254,7 +254,6 @@ public class GameServer extends WebSocketServer {
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         log.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
-        game.prepareLevelForPlayer(level);
         try {
             game.getPlayerService().addPlayer(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         } catch (Exception e) {
@@ -329,7 +328,7 @@ public class GameServer extends WebSocketServer {
 
         if (level == 2) {
             // For level 2, populate the talent market with employees
-            game.getTalentMarket().init();
+            game.getTalentMarket().initialize();
 
             // ...and generate first employees for the player
             game.getPlayerService().generateFirstEmployeesForPlayers();
@@ -530,6 +529,10 @@ public class GameServer extends WebSocketServer {
                     return;
                 }
 
+                // Trigger last-minute consequences for decisions made in briefing
+                game.triggerConsequencesForDecisions();
+
+                // Start the game loop
                 game.start();
             }
         }

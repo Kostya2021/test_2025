@@ -26,7 +26,7 @@ public class StoryService {
       */
     private final Map<String, Set<Integer>> sentStoryElementIds = new ConcurrentHashMap<>();
 
-    public void init(int level) {
+    public void loadStory(int level) {
         this.storyElements = new StoryElementsLoader().getStoryElementsForLevel(level);
     }
 

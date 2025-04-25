@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.beans.Transient;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
@@ -37,7 +36,7 @@ public class Employee implements Serializable {
     private String firstName;
     @Setter
     private String lastName;
-    @Getter(onMethod_=@Transient)
+    @Getter
     private final transient HashMap<Project, Integer> projectExperience; // projectId and days XP
     @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;

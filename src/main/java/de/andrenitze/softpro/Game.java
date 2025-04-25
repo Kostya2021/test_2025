@@ -64,7 +64,7 @@ public class Game {
     @PostConstruct
     void init() {
         if (lifeCycle.getLevel() != 1) {
-            talentMarket.init();
+            talentMarket.initialize();
         }
         log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
     }
@@ -237,19 +237,11 @@ public class Game {
     }
 
     /**
-     * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
+     * The next level is prepared after players hit the "Start Level X" (PLAYER_READY) button.
+     * This is important, because player decisions are needed to trigger the level consequences.
      */
-    void prepareLevelForPlayer(int level) {
-        initialize(level);
+    void triggerConsequencesForDecisions() {
         log.debug("Preparing level {} for player.", lifeCycle.getLevel());
-
-        if (lifeCycle.getLevel() != 1) {
-            projectService.initializeProjectMarket(level);
-
-            GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-            employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcast(employeeEvent);
-        }
 
         // Trigger level consequences
         switch (lifeCycle.getLevel()) {
@@ -271,20 +263,22 @@ public class Game {
                 });
             }
         });
-
-        playerService.getPlayers().forEach((ignored, somePlayerInTheGame) -> {
-            if (somePlayerInTheGame.getDecisionsByLevel(lifeCycle.getLevel()).isEmpty()) {
-                log.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), lifeCycle.getLevel());
-            }
-        });
     }
 
     // Call this method after creating the game instance and before starting the game loop.
     private void initialize(int level) {
         lifeCycle.setLevel(level);
         projectService.loadProblems(level);
-        projectService.initializeProjectMarket(level);
-        storyService.init(level);
+        storyService.loadStory(level);
+
+        if (lifeCycle.getLevel() != 1) {
+            projectService.initialize(level);
+            talentMarket.initialize();
+
+            GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+            employeeEvent.setPayload(talentMarket.getTalents());
+            messagingService.broadcast(employeeEvent);
+        }
     }
 
     private void sendAnyNewStoryElements(Player player) {
@@ -479,6 +473,9 @@ public class Game {
             return;
         }
 
+        // Restore game state
+        this.lifeCycle.setLevel(gameState.getLevel());
+
         // Restore player state
         player.setName(gameState.getPlayer().getName());
         player.setCompany(gameState.getPlayer().getCompany());
@@ -499,7 +496,7 @@ public class Game {
         }
 
         // Trigger loading of missions/objectives, story, and consequences
-        prepareLevelForPlayer(getLevel());
+        initialize(getLevel());
 
         log.debug("Game state successfully restored for player {}.", player.getId());
     }
