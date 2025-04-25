@@ -450,7 +450,6 @@ public class GameServer extends WebSocketServer {
         GameEvent<HashMap<String, String>> loginEvent = GameServer.getGson().fromJson(message, payloadType);
         UUID userId = UUID.fromString(loginEvent.getPayload().get("userId"));
         String sub = loginEvent.getPayload().get("sub");
-        String name = loginEvent.getPayload().get("name");
 
         // Find player by websocket connection (and compare with userId)
         Player player = lobbyPlayerService.getPlayer(webSocket);
@@ -461,9 +460,6 @@ public class GameServer extends WebSocketServer {
 
         // Update player with sub for identification after next login
         player.setJwtSubject(sub);
-
-        // Use user name from authentication as player name
-        player.setName(name);
 
         // Reload game state if save game exists
         Optional<GameState> gameState = loadGame(player);

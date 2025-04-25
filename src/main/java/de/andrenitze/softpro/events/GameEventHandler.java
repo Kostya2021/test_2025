@@ -65,7 +65,7 @@ public class GameEventHandler {
             switch (event.getType()) {
                 case PAUSE -> gameLifeCycleService.pause();
                 case RESUME -> gameLifeCycleService.resume();
-                case PLAYER_NAME_UPDATED -> handlePlayerNameUpdatedEvent(websocket, message);
+                case PLAYER_NAME_UPDATED -> handlePlayerNameUpdatedEvent(websocket);
                 case JOIN_TENDER -> handleJoinTenderEvent(websocket, message, gameLifeCycleService.getTick());
                 case ASSIGN_EMPLOYEE -> handleAssignEmployeeEvent(websocket, message);
                 case UNASSIGN_EMPLOYEE -> handleUnassignEmployeeEvent(websocket, message);
@@ -88,7 +88,8 @@ public class GameEventHandler {
         }
     }
 
-    private void handlePlayerNameUpdatedEvent(WebSocket websocket, String message) {
+    private void handlePlayerNameUpdatedEvent(WebSocket websocket) {
+        // Use player's name as first employee's name
         if (gameLifeCycleService.getLevel() == 1) {
             // Find first employee of player
             Player player = playerService.getPlayer(websocket);
@@ -96,6 +97,7 @@ public class GameEventHandler {
 
             // Change employee's name to player's name
             if (employee != null) {
+                // The player's name was just changed, so we can use it directly
                 String name = player.getName();
                 employee.setFirstName(name.split(" ")[0]);
                 employee.setLastName(name.split(" ")[1]);
