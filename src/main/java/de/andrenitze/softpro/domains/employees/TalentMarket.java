@@ -1,8 +1,12 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.domains.employees;
 
-import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.employees.EmployeeIdGenerator;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.ProjectType;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,12 +14,14 @@ import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.Main.logger;
 
 /**
  * The TalentMarket class is a singleton class that holds all the available talents in a running game instance
  * which are currently not employed by a player.
  */
+@Slf4j
+@Service
+@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class TalentMarket {
     private final Map<Integer, Employee> talents = new HashMap<>();
     public final EmployeeIdGenerator employeeIdGenerator;
@@ -24,14 +30,15 @@ public class TalentMarket {
         this.employeeIdGenerator = new EmployeeIdGenerator();
     }
 
-    public void initialize() {
+    @PostConstruct
+    public void init() {
         clear();
 
         for (int i = 0; i < 30; i++) {
             Employee employee = new Employee(generateNewEmployeeId());
             addTalent(employee);
         }
-        logger.debug("Talent market initialized with {} employees.", getTalents().size());
+        log.debug("Talent market initialized with {} employees.", getTalents().size());
     }
 
     public synchronized List<Employee> generateFirstEmployees() {

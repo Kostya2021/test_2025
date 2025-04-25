@@ -1,6 +1,6 @@
 package de.andrenitze.softpro.domains.accounting;
 
-import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.players.Player;
 import lombok.Getter;
 import lombok.Setter;
 

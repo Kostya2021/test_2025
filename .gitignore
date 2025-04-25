@@ -1,5 +1,6 @@
 .idea
 .gitignore
+.scannerwork
 logs
 softpro.iml
 target
@@ -8,3 +9,4 @@ target
 /loadTestResults.json.html
 out
 .env
+skills

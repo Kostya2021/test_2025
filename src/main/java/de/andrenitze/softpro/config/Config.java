@@ -1,13 +1,13 @@
 package de.andrenitze.softpro.config;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-import static de.andrenitze.softpro.Main.logger;
-
+@Slf4j
 public class Config {
     private static final Properties properties = new Properties();
     private static final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
@@ -20,10 +20,10 @@ public class Config {
             if (input != null) {
                 properties.load(input);
             } else {
-                logger.warn("application.properties not found in classpath");
+                log.warn("application.properties not found in classpath");
             }
         } catch (IOException ex) {
-            logger.error("Error loading application.properties: {}", ex.getMessage());
+            log.error("Error loading application.properties: {}", ex.getMessage());
         }
     }
 
@@ -32,17 +32,17 @@ public class Config {
         String envValue = System.getenv(envKey);
 
         if (envValue != null) {
-            logger.debug("Using System.getenv for key: {}", envKey);
+            log.debug("Using System.getenv for key: {}", envKey);
             return envValue;
         }
 
         envValue = dotenv.get(envKey);
         if (envValue != null) {
-            logger.debug("Using dotenv for key: {}", envKey);
+            log.debug("Using dotenv for key: {}", envKey);
             return envValue;
         }
 
-        logger.debug("Using properties file for key: {}", key);
+        log.debug("Using properties file for key: {}", key);
         return properties.getProperty(key);
     }
 }

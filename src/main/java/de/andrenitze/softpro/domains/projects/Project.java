@@ -1,21 +1,22 @@
 package de.andrenitze.softpro.domains.projects;
 
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.players.Player;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.Main.logger;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.BASE_PRODUCTIVITY_VALUE;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Slf4j
 public class Project implements Serializable {
     private static final List<ProjectType> PROJECT_TYPES = List.of(ProjectType.values());
     private static final List<String> PROJECT_NAME_SNIPPETS = List.of("Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto,Aphrodite,Apollo,Artemis,Athena,Demeter,Dionysus,Hades,Hephaestus,Hera,Hermes,Hestia,Persephone,Poseidon,Zeus,Acceleron,SKATE,SCORM,STORM,Hercules,Curie,GAIUS,HERA,EoS,HELIOS,Pontos,Theia,Terra,Nyx,DeMeTer,Aion,HALO,MoiRai,ZEUS,AGaThe,Bigfoot,Mercury,Bender,Whistler,HUSK,Sputnik,Stratos,FAST,ImPacT,Excalibur,HEX,Daemon,Key,Score,Binary,Draco,Eclipse,Andromeda,Cosmos,Orion,Nebula,Aurora,Stellar,Phoenix,Apex,Aether,Argos,Boreas,Cyber,Electra,Fury,Galaxy,Helix,Icarus,Kronos,Luna,Meteor,Nova,Onyx,Phoenix,Raptor,Saturna,Titan,Vega,Xena,Zephyr,Zodiac,Aldebaran,Betelgeuse,Centaurus,Delphinus,Eridanus,Gemini,Hercules,Io,Juno,Kraken,Leo,Mimosa,Nebula,Oberon,Pegasus,Quasar,Rigel,Sirius,Taurus,Umbriel,Venus,Wolf,Zircon,Crypto,Quest,Hyperloop,Vulcan,Quantex,Titanus,Minerva,Heliosphere,Lazarus,Venture,ZeusX,Chronos,Matrix,Avalon,Zenith,Polaris,Ether,Legend,Vortex,Astra,Nemesis,Hypernova,Solara,Archer,Invictus,Odin,Thor,Freya,Loki,Baldur,Byte,Zero,System,Cypher,Kernel,Logic,Protocol,Nexus,Mainframe,Quantum,Bit,Octet,Hex,Cluster,Cloud,Node,Stack".split(","));
@@ -242,7 +243,7 @@ public class Project implements Serializable {
 
             // After a lot of iterations, give up and return the name anyway
             if (i > 10) {
-                logger.debug("Could not generate unique project name after 10 iterations. Returning name anyway.");
+                log.debug("Could not generate unique project name after 10 iterations. Returning name anyway.");
                 break;
             }
         }
@@ -417,5 +418,9 @@ public class Project implements Serializable {
                 || hasStatusChanged(other)
                 || hasEconomyChanged(other)
                 || hasMetaChanged(other);
+    }
+
+    public void clearInvolvedParties() {
+        this.involvedParties.clear();
     }
 }

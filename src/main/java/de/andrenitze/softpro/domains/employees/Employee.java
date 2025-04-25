@@ -4,6 +4,7 @@ import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.beans.Transient;
 import java.io.Serial;
@@ -11,10 +12,10 @@ import java.io.Serializable;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.Main.logger;
 import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
 import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
+@Slf4j
 public class Employee implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
@@ -299,7 +300,7 @@ public class Employee implements Serializable {
 
     public void addStatusEffect(StatusEffect effect) {
         statusEffects.add(effect);
-        logger.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
+        log.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
         calculateSatisfaction();
     }
 
@@ -355,12 +356,12 @@ public class Employee implements Serializable {
 
     public void removeAllStatusEffects() {
         statusEffects.clear();
-        logger.debug("Removed all status effects from {}", getName());
+        log.debug("Removed all status effects from {}", getName());
         calculateSatisfaction();
     }
 
     public void addComplexStatusEffect(String effect) {
-        logger.debug("Applying {} to {}", effect, getName());
+        log.debug("Applying {} to {}", effect, getName());
 
         // Effect "crunch-mode" will do:
         // +50% productivity
@@ -419,7 +420,7 @@ public class Employee implements Serializable {
             }
             return effect.getTrigger() == trigger;
         });
-        logger.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
+        log.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
     }
 
     public void train(String training) {
@@ -427,7 +428,7 @@ public class Employee implements Serializable {
         switch (training) {
             case PROJECT_MANAGEMENT_FOUNDATION -> addTraining(PROJECT_MANAGEMENT_FOUNDATION);
             case PROJECT_MANAGEMENT_EXPERT -> addTraining(PROJECT_MANAGEMENT_EXPERT);
-            default -> logger.warn("Unknown training: {}", training);
+            default -> log.warn("Unknown training: {}", training);
         }
     }
 
@@ -438,6 +439,6 @@ public class Employee implements Serializable {
             }
             return effect.getDescription().equals(reason);
         });
-        logger.debug("Removed status effects with reason {} from {}", reason, getName());
+        log.debug("Removed status effects with reason {} from {}", reason, getName());
     }
 }

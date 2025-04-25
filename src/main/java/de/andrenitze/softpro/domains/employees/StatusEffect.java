@@ -1,10 +1,10 @@
 package de.andrenitze.softpro.domains.employees;
 
 import lombok.Data;
-
-import static de.andrenitze.softpro.Main.logger;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
+@Slf4j
 public class StatusEffect {
     private StatusEffectType type;
     private float multiplier; // 1.0 = 100%, 0.5 = 50%, 2.25 = 225%, -1.0 = -100%
@@ -34,7 +34,7 @@ public class StatusEffect {
     public void cooldown() {
         if (cooldown > 0) {
             cooldown--;
-            logger.debug("Cooldown for effect {}: {}", description, cooldown);
+            log.debug("Cooldown for effect {}: {}", description, cooldown);
         }
     }
 

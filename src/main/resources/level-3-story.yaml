@@ -1,0 +1,6 @@
+elements:
+  - id: 1
+    avatar: ADVISOR
+    earliestOccurrence: 4
+    lines:
+      - Good luck with your projects! 🍀

@@ -1,8 +1,9 @@
-package de.andrenitze.softpro.services;
+package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.config.Config;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
@@ -10,6 +11,7 @@ import java.time.LocalDate;
  * Manages the game life cycle including current tick and pause/resume.
  */
 @Getter
+@Component
 public class GameLifeCycleService {
     @Getter
     private final int gameSpeedInMilliseconds;
@@ -20,7 +22,7 @@ public class GameLifeCycleService {
     @Getter
     private LocalDate currentDate;
     @Getter @Setter
-    private int level;
+    private int level = 1;
 
     public GameLifeCycleService() {
         this.tick = 0;

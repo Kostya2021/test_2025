@@ -2,19 +2,23 @@ package de.andrenitze.softpro.events;
 
 import com.google.gson.reflect.TypeToken;
 import de.andrenitze.softpro.GameServer;
-import de.andrenitze.softpro.Player;
-import de.andrenitze.softpro.TalentMarket;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.employees.TalentMarket;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.services.*;
 import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
-import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
-import lombok.Setter;
+import de.andrenitze.softpro.services.impl.GameLifeCycleService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -25,8 +29,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static de.andrenitze.softpro.Main.logger;
-
+@RequiredArgsConstructor
+@Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@Slf4j
 public class GameEventHandler {
     public static final String TEAM_SPIRIT = "team-spirit";
     public static final String CRUNCH_MODE = "crunch-mode";
@@ -44,34 +50,14 @@ public class GameEventHandler {
     private final GameLifeCycleService gameLifeCycleService;
     private final SkillService skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
-    @Setter
-    private AccountingServiceImpl accountingService;
-
-    public GameEventHandler(MessagingService messagingService,
-                            GamePlayerServiceImpl playerService,
-                            EmployeeService employeeService,
-                            TalentMarket talentMarket,
-                            ProjectService projectService,
-                            GameLifeCycleService gameLifeCycleService,
-                            SkillService skillService,
-                            ProjectEmployeeMappingService projectEmployeeService) {
-        this.messagingService = messagingService;
-        this.playerService = playerService;
-        this.employeeService = employeeService;
-        this.talentMarket = talentMarket;
-        this.projectService = projectService;
-        this.gameLifeCycleService = gameLifeCycleService;
-        this.skillService = skillService;
-        this.projectEmployeeService = projectEmployeeService;
-        this.accountingService = null;
-    }
+    private final AccountingServiceImpl accountingService;
 
     public void handleEvent(WebSocket websocket, String message) {
         GameEvent<?> event = GameServer.getGson().fromJson(message, GameEvent.class);
-        logger.debug("Identified event: {}", event.getType());
+        log.debug("Identified event: {}", event.getType());
 
         if (event.getType() == null) {
-            logger.warn("Received event with unknown type: {}", message);
+            log.warn("Received event with unknown type: {}", message);
             return;
         }
 
@@ -79,6 +65,7 @@ public class GameEventHandler {
             switch (event.getType()) {
                 case PAUSE -> gameLifeCycleService.pause();
                 case RESUME -> gameLifeCycleService.resume();
+                case PLAYER_NAME_UPDATED -> handlePlayerNameUpdatedEvent(websocket);
                 case JOIN_TENDER -> handleJoinTenderEvent(websocket, message, gameLifeCycleService.getTick());
                 case ASSIGN_EMPLOYEE -> handleAssignEmployeeEvent(websocket, message);
                 case UNASSIGN_EMPLOYEE -> handleUnassignEmployeeEvent(websocket, message);
@@ -94,10 +81,30 @@ public class GameEventHandler {
                 case TEAM_ESTIMATE_REQUESTED -> handleTeamEstimateRequestedEvent(websocket, message);
                 case PROJECT_CANCEL_REQUESTED -> handleProjectCancelRequestedEvent(websocket, message);
                 case EMPLOYEE_TRAINING_REQUESTED -> handleEmployeeTrainingRequestedEvent(websocket, message);
-                default -> logger.warn("Received unknown event type: {}", event.getType());
+                default -> log.warn("Received unknown event type: {}", event.getType());
             }
         } catch (Exception e) {
-            logger.error("Error handling event {}: {}", event.getType(), e.getMessage());
+            log.error("Error handling event {}: {}", event.getType(), e.getMessage());
+        }
+    }
+
+    private void handlePlayerNameUpdatedEvent(WebSocket websocket) {
+        // Use player's name as first employee's name
+        if (gameLifeCycleService.getLevel() == 1) {
+            // Find first employee of player
+            Player player = playerService.getPlayer(websocket);
+            Employee employee = player.getEmployees().getFirst();
+
+            // Change employee's name to player's name
+            if (employee != null) {
+                // The player's name was just changed, so we can use it directly
+                String name = player.getName();
+                employee.setFirstName(name.split(" ")[0]);
+                employee.setLastName(name.split(" ")[1]);
+                messagingService.sendEmployeeUpdate(player, employee);
+            } else {
+                log.warn("Could not update employee name. Employee not found.");
+            }
         }
     }
 
@@ -108,7 +115,7 @@ public class GameEventHandler {
         int employeeId = Integer.parseInt(trainingEvent.getPayload().get(EMPLOYEE_ID));
 
         if (training == null) {
-            logger.warn("Could not train employee. Training type is null.");
+            log.warn("Could not train employee. Training type is null.");
             return;
         }
 
@@ -116,7 +123,7 @@ public class GameEventHandler {
         Employee employee = player.getEmployeeById(employeeId);
 
         if (employee == null) {
-            logger.warn("Could not train employee. Employee {} not found.", employeeId);
+            log.warn("Could not train employee. Employee {} not found.", employeeId);
             return;
         }
 
@@ -128,7 +135,7 @@ public class GameEventHandler {
         player.subtractFunds(accountingEntry.getAmount());
 
         employee.train(training);
-        logger.debug("Player {} trained employee {} - {}", player.getId(), employee.getId(), employee.getName());
+        log.debug("Player {} trained employee {} - {}", player.getId(), employee.getId(), employee.getName());
     }
 
     private void handleJoinTenderEvent(WebSocket websocket, String message, int gameTick) {
@@ -163,7 +170,7 @@ public class GameEventHandler {
                 }
             }
         } catch (Exception e) {
-            logger.error("Invalid message");
+            log.error("Invalid message");
         }
     }
 
@@ -203,12 +210,12 @@ public class GameEventHandler {
         Employee employee = talentMarket.hireTalent(player, employeeId, gameLifeCycleService.getTick());
 
         if (employee == null) {
-            logger.warn("Could not hire talent. Employee {} not found.", employeeId);
+            log.warn("Could not hire talent. Employee {} not found.", employeeId);
             return;
         }
 
-        logger.debug("Player {} hired employee {} - {}", player.getId(), employee.getId(), employee.getName());
-        logger.debug("Talent market has the following employees left: {}", talentMarket.getTalents().size());
+        log.debug("Player {} hired employee {} - {}", player.getId(), employee.getId(), employee.getName());
+        log.debug("Talent market has the following employees left: {}", talentMarket.getTalents().size());
 
         if (skillService.playerHasSkill(player, TEAM_SPIRIT)) {
             employee.addComplexStatusEffect(TEAM_SPIRIT);
@@ -231,7 +238,7 @@ public class GameEventHandler {
         Project project = projectService.getProjectById(projectId);
 
         if (project == null) {
-            logger.warn("Could not assess risk. Project {} not found.", projectId);
+            log.warn("Could not assess risk. Project {} not found.", projectId);
             return;
         }
 
@@ -250,7 +257,7 @@ public class GameEventHandler {
         Employee employee = player.getEmployeeById(employeeId);
 
         if (employee == null) {
-            logger.warn("Could not dismiss employee. Employee {} not found.", employeeId);
+            log.warn("Could not dismiss employee. Employee {} not found.", employeeId);
             return;
         }
 
@@ -279,7 +286,7 @@ public class GameEventHandler {
         int employeeId = employeeUpdatedEvent.getPayload().get(EMPLOYEE_ID);
         Employee employee = player.getEmployeeById(employeeId);
         if (employee == null) {
-            logger.warn("Could not update employee. Employee {} not found.", employeeId);
+            log.warn("Could not update employee. Employee {} not found.", employeeId);
             return;
         }
 
@@ -300,7 +307,7 @@ public class GameEventHandler {
             Project project = projectService.getProjectById(projectId);
 
             if (project == null) {
-                logger.warn("Could not apply effect. Project {} not found.", projectId);
+                log.warn("Could not apply effect. Project {} not found.", projectId);
                 return;
             }
 
@@ -319,7 +326,7 @@ public class GameEventHandler {
 
                 // Notify player
                 GameEvent<Map<String, String>> effectDisabledEvent = new GameEvent<>(EventType.EFFECT_DISABLED);
-                effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE, "projectId", String.valueOf(projectId)));
+                effectDisabledEvent.setPayload(Map.of("effect", CRUNCH_MODE, PROJECT_ID, String.valueOf(projectId)));
                 messagingService.sendToPlayer(playerService.getPlayer(websocket), effectDisabledEvent);
             }, gameLifeCycleService.getGameSpeedInMilliseconds() * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
         } else if (effect.equals(TEAM_SPIRIT)) {
@@ -331,7 +338,7 @@ public class GameEventHandler {
     }
 
     private void handleProblemSolvedEvent(String message) {
-        logger.debug("Problem solved: {}", message);
+        log.debug("Problem solved: {}", message);
         Type payloadType = new TypeToken<GameEvent<HashMap<String, String>>>() {}.getType();
         GameEvent<HashMap<String, String>> problemSolvedEvent = GameServer.getGson().fromJson(message, payloadType);
 
@@ -341,7 +348,7 @@ public class GameEventHandler {
 
         Project project = projectService.getProjectById(projectId);
         if (project == null) {
-            logger.warn("Could not solve problem. Project {} not found.", projectId);
+            log.warn("Could not solve problem. Project {} not found.", projectId);
             return;
         }
 
@@ -352,7 +359,7 @@ public class GameEventHandler {
         if (problemToSolve.isPresent()) {
             problemToSolve.get().setSolvedAt(tick);
         } else {
-            logger.warn("No matching problem with translationKey '{}' found in project '{}'.",
+            log.warn("No matching problem with translationKey '{}' found in project '{}'.",
                     translationKey, projectId);
         }
     }
@@ -380,7 +387,7 @@ public class GameEventHandler {
         Player player = playerService.getPlayer(websocket);
 
         if (project != null) {
-            logger.debug("Cancelling project '{}'...", projectId);
+            log.debug("Cancelling project '{}'...", projectId);
             projectService.cancelProject(player, project, PARTY_CONTRACTOR,
                     gameLifeCycleService.getTick(), gameLifeCycleService.getLevel());
 
@@ -391,7 +398,7 @@ public class GameEventHandler {
             project.getInvolvedPlayers()
                     .forEach(p -> messagingService.sendToPlayer(p, projectUpdatedEvent));
         } else {
-            logger.warn("Could not cancel project. Project {} not found.", projectId);
+            log.warn("Could not cancel project. Project {} not found.", projectId);
         }
     }
 

@@ -1,32 +1,35 @@
 package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.GameServer;
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.MessagingService;
 import de.andrenitze.softpro.services.PlayerService;
-import lombok.Setter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 
 import static de.andrenitze.softpro.GameServer.gson;
-import static de.andrenitze.softpro.Main.logger;
 
-@Setter
+@RequiredArgsConstructor
+@Service
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@Primary
+@Slf4j
 public class MessagingServiceImpl implements MessagingService {
-    private PlayerService playerService;
-
-    @Autowired
-    public MessagingServiceImpl(PlayerService playerService) {
-        this.playerService = playerService;
-    }
+    private final @Lazy PlayerService playerService;
 
     public void sendProjectUpdate(Player player, Project project) {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
@@ -75,7 +78,7 @@ public class MessagingServiceImpl implements MessagingService {
 
     public void sendToPlayer(Player player, String message) {
         if (playerService.getPlayers() == null || !playerService.getPlayers().containsValue(player)) {
-            logger.debug("Player {} is not in the game. Not sending event: {}", player.getId(), message);
+            log.error("Player {} is not in the game. Not sending event: {}", player.getId(), message);
             return;
         }
 

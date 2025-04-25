@@ -1,6 +1,9 @@
 package de.andrenitze.softpro.services;
 
-import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.players.Player;
+import de.andrenitze.softpro.domains.skills.Skill;
+
+import java.util.HashMap;
 
 /**
  * Service für die Verwaltung von Spieler-Skills.
@@ -11,4 +14,6 @@ public interface SkillService {
     void loadSkills(Player player);
     void addPermanentStatusEffectsToAllEmployees();
     void unlockSkill(Player player, String skillName, int unlockSkillPoints);
+    void setSkills(Player player, HashMap<String, Skill> skillsMap);
+    void initializePlayer(Player player);
 }

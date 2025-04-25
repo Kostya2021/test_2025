@@ -1,14 +1,13 @@
 package de.andrenitze.softpro.events;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Component
+@Slf4j
 public class GameEventForwarder {
-
     private final ApplicationEventPublisher parentEventPublisher;
 
     public GameEventForwarder(ApplicationEventPublisher parentEventPublisher) {
@@ -17,7 +16,7 @@ public class GameEventForwarder {
 
     @EventListener
     public void forwardGameOverEventToParent(GameOverEvent event) {
-        logger.info("↪️ GameOverEvent is forwarded to the parent context.");
+        log.info("↪️ GameOverEvent is forwarded to the parent context.");
 
         parentEventPublisher.publishEvent(
                 new GlobalGameOverEvent(event.getSource(), event.getGameOverData())
@@ -26,7 +25,7 @@ public class GameEventForwarder {
 
     @EventListener
     public void forwardGameEmptyEventToParent(GameEmptyEvent event) {
-        logger.info("↪️ GameEmptyEvent is forwarded to the parent context.");
+        log.info("↪️ GameEmptyEvent is forwarded to the parent context.");
 
         parentEventPublisher.publishEvent(
                 new GlobalGameEmptyEvent(event.getSource(), event.getGame())

@@ -1,6 +1,5 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.config.GameParameters;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
@@ -8,15 +7,17 @@ import de.andrenitze.softpro.domains.accounting.TransactionType;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.*;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
@@ -34,8 +35,9 @@ import static java.lang.Math.*;
 
 @Service
 @Primary
+@Slf4j
+@RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     public static final int STALE_TENDERS_KILL_DAYS = 548;
     public static final double CONTRACTOR_CANCELLATION_PENALTY = 0.15;  // 15% penalty when contractor cancels (kill dead horse)
     public static final double CLIENT_CANCELLATION_PENALTY = 0.3;      // 30% penalty when client cancels (due to delay)
@@ -48,18 +50,15 @@ public class ProjectServiceImpl implements ProjectService {
     @Getter @Setter private List<Project> projects = new ArrayList<>();
     @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
-    @Getter @Setter private AccountingServiceImpl accountingService;
+    @Lazy
+    @Getter
+    private final AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
     private final Map<Integer, Project> previousProjectStates = new HashMap<>();
 
-    @Autowired
-    public ProjectServiceImpl(SkillServiceImpl skillService,
-                              ProjectEmployeeMappingService projectEmployeeService) {
-        this.accountingService = null;
-        this.skillService = skillService;
-        this.projectEmployeeService = projectEmployeeService;
-
+    @PostConstruct
+    public void init() {
         // Initialize the projects list
         setProjects(new ArrayList<>());
     }
@@ -84,6 +83,7 @@ public class ProjectServiceImpl implements ProjectService {
                 addEarnedValueForEachEmployee(project, employees, tick);
 
                 if (project.isCompleted()) {
+                    log.debug("Project {} completed.", project.getName());
                     handleProjectCompletion(project, employees, tick, level);
 
                     // Remove the project from the employees map to avoid memory leaks
@@ -122,7 +122,7 @@ public class ProjectServiceImpl implements ProjectService {
                 }
 
                 project.setPenalty(penalty);
-                logger.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
+                log.debug("Project finished, but was overdue. Reducing profit by {} as penalty.", penalty);
             }
 
             // Prevent losses in level 1
@@ -141,7 +141,7 @@ public class ProjectServiceImpl implements ProjectService {
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
 
-            logger.debug("Accounting entry for project {}: {} € profit in tick {}", project.getName(), profit, currentTick);
+            log.debug("Accounting entry for project {}: {} € profit in tick {}", project.getName(), profit, currentTick);
 
             // Calculate player's XP gained in this project
             float xp = calculateXP(project);
@@ -180,7 +180,7 @@ public class ProjectServiceImpl implements ProjectService {
         projectExperience.forEach((employee, experience) -> {
             var contribution = (float) experience / (float) finalTotalDaysWorkedOnProject;
             weightedProjectContributions.put(employee, contribution);
-            logger.debug("Project work done by {}: {}%", employee.getName(), weightedProjectContributions.get(employee)*100);
+            log.debug("Project work done by {}: {}%", employee.getName(), weightedProjectContributions.get(employee)*100);
         });
 
         // Quality is the average of each employees' individual skill for this project weighted by the amount of work (= contribution)
@@ -190,14 +190,14 @@ public class ProjectServiceImpl implements ProjectService {
                         quality + skill * weightedProjectContributions.get(employee)));
 
         int projectQuality = (int) (totalProjectQuality.get() * 100);
-        logger.debug("Project overall quality: {}/100", projectQuality);
+        log.debug("Project overall quality: {}/100", projectQuality);
 
         project.setQuality(projectQuality);
     }
 
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees, int currentTick) {
         if (project == null || employees == null) {
-            logger.error("Project or employees list is null.");
+            log.error("Project or employees list is null.");
             return;
         }
 
@@ -228,7 +228,7 @@ public class ProjectServiceImpl implements ProjectService {
         // Rule #3: Adding people to a late software project makes it later (Brooks' law)
         if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
             float factor = calculateOnboardingFactor(project, employees);
-            logger.debug("Averaged onboarding-induced productivity factor for the whole team: {}", factor);
+            log.debug("Averaged onboarding-induced productivity factor for the whole team: {}", factor);
             return factor;
         }
         return 1.0f; // No onboarding required (safe period or no new employees)
@@ -380,7 +380,7 @@ public class ProjectServiceImpl implements ProjectService {
             float onboardingFactor = 1 - (1 - onboardingProgress) * GameParameters.MAXIMUM_ONBOARDING_PRODUCTIVITY_DECREASE;
             onboardingFactors.add(onboardingFactor);
 
-            logger.debug("{} is being onboarded in project {}: {} productivity factor, {}/{} days",
+            log.debug("{} is being onboarded in project {}: {} productivity factor, {}/{} days",
                     employee.getName(), project.getName(), onboardingFactor,
                     employee.getExperienceByProject(project), onboardingDays);
         }
@@ -410,32 +410,32 @@ public class ProjectServiceImpl implements ProjectService {
 
     public void cancelProject(Player player, Project project, String cancelledBy, int tick, int level) {
         if (project == null) {
-            logger.error("Project not found while attempting to cancel.");
+            log.error("Project not found while attempting to cancel.");
             return;
         }
 
         if (project.isCompleted()) {
-            logger.error("Project {} is already completed.", project.getName());
+            log.error("Project {} is already completed.", project.getName());
             return;
         }
 
         if (project.getCancelledAt() != 0) {
-            logger.error("Project {} is already cancelled.", project.getName());
+            log.error("Project {} is already cancelled.", project.getName());
             return;
         }
 
         if (project.getInvolvedPlayers().size() > 1) {
-            logger.error("Project {} has more than one player involved. Only the project owner can cancel it.", project.getName());
+            log.error("Project {} has more than one player involved. Only the project owner can cancel it.", project.getName());
             return;
         }
 
         if (!project.getInvolvedPlayers().contains(player)) {
-            logger.error("Player {} is not involved in project {}.", player.getId(), project.getName());
+            log.error("Player {} is not involved in project {}.", player.getId(), project.getName());
             return;
         }
 
         if (project.getType() == ProjectType.COMPLIANCE) {
-            logger.error("Compliance projects cannot be cancelled.");
+            log.error("Compliance projects cannot be cancelled.");
             return;
         }
 
@@ -484,7 +484,7 @@ public class ProjectServiceImpl implements ProjectService {
             projectEmployeeService.getProjectEmployeesMap().remove(project);
         }
 
-        logger.debug("Project {} cancelled by player {}", project.getName(), player.getId());
+        log.debug("Project {} cancelled by player {}", project.getName(), player.getId());
     }
 
     public void cancelOverdueProjects(int tick, int level) {
@@ -500,7 +500,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         // Process cancellations outside the iteration loop
         for (Project project : projectsToCancel) {
-            logger.info("Auto-cancelling project {} due to excessive schedule overrun", project.getName());
+            log.info("Auto-cancelling project {} due to excessive schedule overrun", project.getName());
 
             // Cancel for each involved player
             for (Player player : project.getInvolvedPlayers()) {
@@ -508,7 +508,7 @@ public class ProjectServiceImpl implements ProjectService {
                     // TODO Hier gibt es ein Problem mit dem Abbruch. Liegt es an den involvedPlayers?
                     cancelProject(player, project, PARTY_CLIENT, tick, level);
                 } catch (Exception e) {
-                    logger.error("Error cancelling project {} for player {}: {}", project.getName(), player.getId(), e.getMessage());
+                    log.error("Error cancelling project {} for player {}: {}", project.getName(), player.getId(), e.getMessage());
                 }
             }
         }
@@ -571,7 +571,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     public void startProject(Project project, int startedAt) {
         if (project == null) {
-            logger.error("Project not found.");
+            log.error("Project not found.");
             return;
         }
 
@@ -593,7 +593,7 @@ public class ProjectServiceImpl implements ProjectService {
             // Add the tender to the list of projects
             projects.add(project);
         }
-        logger.debug("Created {} tenders.", getProjects().size());
+        log.debug("Created {} tenders.", getProjects().size());
     }
 
     /**
@@ -624,7 +624,7 @@ public class ProjectServiceImpl implements ProjectService {
     public void conductTeamEstimation(int projectId, Player player, int tick) {
         Project project = getProjectById(projectId);
         if (project == null) {
-            logger.error("Project with ID {} not found.", projectId);
+            log.error("Project with ID {} not found.", projectId);
             return;
         }
 
@@ -632,7 +632,7 @@ public class ProjectServiceImpl implements ProjectService {
         int remainingValue = project.getTotalValue() - project.getEarnedValue();
         // Remaining value and project volume affect estimation duration, but it's at least 2 days
         int estimationDurationInDays = (int) max(2, 3 * log(remainingValue) - 30);
-        logger.debug("Estimation duration for remaining value {} € project {}: {} days", remainingValue, project.getName(), estimationDurationInDays);
+        log.debug("Estimation duration for remaining value {} € project {}: {} days", remainingValue, project.getName(), estimationDurationInDays);
 
         // Add status effect with decreased productivity for all employees in the project
         for (Employee employee : player.getEmployees()) {
@@ -670,7 +670,7 @@ public class ProjectServiceImpl implements ProjectService {
 
                 // Decide who gets the project
                 if (project.getInvolvedPlayers().size() == 1) {
-                    logger.debug("Project {} has no tender process. Assigning project to player {}.",
+                    log.debug("Project {} has no tender process. Assigning project to player {}.",
                             project.getName(), project.getInvolvedPlayers().getFirst().getId());
 
                     // Inform winner with a confirmation message
@@ -723,7 +723,7 @@ public class ProjectServiceImpl implements ProjectService {
                         // Add the problem to the project
                         problem.setOccurredAt(tick);
                         project.addProblem(problem);
-                        logger.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
+                        log.debug("New problem in project {} ({}): {}", project.getId(), project.getName(), problem.getTranslationKey());
                     }
                 }
             }
@@ -743,7 +743,7 @@ public class ProjectServiceImpl implements ProjectService {
                 if (daysPassed >= max(30, project.getScheduledDuration() / 10)) {
                     // Start the project and inform involved players
                     startProject(project, tick - 1);
-                    logger.debug("Project {} force started after {} days.", project.getName(), daysPassed);
+                    log.debug("Project {} force started after {} days.", project.getName(), daysPassed);
                 }
             }
         }
@@ -756,7 +756,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     public void randomlySpawnLevel1Tenders(int tick, Player player) {
         // Don't spawn tenders until first mission is completed
-        if (player.getMissions().getFirst().isNotCompleted()) {
+        if (player.getMissions() == null || player.getMissions().getFirst().isNotCompleted()) {
             return;
         }
 
@@ -775,7 +775,7 @@ public class ProjectServiceImpl implements ProjectService {
             Employee bestEmployee = player.getEmployees().stream().max(Comparator.
                     comparing(Employee::getExperience)).orElse(null);
             if (bestEmployee == null) {
-                logger.error("No employee found for player {}.", player.getId());
+                log.error("No employee found for player {}.", player.getId());
                 return;
             }
             String domain = bestEmployee.getDomainOfExpertise();

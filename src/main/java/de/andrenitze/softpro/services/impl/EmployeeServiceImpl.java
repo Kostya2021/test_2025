@@ -1,40 +1,41 @@
 package de.andrenitze.softpro.services.impl;
 
-import de.andrenitze.softpro.Player;
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
+import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.EmployeeService;
 import de.andrenitze.softpro.services.MessagingService;
-import de.andrenitze.softpro.services.PlayerService;
-import lombok.Setter;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.RequiredArgsConstructor;
+import org.java_websocket.WebSocket;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentMap;
 
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_DOMAIN;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_TYPE;
 
+@Service
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@RequiredArgsConstructor
+@Primary
 public class EmployeeServiceImpl implements EmployeeService {
-    @Setter private MessagingService messagingService;
+    @Lazy
+    private final MessagingService messagingService;
     private final ProjectEmployeeMappingImpl projectsEmployeesMap;
-    @Setter private PlayerService playerService;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
 
-    @Autowired
-    public EmployeeServiceImpl(@Qualifier("projectEmployeeMappingImpl") ProjectEmployeeMappingImpl projectsEmployeesMap) {
-        this.projectsEmployeesMap = projectsEmployeesMap;
-        this.messagingService = null;
-        this.playerService = null;
-    }
-
-    public void simulateEmployeeLives(int gameTick) {
-        playerService.getPlayers().forEach((ignored, player) -> player.getEmployees().forEach(employee -> {
+    public void simulateEmployeeLives(int gameTick, ConcurrentMap<WebSocket, Player> players) {
+        players.forEach((ignored, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(gameTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(gameTick) || employee.removeExpiredStatusEffects();
 

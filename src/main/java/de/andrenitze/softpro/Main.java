@@ -1,33 +1,31 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.config.ServerConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 
 import java.io.IOException;
 import java.util.Properties;
 
+@SpringBootApplication
+@Slf4j
 public class Main {
-    public static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
     private static final int CONNECTION_LOST_TIMEOUT = 5;
 
     public static void main(String[] args) {
-        try (AnnotationConfigApplicationContext context =
-                     new AnnotationConfigApplicationContext(ServerConfig.class)) {
-
+        ConfigurableApplicationContext context = SpringApplication.run(Main.class, args);
+        try {
             GameServer gameServer = context.getBean(GameServer.class);
             gameServer.setConnectionLostTimeout(CONNECTION_LOST_TIMEOUT);
             String version = loadVersion();
-            logger.info("Starting ThatSoftwareGame server version {}", version);
+            log.info("Starting ThatSoftwareGame server version {}", version);
             gameServer.run();
-            gameServer.start();
         } catch (IOException e) {
-            logger.warn("Could not load application.properties file. {}", e.toString());
-        } catch (Exception e) {
-            logger.error(e.toString());
+            log.error("Error loading version: {}", e.getMessage());
         } finally {
-            logger.error("Server stopped.");
+            log.info("Shutting down ThatSoftwareGame server");
+            SpringApplication.exit(context, () -> 0);
         }
     }
 

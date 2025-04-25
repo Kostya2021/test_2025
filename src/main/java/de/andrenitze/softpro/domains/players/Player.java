@@ -1,4 +1,4 @@
-package de.andrenitze.softpro;
+package de.andrenitze.softpro.domains.players;
 
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.employees.Employee;
@@ -8,14 +8,15 @@ import de.andrenitze.softpro.domains.objectives.Objectives;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.Main.logger;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Slf4j
 public class Player {
     static final HashMap<Integer, Float> INITIAL_FUNDS = new HashMap<>();
     static {
@@ -39,8 +40,11 @@ public class Player {
     }
     protected static final int[] XP_LEVEL_THRESHOLDS = {125, 200, 350, 600, 800, 1000, 1200, 1400, 1600};
 
-    @Getter @EqualsAndHashCode.Include
-    private final UUID id;
+    // This id is only used as identification for the current session. Will change on loading new games.
+    @Getter @Setter @EqualsAndHashCode.Include
+    private UUID id;
+    @Getter @Setter
+    private String jwtSubject;
     @Getter
     private String name;
     @Getter @Setter
@@ -52,7 +56,7 @@ public class Player {
     @Getter @Setter
     private float funds;
     @Getter @Setter
-    private ArrayList<Employee> employees = new ArrayList<>();
+    private List<Employee> employees = new ArrayList<>();
     @Getter @Setter
     private List<Mission> missions;
     @Getter @Setter
@@ -71,7 +75,8 @@ public class Player {
     private int skillPoints = 0;
 
     @EqualsAndHashCode.Exclude
-    private final Map<Integer, List<Decision>> decisions = new HashMap<>();
+    @Getter @Setter
+    private Map<Integer, List<Decision>> decisions = new HashMap<>();
 
     public Player() {
         this(generatePlayerName(), generateCompanyName());
@@ -229,7 +234,7 @@ public class Player {
             }
         }
 
-        logger.debug("Loaded funds and {} missions for level {} and player {}", this.missions.size(), level, id);
+        log.debug("Loaded funds and {} missions for level {} and player {}", this.missions.size(), level, id);
     }
 
     public void addXp(int newXP) {
@@ -262,7 +267,7 @@ public class Player {
         this.employees.remove(employee);
     }
 
-    public void setDecisions(int level, List<Decision> decisions) {
+    public void setDecisionsForLevel(int level, List<Decision> decisions) {
         this.decisions.put(level, decisions);
     }
 
@@ -308,5 +313,9 @@ public class Player {
                 !Objects.equals(this.xp, player.getXp()) ||
                 !Objects.equals(this.xpLevel, player.getXpLevel()) ||
                 !Objects.equals(this.skillPoints, player.getSkillPoints());
+    }
+
+    public void clearMissions() {
+        this.missions.clear();
     }
 }

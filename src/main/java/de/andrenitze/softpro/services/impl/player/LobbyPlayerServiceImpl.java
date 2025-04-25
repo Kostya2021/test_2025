@@ -1,16 +1,16 @@
 package de.andrenitze.softpro.services.impl.player;
 
-import de.andrenitze.softpro.Player;
+import de.andrenitze.softpro.domains.players.Player;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
-import static de.andrenitze.softpro.Main.logger;
-
 @Getter
 @Service
 @Scope("singleton")
+@Slf4j
 public class LobbyPlayerServiceImpl extends BasePlayerService {
     public LobbyPlayerServiceImpl() {
         super();
@@ -22,6 +22,6 @@ public class LobbyPlayerServiceImpl extends BasePlayerService {
             return; // Player already exists
         }
         players.put(webSocket, player);
-        logger.debug("Added player {} to lobby.", player.getId());
+        log.debug("Added player {} to lobby.", player.getId());
     }
 }
