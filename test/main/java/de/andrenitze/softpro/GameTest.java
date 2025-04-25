@@ -19,7 +19,6 @@ class GameTest {
 
     @BeforeEach
     void setUp() {
-        //game = new Game();
         player = new Player("TestPlayer", "TestCompany");
         project = new Project().initialize();
 

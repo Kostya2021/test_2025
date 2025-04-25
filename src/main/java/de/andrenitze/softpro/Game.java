@@ -266,7 +266,7 @@ public class Game {
     }
 
     // Call this method after creating the game instance and before starting the game loop.
-    private void initialize(int level) {
+    public void initialize(int level) {
         lifeCycle.setLevel(level);
         projectService.loadProblems(level);
         storyService.loadStory(level);
@@ -495,7 +495,7 @@ public class Game {
             skillService.setSkills(player, gameState.getSkills());
         }
 
-        // Trigger loading of missions/objectives, story, and consequences
+        // Trigger loading of missions, talent market, project market, and story
         initialize(getLevel());
 
         log.debug("Game state successfully restored for player {}.", player.getId());

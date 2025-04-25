@@ -20,7 +20,6 @@ import de.andrenitze.softpro.events.GlobalGameOverEvent;
 import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.DecisionService;
-import de.andrenitze.softpro.services.impl.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
 import lombok.Getter;
@@ -33,6 +32,7 @@ import org.java_websocket.server.WebSocketServer;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -54,7 +54,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameServer extends WebSocketServer {
     private final GameFactory gameFactory;
     private final LobbyPlayerServiceImpl lobbyPlayerService;
-    private final GameLifeCycleService gameLifeCycleService;
     private final SavegameRepository savegameRepository;
     private final GameOverStatsDAO gameOverStatsDAO;
     private final DecisionService decisionService;
@@ -83,18 +82,19 @@ public class GameServer extends WebSocketServer {
     private List<GameOverStats> dailyHighScores;
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
+    @Getter
+    @Value("${GAME_SPEED_IN_MILLISECONDS}")
+    private int gameSpeedInMilliseconds;
 
     /**
      * Creates a GameServer instance to manage games and players.
      */
     public GameServer(GameFactory gameFactory,
                       LobbyPlayerServiceImpl lobbyPlayerService,
-                      GameLifeCycleService gameLifeCycleService,
                       SavegameRepository saveGameRepository) {
         super(new InetSocketAddress(DEFAULT_PORT));
         this.gameFactory = gameFactory;
         this.lobbyPlayerService = lobbyPlayerService;
-        this.gameLifeCycleService = gameLifeCycleService;
         this.savegameRepository = saveGameRepository;
         this.gameOverStatsDAO = gameFactory.getGameOverStatsDAO();
         this.decisionService = gameFactory.getDecisionService();
@@ -231,7 +231,7 @@ public class GameServer extends WebSocketServer {
             GameEvent<Map<String, Object>> versionEvent = new GameEvent<>(EventType.VERSION);
             Map<String, Object> payload = new HashMap<>();
             payload.put("version", version);
-            payload.put("gameSpeed", gameLifeCycleService.getGameSpeedInMilliseconds());
+            payload.put("gameSpeed", gameSpeedInMilliseconds);
             versionEvent.setPayload(payload);
             webSocket.send(GameServer.getGson().toJson(versionEvent));
         } catch (IOException e) {
@@ -276,8 +276,7 @@ public class GameServer extends WebSocketServer {
     private void prepareForNextLevel(Player player, Game game, int level) {
         log.debug("Preparing game for level {} and player {}", level, player.getId());
 
-        // Notify life cycle service about the new level
-        gameLifeCycleService.setLevel(level);
+        game.initialize(level);
 
         // Give player chance to prepare for the next level (read up, make decisions etc.)
         player.setReady(false);
@@ -401,8 +400,7 @@ public class GameServer extends WebSocketServer {
             List<Decision> decisions = playerReadyEvent.getPayload().decisions();
             player.setDecisionsForLevel(level, decisions);
 
-            decisionService.saveDecisionsAsync(player.getId().toString(), gameLifeCycleService.getLevel(), player.getDecisionsByLevel(level));
-
+            decisionService.saveDecisionsAsync(player.getId().toString(), level, player.getDecisionsByLevel(level));
             player.setReady(true);
             startReadyGames();
             broadcastLobbyState();

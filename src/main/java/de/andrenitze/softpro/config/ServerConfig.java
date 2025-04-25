@@ -4,7 +4,6 @@ import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
-import de.andrenitze.softpro.services.impl.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -28,9 +27,8 @@ public class ServerConfig {
     @Bean
     public GameServer gameServer(LobbyPlayerServiceImpl lobby,
                                  GameFactory gameFactory,
-                                 GameLifeCycleService lifeCycleService,
                                  SavegameRepository savegameRepository) {
-        return new GameServer(gameFactory, lobby, lifeCycleService, savegameRepository);
+        return new GameServer(gameFactory, lobby, savegameRepository);
     }
 
     @Bean
