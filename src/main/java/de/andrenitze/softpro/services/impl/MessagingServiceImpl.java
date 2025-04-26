@@ -52,7 +52,13 @@ public class MessagingServiceImpl implements MessagingService {
     }
 
     public void broadcast(String message) {
-        playerService.getPlayers().forEach((webSocket, ignored) -> webSocket.send(message));
+        playerService.getPlayers().forEach((webSocket, ignored) -> {
+            if (webSocket == null || !webSocket.isOpen()) {
+                log.error("WebSocket is null or not open. Not sending event: {}", message);
+                return;
+            }
+            webSocket.send(message);
+        });
     }
 
     public void broadcast(EventType eventType) {

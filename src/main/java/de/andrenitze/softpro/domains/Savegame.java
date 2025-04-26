@@ -1,7 +1,6 @@
 package de.andrenitze.softpro.domains;
 
 import jakarta.persistence.*;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -13,13 +12,12 @@ import java.time.Instant;
 @Table(name = "savegames")
 @Getter
 @Setter
-@EqualsAndHashCode(of = "id")
 public class Savegame {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String userId;
 
     @Column(nullable = false)
@@ -32,4 +30,7 @@ public class Savegame {
 
     @Column(nullable = false)
     private Instant lastUpdated;
+
+    @Column(nullable = false)
+    private boolean latest;
 }

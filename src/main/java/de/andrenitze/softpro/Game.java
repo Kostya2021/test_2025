@@ -371,51 +371,41 @@ public class Game {
     private void handleGameOver(Player player, WebSocket webSocket) {
         int numberOfLevelsInTheGame = 3;
         int level = lifeCycle.getLevel();
-        log.debug("Game over for player {}.", player.getId());
-        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt(lifeCycle.getLevel());
+        log.debug("Game over for player {} at level {}.", player.getId(), level);
+
+        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt(level);
 
         GameOverStats goStats = createGameOverStats(this, player, lifeCycle.getTick());
         goStats.setReport(playerHasWon ? "win" : "fail");
+        goStats.setLevel(level);
 
-        if (playerHasWon) {
-            // Keep the player in the game and prepare for the next level
-            log.debug("Player {} has completed all {} missions. Moving to next level ({}).",
-                    player.hashCode(),
-                    player.getMissions().size(),
-                    level + 1);
-
-            // Only increase level for existing levels
-            if (level < numberOfLevelsInTheGame) {
-                lifeCycle.setLevel(level + 1);
-                log.debug("Player {} has reached level {}.", player.getId(), lifeCycle.getLevel());
-            } else {
-                log.debug("Player {} has reached the final level.", player.getId());
-            }
-        } else {
-            log.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
-        }
-
-        // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
         messagingService.sendToPlayer(player, gameOverEvent);
 
-        // Update player one last time in this level to make sure, client is up-to-date
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
         messagingService.sendToPlayer(player, playerUpdateEvent);
 
-        // Send level updated
         GameEvent<Integer> levelUpdatedEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
-        levelUpdatedEvent.setPayload(lifeCycle.getLevel());
+        levelUpdatedEvent.setPayload(level);
         messagingService.sendToPlayer(player, levelUpdatedEvent);
 
-        // Fire game over event for GameServer to handle (save high-score etc.)
-        GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
-        GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
-        eventPublisher.publishGameOverEvent(internalGameOverEvent);
+        if (playerHasWon) {
+            GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
+            GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
+            eventPublisher.publishGameOverEvent(internalGameOverEvent);
 
-        // Let the Game class handle player removal
+            if (level < numberOfLevelsInTheGame) {
+                lifeCycle.setLevel(level + 1);
+                log.debug("Player {} has now reached level {}.", player.getId(), lifeCycle.getLevel());
+            } else {
+                log.debug("Player {} has reached the final level.", player.getId());
+            }
+        } else {
+            log.debug("Player {} has lost. Level stays at {}. Try again! :)", player.getId(), level);
+        }
+
         removePlayer(webSocket);
     }
 

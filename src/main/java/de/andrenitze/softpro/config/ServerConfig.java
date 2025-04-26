@@ -8,13 +8,9 @@ import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
 
 @Configuration
-@ComponentScan("de.andrenitze.softpro")
-@PropertySource("classpath:application.properties")
 @Slf4j
 public class ServerConfig {
     private final ApplicationContext parentContext;

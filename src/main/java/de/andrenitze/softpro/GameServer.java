@@ -57,6 +57,7 @@ public class GameServer extends WebSocketServer {
     private final SavegameRepository savegameRepository;
     private final GameOverStatsDAO gameOverStatsDAO;
     private final DecisionService decisionService;
+    int calledHowManyTimes = 0;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -721,6 +722,7 @@ public class GameServer extends WebSocketServer {
     public void saveGame(Game game, Player player) {
         String userId = player.getJwtSubject();
         GameState gameState = game.exportState(player);
+        log.info("Saving game for player {} at level {}", userId, game.getLevel());
 
         if (gameState == null) {
             log.warn("GameState is null – skipping save for player {}", userId);
@@ -729,21 +731,26 @@ public class GameServer extends WebSocketServer {
 
         String gameStateJson = gson.toJson(gameState);
 
-        Savegame savegame = savegameRepository.findByUserId(userId)
-                .orElseGet(Savegame::new);
+        // Mark previous savegames as not latest
+        List<Savegame> existingSavegames = savegameRepository.findAllByUserId(userId);
+        for (Savegame sg : existingSavegames) {
+            sg.setLatest(false);
+            savegameRepository.save(sg);
+        }
 
+        Savegame savegame = new Savegame();
         savegame.setUserId(userId);
-        savegame.setLevel(game.getLevel());
+        savegame.setLevel(game.getLevel()); // Use previous level (update logic for next level has already taken place)
         savegame.setGameStateJson(gameStateJson);
         savegame.setLastUpdated(Instant.now());
+        savegame.setLatest(true);
 
         savegameRepository.save(savegame);
-        log.debug("Game state for player {} saved successfully.", userId);
+        log.debug("Game state for player {} at level {} saved successfully.", userId, game.getLevel());
     }
 
-
     private Optional<GameState> loadGame(Player player) {
-        return savegameRepository.findByUserId(player.getJwtSubject())
+        return savegameRepository.findTopByUserIdOrderByLevelDesc(player.getJwtSubject())
                 .map(savegame -> {
                     try {
                         return gson.fromJson(savegame.getGameStateJson(), GameState.class);
@@ -757,7 +764,7 @@ public class GameServer extends WebSocketServer {
     @EventListener
     public void handleGameOverEvent(GlobalGameOverEvent event) {
         Game.GameOverData data = event.getGameOverData();
-        log.debug("🚨 Global listener received GameOverEvent from game.");
+        log.debug("🚨 Global listener received GameOverEvent from game. #{}", calledHowManyTimes++);
         log.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
 
         // If player is logged in and has a JWT subject, save the game state
