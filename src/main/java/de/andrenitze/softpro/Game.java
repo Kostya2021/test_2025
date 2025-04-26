@@ -464,7 +464,8 @@ public class Game {
         }
 
         // Restore game state
-        this.lifeCycle.setLevel(gameState.getLevel());
+        // Set level to the next one
+        this.lifeCycle.setLevel(gameState.getLevel()+1);
 
         // Restore player state
         player.setName(gameState.getPlayer().getName());
