@@ -57,7 +57,6 @@ public class GameServer extends WebSocketServer {
     private final SavegameRepository savegameRepository;
     private final GameOverStatsDAO gameOverStatsDAO;
     private final DecisionService decisionService;
-    int calledHowManyTimes = 0;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -764,7 +763,7 @@ public class GameServer extends WebSocketServer {
     @EventListener
     public void handleGameOverEvent(GlobalGameOverEvent event) {
         Game.GameOverData data = event.getGameOverData();
-        log.debug("🚨 Global listener received GameOverEvent from game. #{}", calledHowManyTimes++);
+        log.debug("🚨 Global listener received GameOverEvent from game.");
         log.debug("Saving high-score and moving player {} back to lobby...", data.player().getId());
 
         // If player is logged in and has a JWT subject, save the game state
