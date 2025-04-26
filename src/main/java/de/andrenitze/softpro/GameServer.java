@@ -706,7 +706,7 @@ public class GameServer extends WebSocketServer {
         PlayerService gamePlayerService = game.getPlayerService();
 
         // Rescue the level from dying game instance to create a correct new one
-        addPlayerToLobby(webSocket, player, game.getLevel());
+        addPlayerToLobby(webSocket, player, game.getLevel()+1);
         player.setReady(false);
 
         // Remove player from game instance
