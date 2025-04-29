@@ -37,7 +37,7 @@ public class Employee implements Serializable {
     @Setter
     private String lastName;
     @Getter
-    private final transient HashMap<Project, Integer> projectExperience; // projectId and days XP
+    private final transient HashMap<Project, Integer> projectExperience = new HashMap<>(); // projectId and days XP
     @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     @Getter
@@ -88,7 +88,6 @@ public class Employee implements Serializable {
         calculateSatisfaction();
         initializeSickDays();
 
-        this.projectExperience = new HashMap<>();
         this.projectTypeExperience = new EnumMap<>(ProjectType.class);
         for (ProjectType type : ProjectType.values()) {
             this.projectTypeExperience.put(type, 0);

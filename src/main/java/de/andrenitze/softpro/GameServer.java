@@ -739,7 +739,7 @@ public class GameServer extends WebSocketServer {
 
         Savegame savegame = new Savegame();
         savegame.setUserId(userId);
-        savegame.setLevel(game.getLevel()); // Use previous level (update logic for next level has already taken place)
+        savegame.setLevel(game.getLevel());
         savegame.setGameStateJson(gameStateJson);
         savegame.setLastUpdated(Instant.now());
         savegame.setLatest(true);

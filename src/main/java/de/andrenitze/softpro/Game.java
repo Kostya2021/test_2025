@@ -232,6 +232,7 @@ public class Game {
                 log.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
             }
         } catch (Exception e) {
+            // TODO Fix these errors after loading a game! State is not correctly restored.
             log.error("Error in game loop: {}", e.getMessage());
         }
     }
@@ -267,9 +268,11 @@ public class Game {
 
     // Call this method after creating the game instance and before starting the game loop.
     public void initialize(int level) {
+        log.debug("Initializing level {}...", level);
         lifeCycle.setLevel(level);
         projectService.loadProblems(level);
         storyService.loadStory(level);
+        playerService.getPlayers().forEach((webSocket, player) -> skillService.initializePlayer(player));
 
         if (lifeCycle.getLevel() != 1) {
             projectService.initialize(level);
@@ -452,38 +455,38 @@ public class Game {
         return lifeCycle.getLevel();
     }
 
-    public void restoreGameState(GameState gameState, Player player) {
-        if (player == null || gameState.getPlayer() == null) {
+    public void restoreGameState(GameState savedGame, Player player) {
+        if (player == null || savedGame.getPlayer() == null) {
             log.error("Player or game state is null. Cannot restore game state.");
             return;
         }
 
-        if (!Objects.equals(player.getJwtSubject(), gameState.getPlayer().getJwtSubject())) {
+        if (!Objects.equals(player.getJwtSubject(), savedGame.getPlayer().getJwtSubject())) {
             log.error("Player subject mismatch. Cannot restore game state.");
             return;
         }
 
         // Restore game state
         // Set level to the next one
-        this.lifeCycle.setLevel(gameState.getLevel()+1);
+        this.lifeCycle.setLevel(savedGame.getLevel()+1);
 
         // Restore player state
-        player.setName(gameState.getPlayer().getName());
-        player.setCompany(gameState.getPlayer().getCompany());
-        player.setXp(gameState.getPlayer().getXp());
-        player.setXpLevel(gameState.getPlayer().getXpLevel());
-        player.setSkillPoints(gameState.getPlayer().getSkillPoints());
+        player.setName(savedGame.getPlayer().getName());
+        player.setCompany(savedGame.getPlayer().getCompany());
+        player.setXp(savedGame.getPlayer().getXp());
+        player.setXpLevel(savedGame.getPlayer().getXpLevel());
+        player.setSkillPoints(savedGame.getPlayer().getSkillPoints());
 
-        if (gameState.getPlayer().getEmployees() != null) {
-            player.setEmployees(gameState.getPlayer().getEmployees());
+        if (savedGame.getPlayer().getEmployees() != null) {
+            player.setEmployees(savedGame.getPlayer().getEmployees());
         }
 
-        if (gameState.getPlayer().getDecisions() != null) {
-            player.setDecisions(gameState.getPlayer().getDecisions());
+        if (savedGame.getPlayer().getDecisions() != null) {
+            player.setDecisions(savedGame.getPlayer().getDecisions());
         }
 
-        if (gameState.getSkills() != null) {
-            skillService.setSkills(player, gameState.getSkills());
+        if (savedGame.getSkills() != null) {
+            skillService.setSkills(player, savedGame.getSkills());
         }
 
         // Trigger loading of missions, talent market, project market, and story
