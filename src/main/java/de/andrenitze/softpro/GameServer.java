@@ -366,6 +366,8 @@ public class GameServer extends WebSocketServer {
                 handlePlayerNameUpdatedEvent(webSocket, message);
             } else if (EventType.USER_LOGGED_IN.equals(genericGameEvent.getType())) {
                 handleUserLogin(webSocket, message);
+            } else if (EventType.CANCEL.equals(genericGameEvent.getType())) {
+                handleGameCancelledEvent(webSocket);
             } else {
                 forwardEventToGame(webSocket, message);
             }
@@ -467,8 +469,8 @@ public class GameServer extends WebSocketServer {
                     .orElse(null);
 
             if (game != null) {
-                game.restoreGameState(state, player);
-                prepareForNextLevel(player, game, game.getLevel()); // TODO Level korrekt?
+                game.restoreGame(state, player);
+                prepareForNextLevel(player, game, game.getLevel());
 
                 // Now notify the player about the restored game state
                 GameEvent<Player> playerUpdatedEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
@@ -485,6 +487,23 @@ public class GameServer extends WebSocketServer {
             } else {
                 log.warn("Game instance not found for player {}. Game could not be loaded.", player.getId());
             }
+        }
+    }
+
+    private void handleGameCancelledEvent(WebSocket webSocket) {
+        // Remove the player from the game instance, thereby closing the game
+        log.debug("Game cancelled by player {}. Closing game instance.", webSocket.getRemoteSocketAddress());
+
+        Game game = gameContexts.values().stream()
+                .filter(g -> g.getPlayerService().hasWebSocket(webSocket))
+                .findFirst()
+                .orElse(null);
+
+        if (game != null) {
+            Player player = game.getPlayerService().getPlayer(webSocket);
+            game.removePlayer(player);
+        } else {
+            log.warn("Game instance not found for player. Game could not be closed.");
         }
     }
 

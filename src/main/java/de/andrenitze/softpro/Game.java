@@ -455,7 +455,7 @@ public class Game {
         return lifeCycle.getLevel();
     }
 
-    public void restoreGameState(GameState savedGame, Player player) {
+    public void restoreGame(GameState savedGame, Player player) {
         if (player == null || savedGame.getPlayer() == null) {
             log.error("Player or game state is null. Cannot restore game state.");
             return;
@@ -492,9 +492,6 @@ public class Game {
         if (savedGame.getSkills() != null) {
             skillService.setSkills(player, savedGame.getSkills());
         }
-
-        // Trigger loading of missions, talent market, project market, and story
-        initialize(getLevel());
 
         log.debug("Game state successfully restored for player {}.", player.getId());
     }
