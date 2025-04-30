@@ -19,7 +19,7 @@ public class DecisionDAO {
 
     public Map<Integer, List<OptionVoteDistribution>> getVoteDistributionByLevel(int level) {
         String sql = """
-            SELECT 
+            SELECT
                 d.decision_id,
                 d.option_id AS option,
                 COUNT(*) AS vote_count,
@@ -30,12 +30,16 @@ public class DecisionDAO {
             GROUP BY d.decision_id, d.option_id
             """;
 
-        List<OptionVoteDistribution> distributions = jdbcTemplate.query(sql, new Object[]{level}, (rs, rowNum) -> new OptionVoteDistribution(
-                rs.getInt("decision_id"),
-                rs.getInt("option"),
-                rs.getInt("vote_count"),
-                rs.getDouble("percentage")
-        ));
+        List<OptionVoteDistribution> distributions = jdbcTemplate.query(
+                sql,
+                ps -> ps.setInt(1, level),
+                (rs, rowNum) -> new OptionVoteDistribution(
+                        rs.getInt("decision_id"),
+                        rs.getInt("option"),
+                        rs.getInt("vote_count"),
+                        rs.getDouble("percentage")
+                )
+        );
 
         // Group by decision_id
         Map<Integer, List<OptionVoteDistribution>> groupedDistributions = new HashMap<>();

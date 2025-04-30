@@ -286,9 +286,6 @@ public class GameServer extends WebSocketServer {
         player.initializeFunds(level);
         player.setXp(0);
 
-        // Make sure the skills are initialized
-        game.getSkillService().initializePlayer(player);
-
         // For level 1, generate the player as his/her own first and only employee
         if (level == 1) {
             player.setEmployees(new ArrayList<>());
@@ -471,6 +468,7 @@ public class GameServer extends WebSocketServer {
 
             if (game != null) {
                 game.restoreGameState(state, player);
+                prepareForNextLevel(player, game, game.getLevel()); // TODO Level korrekt?
 
                 // Now notify the player about the restored game state
                 GameEvent<Player> playerUpdatedEvent = new GameEvent<>(EventType.PLAYER_UPDATED);

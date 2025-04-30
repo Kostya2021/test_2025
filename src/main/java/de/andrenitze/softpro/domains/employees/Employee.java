@@ -297,9 +297,13 @@ public class Employee implements Serializable {
     }
 
     public void addStatusEffect(StatusEffect effect) {
-        statusEffects.add(effect);
-        log.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
-        calculateSatisfaction();
+        try {
+            statusEffects.add(effect);
+            log.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
+            calculateSatisfaction();
+        } catch (Exception e) {
+            log.error("Error adding status effect {} to {}: {}", effect, getName(), e.getMessage());
+        }
     }
 
     // Variant without cooldown (effect is permanent until removed)

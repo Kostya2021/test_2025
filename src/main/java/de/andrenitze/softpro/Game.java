@@ -477,12 +477,16 @@ public class Game {
         player.setXpLevel(savedGame.getPlayer().getXpLevel());
         player.setSkillPoints(savedGame.getPlayer().getSkillPoints());
 
-        if (savedGame.getPlayer().getEmployees() != null) {
+        // Forget first level employees
+        if (savedGame.getLevel() != 1 && savedGame.getPlayer().getEmployees() != null) {
             player.setEmployees(savedGame.getPlayer().getEmployees());
         }
 
-        if (savedGame.getPlayer().getDecisions() != null) {
-            player.setDecisions(savedGame.getPlayer().getDecisions());
+        // Not getPlayer().getDecisions()! Decisions are saved separately in the GameState
+        if (savedGame.getDecisions() != null) {
+            for (var entry : savedGame.getDecisions().entrySet()) {
+                player.setDecisionsForLevel(entry.getKey(), entry.getValue());
+            }
         }
 
         if (savedGame.getSkills() != null) {
@@ -503,6 +507,7 @@ public class Game {
         gameState.setAccountingEntries(accountingService.getAllEntriesByPlayer(player));
         gameState.setProjects(projectService.getProjectsByPlayer(player));
         gameState.setSkills((HashMap<String, Skill>) skillService.getSkillsByPlayer(player));
+        gameState.setDecisions(player.getDecisions());
 
         return gameState;
     }
