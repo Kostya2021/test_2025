@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_DOMAIN;
@@ -35,6 +37,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
 
     public void simulateEmployeeLives(int gameTick, ConcurrentMap<WebSocket, Player> players) {
+
         players.forEach((ignored, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(gameTick);
             boolean needsUpdate = employee.isSick() || employee.hasFirstDayAfterSickLeave(gameTick) || employee.removeExpiredStatusEffects();
@@ -50,13 +53,11 @@ public class EmployeeServiceImpl implements EmployeeService {
                 needsUpdate = true;
             }
 
-            // This could be refactored so that the "needsUpdate" logic can be used here as well
-            applyStatusEffectsForStressfulOnboarding(player, employee);
-
-            // Send an employee update, if anything has changed
-            if (needsUpdate) {
-                messagingService.sendEmployeeUpdate(player, employee);
+            if (applyStatusEffectsForStressfulOnboarding(employee)) {
+                needsUpdate = true;
             }
+
+            employee.setUpdated(needsUpdate);
         }));
     }
 
@@ -76,34 +77,59 @@ public class EmployeeServiceImpl implements EmployeeService {
         messagingService.broadcast(talentsAddedEvent);
     }
 
-    public void applyStatusEffectsForStressfulOnboarding(Player player, Employee employee) {
-        if (projectsEmployeesMap.isEmployeeAssignedToAnyProject(employee)) {
-            projectsEmployeesMap.getProjectEmployeesMap().forEach((project, ignored) -> {
-                if (project.getStartedAt() == 0) {
-                    return;
-                }
-                applyStatusEffectForProjectType(employee, project);
-                applyStatusEffectForProjectDomain(employee, project);
-                messagingService.sendEmployeeUpdate(player, employee);
-            });
+    public boolean applyStatusEffectsForStressfulOnboarding(Employee employee) {
+        boolean addedAnyEffect = false;
+
+        if (!projectsEmployeesMap.isEmployeeAssignedToAnyProject(employee)) {
+            return false;
         }
+
+        for (Map.Entry<Project, ArrayList<Employee>> entry : projectsEmployeesMap.getProjectEmployeesMap().entrySet()) {
+            Project project = entry.getKey();
+
+            if (project.getStartedAt() == 0) continue;
+
+            boolean typeEffectAdded = applyStatusEffectForProjectType(employee, project);
+            boolean domainEffectAdded = applyStatusEffectForProjectDomain(employee, project);
+
+            addedAnyEffect |= (typeEffectAdded || domainEffectAdded);
+        }
+
+        return addedAnyEffect;
+    }
+
+    private boolean applyStatusEffectForProjectType(Employee employee, Project project) {
+        if (employee.getExperienceByType(project.getType()) >= DAYS_TO_LEARN_NEW_THINGS) {
+            return false;
+        }
+
+        StatusEffect newEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.7f, FAMILIARIZATION_WITH_NEW_TYPE);
+        newEffect.setTrigger(project);
+
+        boolean alreadyPresent = employee.getStatusEffects().stream()
+                .anyMatch(e -> e.getType() == newEffect.getType()
+                        && e.getDescription().equals(newEffect.getDescription())
+                        && Objects.equals(e.getTrigger(), project));
+
+        if (!alreadyPresent) {
+            employee.addStatusEffect(newEffect);
+            return true;
+        }
+
+        return false;
     }
 
 
-    private void applyStatusEffectForProjectType(Employee employee, Project project) {
-        StatusEffect newProjectTypeEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.7f, FAMILIARIZATION_WITH_NEW_TYPE);
-        newProjectTypeEffect.setTrigger(project);
-        if (employee.getExperienceByType(project.getType()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectTypeEffect)) {
-            employee.addStatusEffect(newProjectTypeEffect);
+    private boolean applyStatusEffectForProjectDomain(Employee employee, Project project) {
+        if (employee.getExperienceByDomain(project.getDomain()) >= DAYS_TO_LEARN_NEW_THINGS) {
+            return false;
         }
+
+        StatusEffect newEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.85f, FAMILIARIZATION_WITH_NEW_DOMAIN);
+        newEffect.setTrigger(project);
+
+        return employee.addStatusEffect(newEffect);
     }
 
-    private void applyStatusEffectForProjectDomain(Employee employee, Project project) {
-        StatusEffect newProjectDomainEffect = new StatusEffect(StatusEffectType.SATISFACTION, 0.85f, FAMILIARIZATION_WITH_NEW_DOMAIN);
-        newProjectDomainEffect.setTrigger(project);
-        if (employee.getExperienceByDomain(project.getDomain()) < DAYS_TO_LEARN_NEW_THINGS && !employee.getStatusEffects().contains(newProjectDomainEffect)) {
-            employee.addStatusEffect(newProjectDomainEffect);
-        }
-    }
 
 }

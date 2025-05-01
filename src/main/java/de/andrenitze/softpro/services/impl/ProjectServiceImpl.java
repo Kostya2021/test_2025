@@ -579,7 +579,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public void initializeProjectMarket(int level) {
+    public void initialize(int level) {
         setProjects(new ArrayList<>());
 
         // Fill the market with random amount of project tenders (30-60 tenders)

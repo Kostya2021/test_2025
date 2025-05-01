@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.beans.Transient;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
@@ -37,8 +36,8 @@ public class Employee implements Serializable {
     private String firstName;
     @Setter
     private String lastName;
-    @Getter(onMethod_=@Transient)
-    private final transient HashMap<Project, Integer> projectExperience; // projectId and days XP
+    @Getter
+    private final transient HashMap<Project, Integer> projectExperience = new HashMap<>(); // projectId and days XP
     @Getter
     private final EnumMap<ProjectType, Integer> projectTypeExperience;
     @Getter
@@ -72,6 +71,8 @@ public class Employee implements Serializable {
     private int utilization = 0;
     @Getter @Setter
     private int xpInDaysBeforeHiring = 0;
+    @Getter @Setter
+    private boolean updated = false;
 
     public Employee(Integer id) {
         this.id = id;
@@ -89,7 +90,6 @@ public class Employee implements Serializable {
         calculateSatisfaction();
         initializeSickDays();
 
-        this.projectExperience = new HashMap<>();
         this.projectTypeExperience = new EnumMap<>(ProjectType.class);
         for (ProjectType type : ProjectType.values()) {
             this.projectTypeExperience.put(type, 0);
@@ -298,10 +298,30 @@ public class Employee implements Serializable {
         return firstName + " " + lastName;
     }
 
-    public void addStatusEffect(StatusEffect effect) {
-        statusEffects.add(effect);
-        log.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
-        calculateSatisfaction();
+    // Main method: adds a StatusEffect object if it does not already exist
+    public boolean addStatusEffect(StatusEffect effect) {
+        try {
+            boolean alreadyExists = statusEffects.stream()
+                    .anyMatch(e ->
+                            e.getType() == effect.getType() &&
+                                    Objects.equals(e.getDescription(), effect.getDescription()) &&
+                                    Objects.equals(e.getTrigger(), effect.getTrigger())
+                    );
+
+            if (alreadyExists) {
+                log.debug("Skipped adding duplicate status effect '{}' to {}", effect.getDescription(), getName());
+                return false;
+            }
+
+            statusEffects.add(effect);
+            log.debug("Added status effect '{}' - {} to {} ({} active effects)",
+                    effect.getDescription(), effect.getType(), getName(), statusEffects.size());
+            calculateSatisfaction();
+            return true;
+        } catch (Exception e) {
+            log.error("Error adding status effect {} to {}: {}", effect, getName(), e.getMessage());
+            return false;
+        }
     }
 
     // Variant without cooldown (effect is permanent until removed)
@@ -396,7 +416,8 @@ public class Employee implements Serializable {
     }
 
     public boolean removeExpiredStatusEffects() {
-        boolean removed = statusEffects.removeIf(StatusEffect::isExpired);
+        // Remove all expired status effects that are not infinite
+        boolean removed = statusEffects.removeIf(StatusEffect::isExpiredAndNotInfinite);
         if (removed) {
             calculateSatisfaction();
         }
@@ -415,12 +436,12 @@ public class Employee implements Serializable {
 
     public void removeStatusEffectsByTrigger(Object trigger) {
         statusEffects.removeIf(effect -> {
-            if (effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
+            if (trigger != null && effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
                 calculateSatisfaction();
+                log.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
             }
             return effect.getTrigger() == trigger;
         });
-        log.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
     }
 
     public void train(String training) {

@@ -37,6 +37,7 @@ public enum EventType {
     COOLDOWN,
     PAUSE,
     RESUME,
+    CANCEL,
     EMPLOYEE_TRAINING_REQUESTED,
     PROBLEM_SOLVED,
     ONE_TO_ONE_MEETING,

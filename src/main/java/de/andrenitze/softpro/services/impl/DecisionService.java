@@ -1,9 +1,10 @@
 package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.domains.decisions.Decision;
-import de.andrenitze.softpro.domains.decisions.DecisionDAO;
+import de.andrenitze.softpro.domains.decisions.DecisionEntry;
+import de.andrenitze.softpro.domains.decisions.PlayerDecision;
+import de.andrenitze.softpro.repositories.PlayerDecisionRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -12,19 +13,33 @@ import java.util.List;
 @Service
 @Slf4j
 public class DecisionService {
-    private final DecisionDAO decisionDao;
 
-    @Autowired
-    public DecisionService(DecisionDAO decisionDao) {
-        this.decisionDao = decisionDao;
+    private final PlayerDecisionRepository repository;
+
+    public DecisionService(PlayerDecisionRepository repository) {
+        this.repository = repository;
     }
 
     @Async
-    public void saveDecisionsAsync(String playerId, int level, List<Decision> decisions) {
-        try {
-            decisionDao.saveDecisions(playerId, level, decisions);
-        } catch (Exception e) {
-            log.error("Could not persist player decisions to database: {}", e.getMessage());
-        }
+    public void saveDecisionsAsync(String userId, int level, List<Decision> decisions) {
+        PlayerDecision pd = new PlayerDecision();
+        pd.setUserId(userId);
+        pd.setLevel(level);
+
+        List<DecisionEntry> entries = decisions.stream().map(d -> {
+            DecisionEntry e = new DecisionEntry();
+            e.setDecisionId(d.getDecisionId());
+            e.setOptionId(d.getOptionId());
+            e.setPlayerDecision(pd);
+            return e;
+        }).toList();
+
+        pd.setDecisions(entries);
+        repository.save(pd);
+        log.debug("Saved {} decisions for user {} at level {}", entries.size(), userId, level);
+    }
+
+    public List<PlayerDecision> loadDecisions(String userId) {
+        return repository.findByUserId(userId);
     }
 }

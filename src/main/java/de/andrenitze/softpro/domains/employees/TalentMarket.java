@@ -2,7 +2,6 @@ package de.andrenitze.softpro.domains.employees;
 
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.ProjectType;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -30,8 +29,7 @@ public class TalentMarket {
         this.employeeIdGenerator = new EmployeeIdGenerator();
     }
 
-    @PostConstruct
-    public void init() {
+    public void initialize() {
         clear();
 
         for (int i = 0; i < 30; i++) {

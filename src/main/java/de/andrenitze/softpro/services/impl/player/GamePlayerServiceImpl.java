@@ -24,7 +24,6 @@ public class GamePlayerServiceImpl extends BasePlayerService {
 
     @Override
     public void addPlayer(WebSocket webSocket, Player player) {
-        log.debug("Adding player {}...", player.getId());
         try {
             if (hasWebSocket(webSocket)) {
                 log.warn("Player already exists in the game. Ignoring request to add player.");
@@ -73,10 +72,4 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         return gson.fromJson(json, Player.class);
     }
 
-    public Player getPlayer(Player player) {
-        return players.values().stream()
-                .filter(p -> p.getId().equals(player.getId()))
-                .findFirst()
-                .orElse(null);
-    }
 }

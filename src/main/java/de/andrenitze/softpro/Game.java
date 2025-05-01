@@ -64,7 +64,7 @@ public class Game {
     @PostConstruct
     void init() {
         if (lifeCycle.getLevel() != 1) {
-            talentMarket.init();
+            talentMarket.initialize();
         }
         log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
     }
@@ -217,9 +217,10 @@ public class Game {
 
             // For all players in the game...
             playerService.getPlayers().forEach((ignored, player) -> {
-                sendAnyProjectChanges();
-                sendAnyPlayerChanges(player);
-                sendAnyNewStoryElements(player);
+                sendPendingProjectChanges();
+                sendPendingPlayerChanges(player);
+                sendPendingStoryElements(player);
+                sendPendingEmployeeUpdates(player);
             });
 
             checkGameOverConditions();
@@ -237,19 +238,11 @@ public class Game {
     }
 
     /**
-     * The next level is prepared, after players hit the "Start Level X" (PLAYER_READY) button.
+     * The next level is prepared after players hit the "Start Level X" (PLAYER_READY) button.
+     * This is important, because player decisions are needed to trigger the level consequences.
      */
-    void prepareLevelForPlayer(int level) {
-        initialize(level);
+    void triggerConsequencesForDecisions() {
         log.debug("Preparing level {} for player.", lifeCycle.getLevel());
-
-        if (lifeCycle.getLevel() != 1) {
-            projectService.initializeProjectMarket(level);
-
-            GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
-            employeeEvent.setPayload(talentMarket.getTalents());
-            messagingService.broadcast(employeeEvent);
-        }
 
         // Trigger level consequences
         switch (lifeCycle.getLevel()) {
@@ -271,23 +264,27 @@ public class Game {
                 });
             }
         });
-
-        playerService.getPlayers().forEach((ignored, somePlayerInTheGame) -> {
-            if (somePlayerInTheGame.getDecisionsByLevel(lifeCycle.getLevel()).isEmpty()) {
-                log.warn("Player {} has no decisions for level {}", somePlayerInTheGame.getId(), lifeCycle.getLevel());
-            }
-        });
     }
 
     // Call this method after creating the game instance and before starting the game loop.
-    private void initialize(int level) {
+    public void initialize(int level) {
+        log.debug("Initializing level {}...", level);
         lifeCycle.setLevel(level);
         projectService.loadProblems(level);
-        projectService.initializeProjectMarket(level);
-        storyService.init(level);
+        storyService.loadStory(level);
+        playerService.getPlayers().forEach((webSocket, player) -> skillService.initializePlayer(player));
+
+        if (lifeCycle.getLevel() != 1) {
+            projectService.initialize(level);
+            talentMarket.initialize();
+
+            GameEvent<List<Employee>> employeeEvent = new GameEvent<>(EventType.TALENTS_ADDED);
+            employeeEvent.setPayload(talentMarket.getTalents());
+            messagingService.broadcast(employeeEvent);
+        }
     }
 
-    private void sendAnyNewStoryElements(Player player) {
+    private void sendPendingStoryElements(Player player) {
         List<StoryElement> newStoryElements = storyService.getNewStoryElementsForPlayer(player, lifeCycle.getTick());
         if (!newStoryElements.isEmpty()) {
             GameEvent<List<StoryElement>> storyEvent = new GameEvent<>(EventType.STORY_ELEMENTS_ADDED);
@@ -307,7 +304,7 @@ public class Game {
     /**
      * Go through all projects and compare their hashes to find out if something significant has changed.
      */
-    private void sendAnyProjectChanges() {
+    private void sendPendingProjectChanges() {
         playerService.getPlayers().forEach((ignored, player) -> {
             List<Project> currentProjects = projectService.getProjectsByPlayer(player);
 
@@ -331,7 +328,7 @@ public class Game {
         });
     }
 
-    private void sendAnyPlayerChanges(Player player) {
+    private void sendPendingPlayerChanges(Player player) {
         try {
             Player previousState = playerService.getPreviousState(player);
 
@@ -348,6 +345,15 @@ public class Game {
         } catch (Exception e) {
             log.error("Error while sending player update: {}", e.getMessage());
         }
+    }
+
+    public void sendPendingEmployeeUpdates(Player player) {
+        player.getEmployees().stream()
+                .filter(Employee::isUpdated)
+                .forEach(employee -> {
+                    messagingService.sendEmployeeUpdate(player, employee);
+                    employee.setUpdated(false);
+                });
     }
 
     private void checkObjectivesCriteriaAndSendRewards() {
@@ -377,51 +383,41 @@ public class Game {
     private void handleGameOver(Player player, WebSocket webSocket) {
         int numberOfLevelsInTheGame = 3;
         int level = lifeCycle.getLevel();
-        log.debug("Game over for player {}.", player.getId());
-        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt(lifeCycle.getLevel());
+        log.debug("Game over for player {} at level {}.", player.getId(), level);
+
+        boolean playerHasWon = player.completedAllObjectives() && !player.isBankrupt(level);
 
         GameOverStats goStats = createGameOverStats(this, player, lifeCycle.getTick());
         goStats.setReport(playerHasWon ? "win" : "fail");
+        goStats.setLevel(level);
 
-        if (playerHasWon) {
-            // Keep the player in the game and prepare for the next level
-            log.debug("Player {} has completed all {} missions. Moving to next level ({}).",
-                    player.hashCode(),
-                    player.getMissions().size(),
-                    level + 1);
-
-            // Only increase level for existing levels
-            if (level < numberOfLevelsInTheGame) {
-                lifeCycle.setLevel(level + 1);
-                log.debug("Player {} has reached level {}.", player.getId(), lifeCycle.getLevel());
-            } else {
-                log.debug("Player {} has reached the final level.", player.getId());
-            }
-        } else {
-            log.debug("Player {} has lost the game. Level stays the same. Try again! :)", player.getId());
-        }
-
-        // Send GAME_OVER event after decision
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
         messagingService.sendToPlayer(player, gameOverEvent);
 
-        // Update player one last time in this level to make sure, client is up-to-date
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
         playerUpdateEvent.setPayload(player);
         messagingService.sendToPlayer(player, playerUpdateEvent);
 
-        // Send level updated
         GameEvent<Integer> levelUpdatedEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
-        levelUpdatedEvent.setPayload(lifeCycle.getLevel());
+        levelUpdatedEvent.setPayload(level);
         messagingService.sendToPlayer(player, levelUpdatedEvent);
 
-        // Fire game over event for GameServer to handle (save high-score etc.)
-        GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
-        GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
-        eventPublisher.publishGameOverEvent(internalGameOverEvent);
+        if (playerHasWon) {
+            GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
+            GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
+            eventPublisher.publishGameOverEvent(internalGameOverEvent);
 
-        // Let the Game class handle player removal
+            if (level < numberOfLevelsInTheGame) {
+                lifeCycle.setLevel(level + 1);
+                log.debug("Player {} has now reached level {}.", player.getId(), lifeCycle.getLevel());
+            } else {
+                log.debug("Player {} has reached the final level.", player.getId());
+            }
+        } else {
+            log.debug("Player {} has lost. Level stays at {}. Try again! :)", player.getId(), level);
+        }
+
         removePlayer(webSocket);
     }
 
@@ -468,38 +464,43 @@ public class Game {
         return lifeCycle.getLevel();
     }
 
-    public void restoreGameState(GameState gameState, Player player) {
-        if (player == null || gameState.getPlayer() == null) {
+    public void restoreGame(GameState savedGame, Player player) {
+        if (player == null || savedGame.getPlayer() == null) {
             log.error("Player or game state is null. Cannot restore game state.");
             return;
         }
 
-        if (!Objects.equals(player.getJwtSubject(), gameState.getPlayer().getJwtSubject())) {
+        if (!Objects.equals(player.getJwtSubject(), savedGame.getPlayer().getJwtSubject())) {
             log.error("Player subject mismatch. Cannot restore game state.");
             return;
         }
 
+        // Restore game state
+        // Set level to the next one
+        this.lifeCycle.setLevel(savedGame.getLevel()+1);
+
         // Restore player state
-        player.setName(gameState.getPlayer().getName());
-        player.setCompany(gameState.getPlayer().getCompany());
-        player.setXp(gameState.getPlayer().getXp());
-        player.setXpLevel(gameState.getPlayer().getXpLevel());
-        player.setSkillPoints(gameState.getPlayer().getSkillPoints());
+        player.setName(savedGame.getPlayer().getName());
+        player.setCompany(savedGame.getPlayer().getCompany());
+        player.setXp(savedGame.getPlayer().getXp());
+        player.setXpLevel(savedGame.getPlayer().getXpLevel());
+        player.setSkillPoints(savedGame.getPlayer().getSkillPoints());
 
-        if (gameState.getPlayer().getEmployees() != null) {
-            player.setEmployees(gameState.getPlayer().getEmployees());
+        // Forget first level employees
+        if (savedGame.getLevel() != 1 && savedGame.getPlayer().getEmployees() != null) {
+            player.setEmployees(savedGame.getPlayer().getEmployees());
         }
 
-        if (gameState.getPlayer().getDecisions() != null) {
-            player.setDecisions(gameState.getPlayer().getDecisions());
+        // Not getPlayer().getDecisions()! Decisions are saved separately in the GameState
+        if (savedGame.getDecisions() != null) {
+            for (var entry : savedGame.getDecisions().entrySet()) {
+                player.setDecisionsForLevel(entry.getKey(), entry.getValue());
+            }
         }
 
-        if (gameState.getSkills() != null) {
-            skillService.setSkills(player, gameState.getSkills());
+        if (savedGame.getSkills() != null) {
+            skillService.setSkills(player, savedGame.getSkills());
         }
-
-        // Trigger loading of missions/objectives, story, and consequences
-        prepareLevelForPlayer(getLevel());
 
         log.debug("Game state successfully restored for player {}.", player.getId());
     }
@@ -512,6 +513,7 @@ public class Game {
         gameState.setAccountingEntries(accountingService.getAllEntriesByPlayer(player));
         gameState.setProjects(projectService.getProjectsByPlayer(player));
         gameState.setSkills((HashMap<String, Skill>) skillService.getSkillsByPlayer(player));
+        gameState.setDecisions(player.getDecisions());
 
         return gameState;
     }

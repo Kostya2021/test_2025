@@ -20,7 +20,6 @@ import de.andrenitze.softpro.events.GlobalGameOverEvent;
 import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.DecisionService;
-import de.andrenitze.softpro.services.impl.GameLifeCycleService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
 import lombok.Getter;
@@ -33,6 +32,7 @@ import org.java_websocket.server.WebSocketServer;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -54,7 +54,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameServer extends WebSocketServer {
     private final GameFactory gameFactory;
     private final LobbyPlayerServiceImpl lobbyPlayerService;
-    private final GameLifeCycleService gameLifeCycleService;
     private final SavegameRepository savegameRepository;
     private final GameOverStatsDAO gameOverStatsDAO;
     private final DecisionService decisionService;
@@ -83,18 +82,19 @@ public class GameServer extends WebSocketServer {
     private List<GameOverStats> dailyHighScores;
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
+    @Getter
+    @Value("${GAME_SPEED_IN_MILLISECONDS}")
+    private int gameSpeedInMilliseconds;
 
     /**
      * Creates a GameServer instance to manage games and players.
      */
     public GameServer(GameFactory gameFactory,
                       LobbyPlayerServiceImpl lobbyPlayerService,
-                      GameLifeCycleService gameLifeCycleService,
                       SavegameRepository saveGameRepository) {
         super(new InetSocketAddress(DEFAULT_PORT));
         this.gameFactory = gameFactory;
         this.lobbyPlayerService = lobbyPlayerService;
-        this.gameLifeCycleService = gameLifeCycleService;
         this.savegameRepository = saveGameRepository;
         this.gameOverStatsDAO = gameFactory.getGameOverStatsDAO();
         this.decisionService = gameFactory.getDecisionService();
@@ -231,7 +231,7 @@ public class GameServer extends WebSocketServer {
             GameEvent<Map<String, Object>> versionEvent = new GameEvent<>(EventType.VERSION);
             Map<String, Object> payload = new HashMap<>();
             payload.put("version", version);
-            payload.put("gameSpeed", gameLifeCycleService.getGameSpeedInMilliseconds());
+            payload.put("gameSpeed", gameSpeedInMilliseconds);
             versionEvent.setPayload(payload);
             webSocket.send(GameServer.getGson().toJson(versionEvent));
         } catch (IOException e) {
@@ -254,7 +254,6 @@ public class GameServer extends WebSocketServer {
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
         log.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
-        game.prepareLevelForPlayer(level);
         try {
             game.getPlayerService().addPlayer(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         } catch (Exception e) {
@@ -277,8 +276,7 @@ public class GameServer extends WebSocketServer {
     private void prepareForNextLevel(Player player, Game game, int level) {
         log.debug("Preparing game for level {} and player {}", level, player.getId());
 
-        // Notify life cycle service about the new level
-        gameLifeCycleService.setLevel(level);
+        game.initialize(level);
 
         // Give player chance to prepare for the next level (read up, make decisions etc.)
         player.setReady(false);
@@ -287,9 +285,6 @@ public class GameServer extends WebSocketServer {
         player.initializeObjectives(level);
         player.initializeFunds(level);
         player.setXp(0);
-
-        // Make sure the skills are initialized
-        game.getSkillService().initializePlayer(player);
 
         // For level 1, generate the player as his/her own first and only employee
         if (level == 1) {
@@ -329,7 +324,7 @@ public class GameServer extends WebSocketServer {
 
         if (level == 2) {
             // For level 2, populate the talent market with employees
-            game.getTalentMarket().init();
+            game.getTalentMarket().initialize();
 
             // ...and generate first employees for the player
             game.getPlayerService().generateFirstEmployeesForPlayers();
@@ -371,6 +366,8 @@ public class GameServer extends WebSocketServer {
                 handlePlayerNameUpdatedEvent(webSocket, message);
             } else if (EventType.USER_LOGGED_IN.equals(genericGameEvent.getType())) {
                 handleUserLogin(webSocket, message);
+            } else if (EventType.CANCEL.equals(genericGameEvent.getType())) {
+                handleGameCancelledEvent(webSocket);
             } else {
                 forwardEventToGame(webSocket, message);
             }
@@ -402,8 +399,7 @@ public class GameServer extends WebSocketServer {
             List<Decision> decisions = playerReadyEvent.getPayload().decisions();
             player.setDecisionsForLevel(level, decisions);
 
-            decisionService.saveDecisionsAsync(player.getId().toString(), gameLifeCycleService.getLevel(), player.getDecisionsByLevel(level));
-
+            decisionService.saveDecisionsAsync(player.getId().toString(), level, player.getDecisionsByLevel(level));
             player.setReady(true);
             startReadyGames();
             broadcastLobbyState();
@@ -473,7 +469,8 @@ public class GameServer extends WebSocketServer {
                     .orElse(null);
 
             if (game != null) {
-                game.restoreGameState(state, player);
+                game.restoreGame(state, player);
+                prepareForNextLevel(player, game, game.getLevel());
 
                 // Now notify the player about the restored game state
                 GameEvent<Player> playerUpdatedEvent = new GameEvent<>(EventType.PLAYER_UPDATED);
@@ -490,6 +487,23 @@ public class GameServer extends WebSocketServer {
             } else {
                 log.warn("Game instance not found for player {}. Game could not be loaded.", player.getId());
             }
+        }
+    }
+
+    private void handleGameCancelledEvent(WebSocket webSocket) {
+        // Remove the player from the game instance, thereby closing the game
+        log.debug("Game cancelled by player {}. Closing game instance.", webSocket.getRemoteSocketAddress());
+
+        Game game = gameContexts.values().stream()
+                .filter(g -> g.getPlayerService().hasWebSocket(webSocket))
+                .findFirst()
+                .orElse(null);
+
+        if (game != null) {
+            Player player = game.getPlayerService().getPlayer(webSocket);
+            game.removePlayer(player);
+        } else {
+            log.warn("Game instance not found for player. Game could not be closed.");
         }
     }
 
@@ -530,6 +544,10 @@ public class GameServer extends WebSocketServer {
                     return;
                 }
 
+                // Trigger last-minute consequences for decisions made in briefing
+                game.triggerConsequencesForDecisions();
+
+                // Start the game loop
                 game.start();
             }
         }
@@ -705,7 +723,7 @@ public class GameServer extends WebSocketServer {
         PlayerService gamePlayerService = game.getPlayerService();
 
         // Rescue the level from dying game instance to create a correct new one
-        addPlayerToLobby(webSocket, player, game.getLevel());
+        addPlayerToLobby(webSocket, player, game.getLevel()+1);
         player.setReady(false);
 
         // Remove player from game instance
@@ -720,6 +738,7 @@ public class GameServer extends WebSocketServer {
     public void saveGame(Game game, Player player) {
         String userId = player.getJwtSubject();
         GameState gameState = game.exportState(player);
+        log.info("Saving game for player {} at level {}", userId, game.getLevel());
 
         if (gameState == null) {
             log.warn("GameState is null – skipping save for player {}", userId);
@@ -728,21 +747,26 @@ public class GameServer extends WebSocketServer {
 
         String gameStateJson = gson.toJson(gameState);
 
-        Savegame savegame = savegameRepository.findByUserId(userId)
-                .orElseGet(Savegame::new);
+        // Mark previous savegames as not latest
+        List<Savegame> existingSavegames = savegameRepository.findAllByUserId(userId);
+        for (Savegame sg : existingSavegames) {
+            sg.setLatest(false);
+            savegameRepository.save(sg);
+        }
 
+        Savegame savegame = new Savegame();
         savegame.setUserId(userId);
         savegame.setLevel(game.getLevel());
         savegame.setGameStateJson(gameStateJson);
         savegame.setLastUpdated(Instant.now());
+        savegame.setLatest(true);
 
         savegameRepository.save(savegame);
-        log.debug("Game state for player {} saved successfully.", userId);
+        log.debug("Game state for player {} at level {} saved successfully.", userId, game.getLevel());
     }
 
-
     private Optional<GameState> loadGame(Player player) {
-        return savegameRepository.findByUserId(player.getJwtSubject())
+        return savegameRepository.findTopByUserIdOrderByLevelDesc(player.getJwtSubject())
                 .map(savegame -> {
                     try {
                         return gson.fromJson(savegame.getGameStateJson(), GameState.class);
