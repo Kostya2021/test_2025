@@ -217,9 +217,10 @@ public class Game {
 
             // For all players in the game...
             playerService.getPlayers().forEach((ignored, player) -> {
-                sendAnyProjectChanges();
-                sendAnyPlayerChanges(player);
-                sendAnyNewStoryElements(player);
+                sendPendingProjectChanges();
+                sendPendingPlayerChanges(player);
+                sendPendingStoryElements(player);
+                sendPendingEmployeeUpdates(player);
             });
 
             checkGameOverConditions();
@@ -232,7 +233,6 @@ public class Game {
                 log.warn("Execution time of game loop: {} ms", timeElapsedInMilliseconds);
             }
         } catch (Exception e) {
-            // TODO Fix these errors after loading a game! State is not correctly restored.
             log.error("Error in game loop: {}", e.getMessage());
         }
     }
@@ -284,7 +284,7 @@ public class Game {
         }
     }
 
-    private void sendAnyNewStoryElements(Player player) {
+    private void sendPendingStoryElements(Player player) {
         List<StoryElement> newStoryElements = storyService.getNewStoryElementsForPlayer(player, lifeCycle.getTick());
         if (!newStoryElements.isEmpty()) {
             GameEvent<List<StoryElement>> storyEvent = new GameEvent<>(EventType.STORY_ELEMENTS_ADDED);
@@ -304,7 +304,7 @@ public class Game {
     /**
      * Go through all projects and compare their hashes to find out if something significant has changed.
      */
-    private void sendAnyProjectChanges() {
+    private void sendPendingProjectChanges() {
         playerService.getPlayers().forEach((ignored, player) -> {
             List<Project> currentProjects = projectService.getProjectsByPlayer(player);
 
@@ -328,7 +328,7 @@ public class Game {
         });
     }
 
-    private void sendAnyPlayerChanges(Player player) {
+    private void sendPendingPlayerChanges(Player player) {
         try {
             Player previousState = playerService.getPreviousState(player);
 
@@ -345,6 +345,15 @@ public class Game {
         } catch (Exception e) {
             log.error("Error while sending player update: {}", e.getMessage());
         }
+    }
+
+    public void sendPendingEmployeeUpdates(Player player) {
+        player.getEmployees().stream()
+                .filter(Employee::isUpdated)
+                .forEach(employee -> {
+                    messagingService.sendEmployeeUpdate(player, employee);
+                    employee.setUpdated(false);
+                });
     }
 
     private void checkObjectivesCriteriaAndSendRewards() {

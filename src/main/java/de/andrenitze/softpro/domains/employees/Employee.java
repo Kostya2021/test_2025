@@ -71,6 +71,8 @@ public class Employee implements Serializable {
     private int utilization = 0;
     @Getter @Setter
     private int xpInDaysBeforeHiring = 0;
+    @Getter @Setter
+    private boolean updated = false;
 
     public Employee(Integer id) {
         this.id = id;
@@ -296,13 +298,29 @@ public class Employee implements Serializable {
         return firstName + " " + lastName;
     }
 
-    public void addStatusEffect(StatusEffect effect) {
+    // Main method: adds a StatusEffect object if it does not already exist
+    public boolean addStatusEffect(StatusEffect effect) {
         try {
+            boolean alreadyExists = statusEffects.stream()
+                    .anyMatch(e ->
+                            e.getType() == effect.getType() &&
+                                    Objects.equals(e.getDescription(), effect.getDescription()) &&
+                                    Objects.equals(e.getTrigger(), effect.getTrigger())
+                    );
+
+            if (alreadyExists) {
+                log.debug("Skipped adding duplicate status effect '{}' to {}", effect.getDescription(), getName());
+                return false;
+            }
+
             statusEffects.add(effect);
-            log.debug("Added status effect '{}' - {} to {} ({} active effects)", effect.getDescription(), effect.getType(), getName(), statusEffects.size());
+            log.debug("Added status effect '{}' - {} to {} ({} active effects)",
+                    effect.getDescription(), effect.getType(), getName(), statusEffects.size());
             calculateSatisfaction();
+            return true;
         } catch (Exception e) {
             log.error("Error adding status effect {} to {}: {}", effect, getName(), e.getMessage());
+            return false;
         }
     }
 
@@ -398,7 +416,8 @@ public class Employee implements Serializable {
     }
 
     public boolean removeExpiredStatusEffects() {
-        boolean removed = statusEffects.removeIf(StatusEffect::isExpired);
+        // Remove all expired status effects that are not infinite
+        boolean removed = statusEffects.removeIf(StatusEffect::isExpiredAndNotInfinite);
         if (removed) {
             calculateSatisfaction();
         }
@@ -417,12 +436,12 @@ public class Employee implements Serializable {
 
     public void removeStatusEffectsByTrigger(Object trigger) {
         statusEffects.removeIf(effect -> {
-            if (effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
+            if (trigger != null && effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
                 calculateSatisfaction();
+                log.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
             }
             return effect.getTrigger() == trigger;
         });
-        log.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
     }
 
     public void train(String training) {

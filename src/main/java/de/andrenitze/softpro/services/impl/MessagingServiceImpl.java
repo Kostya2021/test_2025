@@ -54,6 +54,7 @@ public class MessagingServiceImpl implements MessagingService {
     public void broadcast(String message) {
         playerService.getPlayers().forEach((webSocket, ignored) -> {
             if (webSocket == null || !webSocket.isOpen()) {
+                playerService.removePlayer(webSocket); // Remove the player if the WebSocket is closed
                 log.error("WebSocket is null or not open. Not sending event: {}", message);
                 return;
             }
