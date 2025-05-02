@@ -3,9 +3,6 @@ package de.andrenitze.softpro.domains.employees;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,8 +16,6 @@ import static de.andrenitze.softpro.GameServer.RANDOM;
  * which are currently not employed by a player.
  */
 @Slf4j
-@Service
-@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class TalentMarket {
     private final Map<Integer, Employee> talents = new HashMap<>();
     public final EmployeeIdGenerator employeeIdGenerator;

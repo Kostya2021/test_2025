@@ -35,7 +35,6 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.lang.reflect.Modifier;
@@ -49,7 +48,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Component
 @Slf4j
 public class GameServer extends WebSocketServer {
     private final GameFactory gameFactory;
@@ -253,7 +251,8 @@ public class GameServer extends WebSocketServer {
 
         // Add the game context and game instance to the gameContexts map
         gameContexts.put(gameContext, game);
-        log.debug("Added new context {} to now {} gameContexts.", gameContext.hashCode(), gameContexts.size());
+        log.debug("Websocket {} added to game context {}", webSocket.getRemoteSocketAddress(), gameContext.hashCode());
+        log.debug("Added new context to now {} gameContexts.", gameContexts.size());
         try {
             game.getPlayerService().addPlayer(webSocket, player); // Add player to game (player is now in game AND in lobby until the game starts)
         } catch (Exception e) {
@@ -334,22 +333,32 @@ public class GameServer extends WebSocketServer {
     @Override
     public void onClose(WebSocket webSocket, int code, String reason, boolean remote) {
         log.debug("Connection closed: {} - Reason: {} - Remote: {}", webSocket.getRemoteSocketAddress(), reason, remote);
-        removeDisconnectedClient(webSocket);
+        cleanUpAfterDisconnect(webSocket);
         broadcastLobbyState();
     }
 
-    private void removeDisconnectedClient(WebSocket webSocket) {
-        Player player = lobbyPlayerService.removePlayer(webSocket);
-        if (player != null) {
-            log.debug("Removed player {} from lobby", player.getId());
+    private void cleanUpAfterDisconnect(WebSocket webSocket) {
+        // Clean up lobby (if player is still in lobby)
+        Player lobbyPlayer = lobbyPlayerService.removePlayer(webSocket);
+        if (lobbyPlayer != null) {
+            log.debug("Removed player {} from lobby", lobbyPlayer.getId());
+        }
 
-            // Go through game contexts, find the corresponding game and remove player references from the game
-            for (Map.Entry<AnnotationConfigApplicationContext, Game> entry : gameContexts.entrySet()) {
-                Game game = entry.getValue();
-                if (game.getPlayerService().hasWebSocket(webSocket)) {
-                    game.removePlayer(player);
-                }
+        // Clean up game instances (if player is in a game)
+        boolean playerRemovedFromGame = false;
+        for (Map.Entry<AnnotationConfigApplicationContext, Game> entry : gameContexts.entrySet()) {
+            Game game = entry.getValue();
+            Player gamePlayer = game.getPlayerService().getPlayer(webSocket);
+
+            if (gamePlayer != null) {
+                log.debug("Removing player {} from game {}...", gamePlayer.getId(), game.hashCode());
+                game.removePlayer(gamePlayer);
+                playerRemovedFromGame = true;
             }
+        }
+
+        if (lobbyPlayer == null && !playerRemovedFromGame) {
+            log.debug("Player not found in lobby or any game for WebSocket {}", webSocket.getRemoteSocketAddress());
         }
     }
 
@@ -639,7 +648,7 @@ public class GameServer extends WebSocketServer {
         if (webSocket != null) {
             log.warn("Connection {} was closed unexpectedly.", webSocket.getRemoteSocketAddress());
             // Kick player and close game if empty
-            removeDisconnectedClient(webSocket);
+            cleanUpAfterDisconnect(webSocket);
         } else {
             log.warn("An error occurred on a connection. {}", (Object) ex.getStackTrace());
         }
@@ -695,8 +704,13 @@ public class GameServer extends WebSocketServer {
             }
         }
         if (context != null) {
-            context.close(); // Properly destruct the game context with all its beans
-            gameContexts.remove(context);
+            try {
+                context.close(); // Properly destruct the game context with all its beans
+                gameContexts.remove(context);
+                log.debug("Game context removed successfully.");
+            } catch (Exception e) {
+                log.error("Could not remove game context {}: {}", context.hashCode(), e.getMessage());
+            }
         }
     }
 

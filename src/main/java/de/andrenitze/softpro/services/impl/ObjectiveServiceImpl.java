@@ -16,9 +16,7 @@ import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,12 +25,10 @@ import java.util.Map;
 
 import static de.andrenitze.softpro.domains.employees.Employee.PROJECT_MANAGEMENT_FOUNDATION;
 
-@Service
 @Primary
 @Slf4j
 @RequiredArgsConstructor
 public class ObjectiveServiceImpl implements ObjectiveService {
-    @Lazy
     private final GamePlayerServiceImpl playerService;
     private final GameLifeCycleService lifeCycleService;
     private final ProjectServiceImpl projectService;

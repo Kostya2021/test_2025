@@ -3,7 +3,6 @@ package de.andrenitze.softpro.services.impl;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
@@ -11,7 +10,6 @@ import java.time.LocalDate;
  * Manages the game life cycle including current tick and pause/resume.
  */
 @Getter
-@Component
 public class GameLifeCycleService {
     @Getter
     @Value("${GAME_SPEED_IN_MILLISECONDS}")

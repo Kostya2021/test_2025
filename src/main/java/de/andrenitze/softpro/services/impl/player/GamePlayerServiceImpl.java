@@ -5,17 +5,13 @@ import de.andrenitze.softpro.domains.players.Player;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.GameServer.gson;
 
-@Service
 @Slf4j
-@Primary
 @RequiredArgsConstructor
 public class GamePlayerServiceImpl extends BasePlayerService {
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
@@ -53,6 +49,7 @@ public class GamePlayerServiceImpl extends BasePlayerService {
     public Player getRandomPlayer() {
         List<Player> playerList = new ArrayList<>(getPlayers().values());
         if (playerList.isEmpty()) {
+            log.error("Player list is empty. Cannot select a random player.");
             return null;
         }
         return playerList.get(RANDOM.nextInt(playerList.size()));

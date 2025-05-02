@@ -8,8 +8,6 @@ import de.andrenitze.softpro.services.AccountingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -18,8 +16,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
 @Slf4j
-@Service
-@Primary
 @RequiredArgsConstructor
 public class AccountingServiceImpl implements AccountingService {
     private final List<AccountingEntry> entries = new ArrayList<>();

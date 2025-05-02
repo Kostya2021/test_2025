@@ -12,11 +12,6 @@ import de.andrenitze.softpro.services.PlayerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
@@ -24,12 +19,9 @@ import java.util.Map;
 import static de.andrenitze.softpro.GameServer.gson;
 
 @RequiredArgsConstructor
-@Service
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-@Primary
 @Slf4j
 public class MessagingServiceImpl implements MessagingService {
-    private final @Lazy PlayerService playerService;
+    private final PlayerService playerService;
 
     public void sendProjectUpdate(Player player, Project project) {
         GameEvent<Project> projectUpdateEvent = new GameEvent<>(EventType.PROJECT_UPDATED);
