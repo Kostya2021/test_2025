@@ -6,14 +6,12 @@ import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Primary;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Getter
-@Primary
 @Slf4j
 @RequiredArgsConstructor
 public class ProjectEmployeeMappingImpl implements ProjectEmployeeMappingService {

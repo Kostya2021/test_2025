@@ -22,15 +22,15 @@ public class GameConfig {
             SkillServiceImpl skillService,
             AccountingServiceImpl accountingService,
             TalentMarket talentMarket,
-            ProjectServiceImpl projectService,
-            ProjectEmployeeMappingImpl projectEmployeeService,
             GameEventPublisher eventPublisher,
             GameLifeCycleService gameLifeCycleService,
             DecisionDAO decisionDAO
     ) {
-        // Manually inject dependencies to avoid circular references
+        // Manually create the beans to avoid circular dependencies
         GamePlayerServiceImpl playerService = new GamePlayerServiceImpl(talentMarket);
         MessagingServiceImpl messagingService = new MessagingServiceImpl(playerService);
+        ProjectEmployeeMappingImpl projectEmployeeService = new ProjectEmployeeMappingImpl();
+        ProjectServiceImpl projectService = new ProjectServiceImpl(accountingService, skillService, projectEmployeeService);
         EmployeeServiceImpl employeeService = new EmployeeServiceImpl(messagingService, projectEmployeeService);
         LevelConsequencesService levelConsequencesService = new LevelConsequencesService(playerService, talentMarket);
         ObjectiveServiceImpl objectiveService = new ObjectiveServiceImpl(playerService, gameLifeCycleService, projectService, skillService, projectEmployeeService);
@@ -65,6 +65,7 @@ public class GameConfig {
         );
     }
 
+    // Global services within one game instance
     @Bean
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
     public StoryService storyService() {
@@ -79,12 +80,6 @@ public class GameConfig {
 
     @Bean
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-    public ProjectEmployeeMappingImpl projectEmployeeService() {
-        return new ProjectEmployeeMappingImpl();
-    }
-
-    @Bean
-    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
     public SkillServiceImpl skillService() {
         return new SkillServiceImpl();
     }
@@ -93,16 +88,6 @@ public class GameConfig {
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
     public AccountingServiceImpl accountingService() {
         return new AccountingServiceImpl();
-    }
-
-    @Bean
-    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-    public ProjectServiceImpl projectService(
-            AccountingServiceImpl accountingService,
-            SkillServiceImpl skillService,
-            ProjectEmployeeMappingImpl projectEmployeeService
-    ) {
-        return new ProjectServiceImpl(accountingService, skillService, projectEmployeeService);
     }
 
     @Bean

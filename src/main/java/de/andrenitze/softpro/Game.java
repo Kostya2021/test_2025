@@ -135,7 +135,6 @@ public class Game {
                         });
             }
 
-
             projectService.cancelOverdueProjects(lifeCycle.getTick(), lifeCycle.getLevel());
             projectService.evaluateTenderProcesses(lifeCycle.getTick());
             // Things not to do in the first level
