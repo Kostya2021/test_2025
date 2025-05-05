@@ -17,9 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -33,7 +31,6 @@ import static de.andrenitze.softpro.domains.projects.ProjectType.COMPLIANCE_PROJ
 import static de.andrenitze.softpro.events.GameEventHandler.PARTY_CLIENT;
 import static java.lang.Math.*;
 
-@Service
 @Primary
 @Slf4j
 @RequiredArgsConstructor
@@ -50,7 +47,6 @@ public class ProjectServiceImpl implements ProjectService {
     @Getter @Setter private List<Project> projects = new ArrayList<>();
     @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
-    @Lazy
     @Getter
     private final AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
@@ -505,7 +501,6 @@ public class ProjectServiceImpl implements ProjectService {
             // Cancel for each involved player
             for (Player player : project.getInvolvedPlayers()) {
                 try {
-                    // TODO Hier gibt es ein Problem mit dem Abbruch. Liegt es an den involvedPlayers?
                     cancelProject(player, project, PARTY_CLIENT, tick, level);
                 } catch (Exception e) {
                     log.error("Error cancelling project {} for player {}: {}", project.getName(), player.getId(), e.getMessage());
@@ -756,7 +751,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     public void randomlySpawnLevel1Tenders(int tick, Player player) {
         // Don't spawn tenders until first mission is completed
-        if (player.getMissions() == null || player.getMissions().getFirst().isNotCompleted()) {
+        if (player.getMissions() == null || player.getMissions().isEmpty() || player.getMissions().getFirst().isNotCompleted()) {
             return;
         }
 

@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileReader;
@@ -27,7 +26,6 @@ import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 @Setter
 @Getter
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class SkillServiceImpl implements SkillService {
     public static final String JSON = ".json";

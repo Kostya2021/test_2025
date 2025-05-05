@@ -11,11 +11,7 @@ import de.andrenitze.softpro.services.EmployeeService;
 import de.andrenitze.softpro.services.MessagingService;
 import lombok.RequiredArgsConstructor;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,12 +22,9 @@ import java.util.concurrent.ConcurrentMap;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_DOMAIN;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_TYPE;
 
-@Service
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
 @Primary
 public class EmployeeServiceImpl implements EmployeeService {
-    @Lazy
     private final MessagingService messagingService;
     private final ProjectEmployeeMappingImpl projectsEmployeesMap;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new

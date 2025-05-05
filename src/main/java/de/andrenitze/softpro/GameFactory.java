@@ -1,13 +1,12 @@
 package de.andrenitze.softpro;
 
+import de.andrenitze.softpro.config.GameConfig;
 import de.andrenitze.softpro.services.impl.DecisionService;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.stereotype.Component;
 
-@Component
 public class GameFactory {
 
     private final ApplicationContext parentContext;
@@ -19,6 +18,10 @@ public class GameFactory {
     public AnnotationConfigApplicationContext buildGameInstance() {
         AnnotationConfigApplicationContext gameContext = new AnnotationConfigApplicationContext();
         gameContext.setParent(parentContext); // Inherit global context
+
+        // Register the Game class as a prototype bean in the game context.
+        // This creates a new instance of the Game class each time it is requested.
+        gameContext.register(GameConfig.class);
 
         // Explicitly register the parent context as a resolvable dependency so that the
         // game context can access the parent context's beans (e.g., to forward GameOverEvent and GameEmptyEvent

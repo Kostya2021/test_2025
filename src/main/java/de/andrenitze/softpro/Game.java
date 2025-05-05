@@ -21,9 +21,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,9 +35,7 @@ import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.MAX_NUMBER_OF_PLAYERS_PER_GAME;
 
 @Slf4j
-@Component
 @Getter
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
 public class Game {
     private final StoryService                  storyService;
@@ -453,7 +448,7 @@ public class Game {
     public void removePlayer(Player player) {
         boolean removed = playerService.removePlayer(player);
         if (removed) {
-            log.debug("Player {} removed from game.", player.getId());
+            log.debug("Player {} removed from game with now {} players.", player.getId(), playerService.getPlayers().size());
             closeGameIfNoPlayersLeft();
         } else {
             log.warn("Player could not be removed from game.");
@@ -545,14 +540,14 @@ public class Game {
     public void closeGameIfNoPlayersLeft() {
         int numberOfPlayers = playerService.getPlayers().size();
         if (numberOfPlayers == 0) {
-            log.debug("I ({}) have no players left. Closing...", this.hashCode());
+            log.debug("Game {} has no players left. Closing...", this.hashCode());
             shutdownGameLoop(gameLoop);
 
             // After game loop is shut down, fire event for GameServer to handle context clean-up, high-score etc.
             GlobalGameEmptyEvent globalGameEmptyEvent = new GlobalGameEmptyEvent(this, this);
             eventPublisher.publishGameEmptyEvent(globalGameEmptyEvent);
         } else {
-            log.debug("I ({}) have {} player(s). Staying alive.", this.hashCode(), numberOfPlayers);
+            log.debug("Game {} has {} player(s). Staying alive.", this.hashCode(), numberOfPlayers);
         }
     }
 
