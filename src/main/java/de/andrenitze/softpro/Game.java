@@ -64,7 +64,7 @@ public class Game {
         if (lifeCycle.getLevel() != 1) {
             talentMarket.initialize();
         }
-        log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
+        log.debug("Game {} wired", hashCode());
     }
 
     public void start() {
@@ -378,6 +378,7 @@ public class Game {
     }
 
     private void handleGameOver(Player player, WebSocket webSocket) {
+        lifeCycle.pause();
         int numberOfLevelsInTheGame = 3;
         int level = lifeCycle.getLevel();
         log.debug("Game over for player {} at level {}.", player.getId(), level);
@@ -397,15 +398,7 @@ public class Game {
         playerUpdateEvent.setPayload(player);
         messagingService.sendToPlayer(player, playerUpdateEvent);
 
-        GameEvent<Integer> levelUpdatedEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
-        levelUpdatedEvent.setPayload(level);
-        messagingService.sendToPlayer(player, levelUpdatedEvent);
-
         if (playerHasWon) {
-            GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
-            GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
-            eventPublisher.publishGameOverEvent(internalGameOverEvent);
-
             if (level < numberOfLevelsInTheGame) {
                 lifeCycle.setLevel(level + 1);
                 log.debug("Player {} has now reached level {}.", player.getId(), lifeCycle.getLevel());
@@ -416,7 +409,10 @@ public class Game {
             log.debug("Player {} has lost. Level stays at {}. Try again! :)", player.getId(), level);
         }
 
-        removePlayer(webSocket);
+        // In any case, the game is over for this player. Notify the game server.
+        GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
+        GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
+        eventPublisher.publishGameOverEvent(internalGameOverEvent);
     }
 
     private GameOverStats createGameOverStats(Game game, Player player, int tick) {
@@ -448,7 +444,7 @@ public class Game {
         return goStats;
     }
 
-    public void removePlayer(Player player) {
+    public boolean removePlayer(Player player) {
         boolean removed = playerService.removePlayer(player);
         if (removed) {
             log.debug("Player {} removed from game with now {} players.", player.getId(), playerService.getPlayers().size());
@@ -456,6 +452,7 @@ public class Game {
         } else {
             log.warn("Player could not be removed from game.");
         }
+        return removed;
     }
 
     public int getLevel() {
@@ -533,11 +530,6 @@ public class Game {
             xp = 0;
         }
         return xp;
-    }
-
-    public void removePlayer(WebSocket key) {
-        playerService.removePlayer(key);
-        closeGameIfNoPlayersLeft();
     }
 
     public void closeGameIfNoPlayersLeft() {

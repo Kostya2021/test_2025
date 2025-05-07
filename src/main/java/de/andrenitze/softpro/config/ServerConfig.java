@@ -1,15 +1,16 @@
 package de.andrenitze.softpro.config;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
 import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
+import de.andrenitze.softpro.events.GameEventPublisher;
 import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Slf4j
@@ -38,8 +39,9 @@ public class ServerConfig {
         return new GameFactory(parentContext);
     }
 
-    // Messaging service for the lobby!
-
-    // DB, Monitoring, Security...
+    @Bean
+    public GameEventPublisher gameEventPublisher(ApplicationEventPublisher publisher) {
+        return new GameEventPublisher(publisher);
+    }
 }
 

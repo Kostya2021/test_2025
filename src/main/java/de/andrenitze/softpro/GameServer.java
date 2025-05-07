@@ -2,20 +2,6 @@ package de.andrenitze.softpro;
 
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.build.ToStringPlugin;
-import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.WebSocketServer;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.event.EventListener;
-
 import de.andrenitze.softpro.domains.GameOverStats;
 import de.andrenitze.softpro.domains.GameState;
 import de.andrenitze.softpro.domains.Savegame;
@@ -32,10 +18,23 @@ import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.GlobalGameEmptyEvent;
 import de.andrenitze.softpro.events.GlobalGameOverEvent;
 import de.andrenitze.softpro.repositories.SavegameRepository;
-import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.DecisionService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.build.ToStringPlugin;
+import org.java_websocket.WebSocket;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.event.EventListener;
+
 import java.io.IOException;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -259,7 +258,7 @@ public class GameServer extends WebSocketServer {
             log.error("Could not add player to game: {}", e.getMessage());
             return;
         }
-        log.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), game.getLevel(), player.getId());
+        log.debug("New empty game {} created for player {}", game.hashCode(), player.getId());
         prepareForNextLevel(player, game, level);
 
         // Notify player about next level
@@ -273,7 +272,7 @@ public class GameServer extends WebSocketServer {
      * This can be in the lobby OR on the briefing screen.
      */
     private void prepareForNextLevel(Player player, Game game, int level) {
-        log.debug("Preparing game for level {} and player {}", level, player.getId());
+        log.debug("Preparing game {} for level {} and player {}", game.hashCode(), level, player.getId());
 
         game.initialize(level);
 
@@ -656,6 +655,7 @@ public class GameServer extends WebSocketServer {
 
     public void addPlayerToLobby(WebSocket webSocket, Player player, int level) {
         lobbyPlayerService.addPlayer(webSocket, player);
+        log.debug("Added player {} to lobby with now {} players.", player.getId(), lobbyPlayerService.getPlayers().size());
         createGame(webSocket, player, level);
 
         // Send player state to the client
@@ -734,14 +734,12 @@ public class GameServer extends WebSocketServer {
 
     // Move a single player back to the lobby after game over
     public void movePlayerBackToLobby(Game game, Player player, WebSocket webSocket) {
-        PlayerService gamePlayerService = game.getPlayerService();
-
         // Rescue the level from dying game instance to create a correct new one
-        addPlayerToLobby(webSocket, player, game.getLevel()+1);
+        addPlayerToLobby(webSocket, player, game.getLevel());
         player.setReady(false);
 
-        // Remove player from game instance
-        gamePlayerService.removePlayer(player);
+        // Finally remove the player from the game (empty games will be closed)
+        game.removePlayer(player);
     }
 
     /**

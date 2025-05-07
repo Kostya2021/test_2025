@@ -1,17 +1,18 @@
 package de.andrenitze.softpro.config;
 
-import de.andrenitze.softpro.services.impl.*;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Scope;
-
 import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.employees.TalentMarket;
+import de.andrenitze.softpro.events.GameEventForwarder;
 import de.andrenitze.softpro.events.GameEventHandler;
 import de.andrenitze.softpro.events.GameEventPublisher;
+import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 
 @Configuration
 public class GameConfig {
@@ -98,8 +99,7 @@ public class GameConfig {
     }
 
     @Bean
-    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-    public GameEventPublisher eventPublisher() {
-        return new GameEventPublisher();
+    public GameEventForwarder gameEventForwarder(ApplicationEventPublisher parentEventPublisher) {
+        return new GameEventForwarder(parentEventPublisher);
     }
 }
