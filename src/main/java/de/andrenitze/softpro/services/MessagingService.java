@@ -6,7 +6,6 @@ import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
-
 import java.util.List;
 
 /**

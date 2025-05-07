@@ -1,4 +1,4 @@
-package main.java.de.andrenitze.softpro;
+package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import org.mockito.Mockito;

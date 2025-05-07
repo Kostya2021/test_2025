@@ -1,9 +1,11 @@
-package main.java.de.andrenitze.softpro;
+package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.Game;
+import de.andrenitze.softpro.domains.decisions.DecisionDAO;
 import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.players.Player;
-import de.andrenitze.softpro.services.impl.MessagingServiceImpl;
+import de.andrenitze.softpro.events.GameEventHandler;
+import de.andrenitze.softpro.events.GameEventPublisher;
+import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,21 +29,21 @@ class GameTest {
         messagingService = new MessagingServiceImpl(playerService);
 
         game = new Game(
-                mock(de.andrenitze.softpro.services.impl.StoryService.class),
+                mock(StoryService.class),
                 playerService,
-                mock(de.andrenitze.softpro.services.impl.SkillServiceImpl.class),
-                mock(de.andrenitze.softpro.services.impl.AccountingServiceImpl.class),
+                mock(SkillServiceImpl.class),
+                mock(AccountingServiceImpl.class),
                 messagingService,
                 new TalentMarket(),
-                mock(de.andrenitze.softpro.services.impl.ProjectServiceImpl.class),
-                mock(de.andrenitze.softpro.services.impl.EmployeeServiceImpl.class),
-                mock(de.andrenitze.softpro.events.GameEventHandler.class),
-                mock(de.andrenitze.softpro.events.GameEventPublisher.class),
-                mock(de.andrenitze.softpro.services.impl.ProjectEmployeeMappingImpl.class),
-                mock(de.andrenitze.softpro.services.impl.GameLifeCycleService.class),
-                mock(de.andrenitze.softpro.services.impl.LevelConsequencesService.class),
-                mock(de.andrenitze.softpro.services.impl.ObjectiveServiceImpl.class),
-                mock(de.andrenitze.softpro.domains.decisions.DecisionDAO.class)
+                mock(ProjectServiceImpl.class),
+                mock(EmployeeServiceImpl.class),
+                mock(GameEventHandler.class),
+                mock(GameEventPublisher.class),
+                mock(ProjectEmployeeMappingImpl.class),
+                mock(GameLifeCycleService.class),
+                mock(LevelConsequencesService.class),
+                mock(ObjectiveServiceImpl.class),
+                mock(DecisionDAO.class)
         );
     }
 

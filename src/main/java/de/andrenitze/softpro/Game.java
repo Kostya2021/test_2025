@@ -42,19 +42,19 @@ import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.M
 @RequiredArgsConstructor
 public class Game {
     private final StoryService                  storyService;
-    private final GamePlayerService             playerService;
-    private final SkillService                  skillService;
-    private final AccountingService             accountingService;
+    private final GamePlayerService playerService;
+    private final SkillService skillService;
+    private final AccountingService accountingService;
     private final MessagingService              messagingService;
     private final TalentMarket                  talentMarket;
     private final ProjectService                projectService;
-    private final EmployeeService               employeeService;
-    private final GameEventHandler              eventHandler;
+    private final EmployeeService employeeService;
+    private final GameEventHandler eventHandler;
     private final GameEventPublisher            eventPublisher;
     private final ProjectEmployeeMappingService projectEmployeeService;
     private final GameLifeCycleService          lifeCycle;
     private final LevelConsequencesService      levelConsequencesService;
-    private final ObjectiveService              objectiveService;
+    private final ObjectiveService objectiveService;
     private final DecisionDAO                   decisionDAO;
 
     private ScheduledExecutorService gameLoop;

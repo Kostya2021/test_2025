@@ -1,11 +1,12 @@
 package de.andrenitze.softpro.services.impl.player;
 
-import de.andrenitze.softpro.domains.players.Player;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
+
+import de.andrenitze.softpro.domains.players.Player;
 
 @Getter
 @Service

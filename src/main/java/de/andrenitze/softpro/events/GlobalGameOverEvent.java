@@ -1,7 +1,8 @@
 package de.andrenitze.softpro.events;
 
-import de.andrenitze.softpro.Game;
 import org.springframework.context.ApplicationEvent;
+
+import de.andrenitze.softpro.Game;
 
 public class GlobalGameOverEvent extends ApplicationEvent {
     private final transient Game.GameOverData data;

@@ -1,5 +1,10 @@
 package de.andrenitze.softpro.services.impl;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
+import org.springframework.context.annotation.Primary;
+
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.SalaryHistoryEntry;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
@@ -13,11 +18,6 @@ import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.services.ObjectiveService;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
-import org.springframework.context.annotation.Primary;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

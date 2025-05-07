@@ -1,6 +1,5 @@
-package main.java.de.andrenitze.softpro;
+package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.config.GameConfig;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.junit.jupiter.api.Test;

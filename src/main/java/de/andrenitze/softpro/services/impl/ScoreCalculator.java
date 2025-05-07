@@ -5,7 +5,6 @@ import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.Solution;
-
 import java.util.List;
 
 public class ScoreCalculator {

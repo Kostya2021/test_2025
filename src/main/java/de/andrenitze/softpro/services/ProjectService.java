@@ -4,7 +4,6 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.projects.ProjectSummary;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

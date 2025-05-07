@@ -1,14 +1,15 @@
 package de.andrenitze.softpro.config;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Slf4j

@@ -1,15 +1,15 @@
 package de.andrenitze.softpro.domains.players;
 
-import de.andrenitze.softpro.domains.decisions.Decision;
-import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.objectives.Mission;
-import de.andrenitze.softpro.domains.objectives.Objective;
-import de.andrenitze.softpro.domains.objectives.Objectives;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import de.andrenitze.softpro.domains.decisions.Decision;
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.objectives.Mission;
+import de.andrenitze.softpro.domains.objectives.Objective;
+import de.andrenitze.softpro.domains.objectives.Objectives;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 

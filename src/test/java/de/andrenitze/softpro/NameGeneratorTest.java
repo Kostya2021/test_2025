@@ -1,7 +1,6 @@
-package main.java.de.andrenitze.softpro;
+package de.andrenitze.softpro;
 
 import de.andrenitze.softpro.domains.employees.NameGenerator;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

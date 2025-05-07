@@ -2,7 +2,6 @@ package de.andrenitze.softpro.services;
 
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.skills.Skill;
-
 import java.util.HashMap;
 import java.util.Map;
 

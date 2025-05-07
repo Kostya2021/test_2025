@@ -1,10 +1,10 @@
 package de.andrenitze.softpro.services.impl.player;
 
-import de.andrenitze.softpro.domains.players.Player;
-import de.andrenitze.softpro.services.PlayerService;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
 
+import de.andrenitze.softpro.domains.players.Player;
+import de.andrenitze.softpro.services.PlayerService;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

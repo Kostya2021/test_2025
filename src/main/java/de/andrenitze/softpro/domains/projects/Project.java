@@ -1,13 +1,13 @@
 package de.andrenitze.softpro.domains.projects;
 
-import de.andrenitze.softpro.config.GameParameters;
-import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.players.Player;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import de.andrenitze.softpro.config.GameParameters;
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.players.Player;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;

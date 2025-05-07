@@ -1,9 +1,9 @@
 package de.andrenitze.softpro.services;
 
-import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.players.Player;
 import org.java_websocket.WebSocket;
 
+import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.players.Player;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**

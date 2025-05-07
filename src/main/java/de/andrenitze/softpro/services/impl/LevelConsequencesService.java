@@ -1,11 +1,12 @@
 package de.andrenitze.softpro.services.impl;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Primary;
+
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Primary;
 
 @Primary
 @RequiredArgsConstructor

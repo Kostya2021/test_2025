@@ -1,11 +1,12 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.config.GameConfig;
-import de.andrenitze.softpro.services.impl.DecisionService;
-import de.andrenitze.softpro.types.GameOverStatsDAO;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+import de.andrenitze.softpro.config.GameConfig;
+import de.andrenitze.softpro.services.impl.DecisionService;
+import de.andrenitze.softpro.types.GameOverStatsDAO;
 
 public class GameFactory {
 

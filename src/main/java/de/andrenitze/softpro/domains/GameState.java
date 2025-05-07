@@ -1,13 +1,13 @@
 package de.andrenitze.softpro.domains;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.domains.skills.Skill;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
