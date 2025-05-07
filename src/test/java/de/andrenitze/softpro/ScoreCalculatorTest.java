@@ -1,6 +1,5 @@
 package de.andrenitze.softpro;
 
-import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.Project;

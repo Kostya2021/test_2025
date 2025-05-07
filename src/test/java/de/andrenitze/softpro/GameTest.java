@@ -20,13 +20,11 @@ import static org.mockito.Mockito.mock;
 class GameTest {
 
     private Game game;
-    private GamePlayerServiceImpl playerService;
-    private MessagingServiceImpl messagingService;
 
     @BeforeEach
     void setUp() {
-        playerService = new GamePlayerServiceImpl(new TalentMarket());
-        messagingService = new MessagingServiceImpl(playerService);
+        GamePlayerServiceImpl playerService = new GamePlayerServiceImpl(new TalentMarket());
+        MessagingServiceImpl messagingService = new MessagingServiceImpl(playerService);
 
         game = new Game(
                 mock(StoryService.class),
