@@ -28,7 +28,30 @@ class ScoreCalculatorTest {
 
         ScoreCalculator sc = new ScoreCalculator();
         int score = sc.calculateScore(player, game);
-        assertEquals(0, score);
+        assertEquals(100, score); // No penalty for no projects
+    }
+
+    @Test
+    void testThreeProjectsNoProblems() {
+        Game game = mock(Game.class);
+        Player player = mock(Player.class);
+        ProjectService ps = mock(ProjectService.class);
+
+        when(game.getProjectService()).thenReturn(ps);
+
+        Project project1 = mock(Project.class);
+        Project project2 = mock(Project.class);
+        Project project3 = mock(Project.class);
+
+        when(project1.isCompleted()).thenReturn(true);
+        when(project2.isCompleted()).thenReturn(true);
+        when(project3.isCompleted()).thenReturn(true);
+
+        when(ps.getProjectsByPlayer(player)).thenReturn(List.of(project1, project2, project3));
+
+        ScoreCalculator sc = new ScoreCalculator();
+        int score = sc.calculateScore(player, game);
+        assertEquals(100, score); // 100% projects completed, 0% problems
     }
 
     @Test
@@ -107,6 +130,42 @@ class ScoreCalculatorTest {
         ScoreCalculator sc = new ScoreCalculator();
         int score = sc.calculateScore(player, game);
 
-        assertEquals(0, score); // No projects completed
+        assertEquals(100, score); // No projects completed, no penalty
+    }
+
+    @Test
+    void testCancelledProjectsAffectProjectScore() {
+        Game game = mock(Game.class);
+        Player player = mock(Player.class);
+        ProjectService projectService = mock(ProjectService.class);
+
+        when(game.getProjectService()).thenReturn(projectService);
+
+        Project completedProject = mock(Project.class);
+        Project cancelledProject = mock(Project.class);
+        Project runningProject = mock(Project.class);
+
+        // Setup: 1 abgeschlossen, 1 abgebrochen, 1 läuft noch
+        when(completedProject.isCompleted()).thenReturn(true);
+        when(completedProject.getCancelledAt()).thenReturn(0);
+
+        when(cancelledProject.isCompleted()).thenReturn(false);
+        when(cancelledProject.getCancelledAt()).thenReturn(123456789); // marked as cancelled
+
+        when(runningProject.isCompleted()).thenReturn(false);
+        when(runningProject.getCancelledAt()).thenReturn(0); // still running
+
+        when(projectService.getProjectsByPlayer(player)).thenReturn(
+                List.of(completedProject, cancelledProject, runningProject)
+        );
+
+        ScoreCalculator calculator = new ScoreCalculator();
+        int score = calculator.calculateScore(player, game);
+
+        // Erwartung:
+        // - 1 completed, 1 failed → 1/2 → 50% → 50 * 0.6 = 30
+        // - keine Probleme → volle 40 Punkte → 40
+        // - Gesamt: 70
+        assertEquals(70, score);
     }
 }
