@@ -9,6 +9,7 @@ import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.MessagingService;
 import de.andrenitze.softpro.services.PlayerService;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
@@ -21,6 +22,7 @@ import static de.andrenitze.softpro.GameServer.gson;
 @RequiredArgsConstructor
 @Slf4j
 public class MessagingServiceImpl implements MessagingService {
+    @Getter
     private final PlayerService playerService;
 
     public void sendProjectUpdate(Player player, Project project) {

@@ -15,4 +15,5 @@ import java.util.concurrent.ConcurrentMap;
 public interface AccountingService {
     void processMonthlyPayments(LocalDate d, ConcurrentMap<WebSocket, Player> players, int gameTick, int gameLevel);
     List<AccountingEntry> getAccountingEntriesByTick(int gameTick, Map<WebSocket, Player> players);
+    List<AccountingEntry> getAllEntriesByPlayer(Player player);
 }

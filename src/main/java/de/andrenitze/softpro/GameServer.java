@@ -81,7 +81,7 @@ public class GameServer extends WebSocketServer {
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
     @Getter
-    @Value("${GAME_SPEED_IN_MILLISECONDS}")
+    @Value("${GAME_SPEED_IN_MILLISECONDS:700}")
     private int gameSpeedInMilliseconds;
 
     /**

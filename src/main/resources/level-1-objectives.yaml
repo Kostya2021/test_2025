@@ -20,9 +20,9 @@ missions:
         totalSteps: 125
       - title: Unlock skill "The Office"
         id: 16
-  - title: Complete your studies
-    order: 3
-    objectives:
-      - title: Complete 5 more projects
-        id: 17
-        totalSteps: 5
+#  - title: Complete your studies
+#    order: 3
+#    objectives:
+#      - title: Complete 5 more projects
+#        id: 17
+#        totalSteps: 5

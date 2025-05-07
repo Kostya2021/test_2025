@@ -2,6 +2,7 @@ package de.andrenitze.softpro.services.impl.player;
 
 import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.players.Player;
+import de.andrenitze.softpro.services.GamePlayerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
@@ -13,7 +14,7 @@ import static de.andrenitze.softpro.GameServer.gson;
 
 @Slf4j
 @RequiredArgsConstructor
-public class GamePlayerServiceImpl extends BasePlayerService {
+public class GamePlayerServiceImpl extends BasePlayerService implements GamePlayerService {
     public static final int MAX_NUMBER_OF_PLAYERS_PER_GAME = 4;
     private final TalentMarket talentMarket;
     private final Map<UUID, Player> previousPlayerStates = new HashMap<>();
@@ -46,6 +47,7 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         ));
     }
 
+    @Override
     public Player getRandomPlayer() {
         List<Player> playerList = new ArrayList<>(getPlayers().values());
         if (playerList.isEmpty()) {
@@ -54,6 +56,7 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         }
         return playerList.get(RANDOM.nextInt(playerList.size()));
     }
+
 
     public Player getPreviousState(Player player) {
         return previousPlayerStates.get(player.getId());
@@ -68,5 +71,4 @@ public class GamePlayerServiceImpl extends BasePlayerService {
         String json = gson.toJson(player);
         return gson.fromJson(json, Player.class);
     }
-
 }

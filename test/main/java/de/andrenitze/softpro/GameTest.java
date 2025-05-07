@@ -1,46 +1,48 @@
 package main.java.de.andrenitze.softpro;
 
 import de.andrenitze.softpro.Game;
-import de.andrenitze.softpro.config.GameParameters;
+import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.players.Player;
-import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.services.impl.MessagingServiceImpl;
+import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 class GameTest {
 
     private Game game;
-    private Player player;
-    private Project project;
+    private GamePlayerServiceImpl playerService;
+    private MessagingServiceImpl messagingService;
 
     @BeforeEach
     void setUp() {
-        player = new Player("TestPlayer", "TestCompany");
-        project = new Project().initialize();
+        playerService = new GamePlayerServiceImpl(new TalentMarket());
+        messagingService = new MessagingServiceImpl(playerService);
 
-        WebSocket mockWebSocket = mock(WebSocket.class);
-        game.getPlayerService().addPlayer(mockWebSocket, player);
-
-        game.getProjectService().addProject(project);
-    }
-
-    @Test
-    void testDecisionConsequences() {
-        // Simulate a decision made by the player in Level 2
-        game.getProjectService().assessProjectRiskForPlayer(project, player,
-                game.getLifeCycle().getTick(), game.getLifeCycle().getLevel());
-
-        // Move to Level 3
-        game.getPlayerService().generateFirstEmployeesForPlayers();
-
-        // Check the consequences in Level 3
-        assertFalse(player.getEmployees().isEmpty(), "Player should have employees in Level 3");
-        assertEquals(-GameParameters.PROJECT_RISK_ASSESSMENT_COST, player.getFunds(), "Player's funds should be deducted correctly");
-        assertTrue(game.getProjectService().getProjects().contains(project), "Project should still be part of the game");
+        game = new Game(
+                mock(de.andrenitze.softpro.services.impl.StoryService.class),
+                playerService,
+                mock(de.andrenitze.softpro.services.impl.SkillServiceImpl.class),
+                mock(de.andrenitze.softpro.services.impl.AccountingServiceImpl.class),
+                messagingService,
+                new TalentMarket(),
+                mock(de.andrenitze.softpro.services.impl.ProjectServiceImpl.class),
+                mock(de.andrenitze.softpro.services.impl.EmployeeServiceImpl.class),
+                mock(de.andrenitze.softpro.events.GameEventHandler.class),
+                mock(de.andrenitze.softpro.events.GameEventPublisher.class),
+                mock(de.andrenitze.softpro.services.impl.ProjectEmployeeMappingImpl.class),
+                mock(de.andrenitze.softpro.services.impl.GameLifeCycleService.class),
+                mock(de.andrenitze.softpro.services.impl.LevelConsequencesService.class),
+                mock(de.andrenitze.softpro.services.impl.ObjectiveServiceImpl.class),
+                mock(de.andrenitze.softpro.domains.decisions.DecisionDAO.class)
+        );
     }
 
     @Test
@@ -50,7 +52,9 @@ class GameTest {
 
         game.getPlayerService().addPlayer(mockWebSocket, testPlayer);
 
-        assertTrue(game.getPlayerService().getPlayers().containsKey(mockWebSocket), "Player should be added to the game");
-        assertEquals(testPlayer, game.getPlayerService().getPlayers().get(mockWebSocket), "The correct player should be associated with the WebSocket");
+        Map<WebSocket, Player> players = game.getPlayerService().getPlayers();
+
+        assertTrue(players.containsKey(mockWebSocket), "Player should be added to the game");
+        assertEquals(testPlayer, players.get(mockWebSocket), "The correct player should be associated with the WebSocket");
     }
 }

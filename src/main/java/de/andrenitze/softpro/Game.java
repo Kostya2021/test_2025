@@ -14,9 +14,11 @@ import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
-import de.andrenitze.softpro.services.ProjectService;
-import de.andrenitze.softpro.services.impl.*;
-import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import de.andrenitze.softpro.services.*;
+import de.andrenitze.softpro.services.impl.GameLifeCycleService;
+import de.andrenitze.softpro.services.impl.LevelConsequencesService;
+import de.andrenitze.softpro.services.impl.ScoreCalculator;
+import de.andrenitze.softpro.services.impl.StoryService;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -40,19 +42,19 @@ import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.M
 @RequiredArgsConstructor
 public class Game {
     private final StoryService                  storyService;
-    private final GamePlayerServiceImpl         playerService;
-    private final SkillServiceImpl              skillService;
-    private final AccountingServiceImpl         accountingService;
-    private final MessagingServiceImpl          messagingService;
+    private final GamePlayerService             playerService;
+    private final SkillService                  skillService;
+    private final AccountingService             accountingService;
+    private final MessagingService              messagingService;
     private final TalentMarket                  talentMarket;
     private final ProjectService                projectService;
-    private final EmployeeServiceImpl           employeeService;
+    private final EmployeeService               employeeService;
     private final GameEventHandler              eventHandler;
     private final GameEventPublisher            eventPublisher;
-    private final ProjectEmployeeMappingImpl    projectEmployeeService;
+    private final ProjectEmployeeMappingService projectEmployeeService;
     private final GameLifeCycleService          lifeCycle;
     private final LevelConsequencesService      levelConsequencesService;
-    private final ObjectiveServiceImpl          objectiveService;
+    private final ObjectiveService              objectiveService;
     private final DecisionDAO                   decisionDAO;
 
     private ScheduledExecutorService gameLoop;
