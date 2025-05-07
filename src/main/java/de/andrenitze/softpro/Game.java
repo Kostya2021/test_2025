@@ -14,6 +14,7 @@ import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
+import de.andrenitze.softpro.services.ProjectService;
 import de.andrenitze.softpro.services.impl.*;
 import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
 import jakarta.annotation.PostConstruct;
@@ -44,7 +45,7 @@ public class Game {
     private final AccountingServiceImpl         accountingService;
     private final MessagingServiceImpl          messagingService;
     private final TalentMarket                  talentMarket;
-    private final ProjectServiceImpl            projectService;
+    private final ProjectService                projectService;
     private final EmployeeServiceImpl           employeeService;
     private final GameEventHandler              eventHandler;
     private final GameEventPublisher            eventPublisher;
@@ -384,6 +385,7 @@ public class Game {
         GameOverStats goStats = createGameOverStats(this, player, lifeCycle.getTick());
         goStats.setReport(playerHasWon ? "win" : "fail");
         goStats.setLevel(level);
+        goStats.setScore(new ScoreCalculator().calculateScore(player, this));
 
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);

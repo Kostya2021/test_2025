@@ -22,4 +22,5 @@ public class GameOverStats {
     private Map<Integer, List<OptionVoteDistribution>> communityVotes;
     private Integer level = 0;
     private String period;
+    private Integer score = 0;
 }

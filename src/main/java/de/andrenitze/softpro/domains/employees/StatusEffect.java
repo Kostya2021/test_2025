@@ -3,15 +3,21 @@ package de.andrenitze.softpro.domains.employees;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.Serializable;
+
 @Data
 @Slf4j
-public class StatusEffect {
+public class StatusEffect implements Serializable {
     private StatusEffectType type;
     private float multiplier; // 1.0 = 100%, 0.5 = 50%, 2.25 = 225%, -1.0 = -100%
     private String description; // How the effect appears in the UI
     private int cooldown = -1; // How many days the effect lasts (-1 = infinite, default)
-    // Transient to prevent serialization loops
-    private transient Object trigger = null; // The triggering object of the effect (e.g. a project, another employee, etc.)
+
+    /**
+     * Transient to prevent serialization loops
+     * The triggering object of the effect (e.g. a project, another employee, etc.)
+     */
+    private transient Object trigger = null;
 
     public StatusEffect(StatusEffectType type, String description) {
         this.type = type;

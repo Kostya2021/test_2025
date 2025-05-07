@@ -309,7 +309,6 @@ public class Employee implements Serializable {
                     );
 
             if (alreadyExists) {
-                log.debug("Skipped adding duplicate status effect '{}' to {}", effect.getDescription(), getName());
                 return false;
             }
 
