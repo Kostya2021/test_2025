@@ -102,4 +102,9 @@ public class GameConfig {
     public GameEventForwarder gameEventForwarder(ApplicationEventPublisher parentEventPublisher) {
         return new GameEventForwarder(parentEventPublisher);
     }
+
+    @Bean
+    public GameEventPublisher gameEventPublisher(ApplicationEventPublisher parentEventPublisher) {
+        return new GameEventPublisher(parentEventPublisher);
+    }
 }
