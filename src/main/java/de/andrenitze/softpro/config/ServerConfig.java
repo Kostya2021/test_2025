@@ -3,6 +3,7 @@ package de.andrenitze.softpro.config;
 import de.andrenitze.softpro.GameFactory;
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.events.GameEventPublisher;
+import de.andrenitze.softpro.level.LevelConfigurator;
 import de.andrenitze.softpro.repositories.SavegameRepository;
 import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
@@ -25,8 +26,9 @@ public class ServerConfig {
     @Bean
     public GameServer gameServer(LobbyPlayerServiceImpl lobby,
                                  GameFactory gameFactory,
-                                 SavegameRepository savegameRepository) {
-        return new GameServer(gameFactory, lobby, savegameRepository);
+                                 SavegameRepository savegameRepository,
+                                 LevelConfigurator levelConfigurator) {
+        return new GameServer(gameFactory, lobby, savegameRepository, levelConfigurator);
     }
 
     @Bean

@@ -264,11 +264,13 @@ public class Game {
     public void initialize(int level) {
         log.debug("Initializing level {}...", level);
         lifeCycle.setLevel(level);
+
         projectService.loadProblems(level);
         storyService.loadStory(level);
+
         playerService.getPlayers().forEach((webSocket, player) -> skillService.initializePlayer(player));
 
-        if (lifeCycle.getLevel() != 1) {
+        if (level > 1) {
             projectService.initialize(level);
             talentMarket.initialize();
 

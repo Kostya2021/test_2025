@@ -1,11 +1,6 @@
 package de.andrenitze.softpro.events;
 
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.services.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.java_websocket.WebSocket;
-
 import de.andrenitze.softpro.GameServer;
 import de.andrenitze.softpro.domains.accounting.AccountCategory;
 import de.andrenitze.softpro.domains.accounting.AccountingEntry;
@@ -15,8 +10,13 @@ import de.andrenitze.softpro.domains.employees.TalentMarket;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Problem;
 import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.services.*;
 import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.GameLifeCycleService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.java_websocket.WebSocket;
+
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -199,7 +199,7 @@ public class GameEventHandler {
     }
 
     private void handleHireTalentEvent(WebSocket websocket, String message) {
-        Player player = playerService.getPlayer(websocket);
+                Player player = playerService.getPlayer(websocket);
         int employeeId = parseIdByKey(message, EMPLOYEE_ID);
 
         Employee employee = talentMarket.hireTalent(player, employeeId, gameLifeCycleService.getTick());
