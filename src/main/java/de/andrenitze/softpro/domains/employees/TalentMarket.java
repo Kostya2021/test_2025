@@ -1,9 +1,9 @@
 package de.andrenitze.softpro.domains.employees;
 
-import de.andrenitze.softpro.domains.players.Player;
-import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.extern.slf4j.Slf4j;
 
+import de.andrenitze.softpro.domains.players.Player;
+import de.andrenitze.softpro.domains.projects.ProjectType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

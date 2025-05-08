@@ -1,11 +1,11 @@
 package de.andrenitze.softpro.services.impl;
 
+import lombok.RequiredArgsConstructor;
+
 import de.andrenitze.softpro.domains.objectives.Objective;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.domains.story.StoryElementsLoader;
-import lombok.RequiredArgsConstructor;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 

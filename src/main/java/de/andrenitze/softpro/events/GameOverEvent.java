@@ -1,8 +1,9 @@
 package de.andrenitze.softpro.events;
 
-import de.andrenitze.softpro.Game;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
+
+import de.andrenitze.softpro.Game;
 
 @Getter
 public class GameOverEvent extends ApplicationEvent {

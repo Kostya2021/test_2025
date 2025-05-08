@@ -1,5 +1,8 @@
 package de.andrenitze.softpro.services.impl;
 
+import lombok.RequiredArgsConstructor;
+import org.java_websocket.WebSocket;
+
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
@@ -9,27 +12,22 @@ import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.EmployeeService;
 import de.andrenitze.softpro.services.MessagingService;
-import lombok.RequiredArgsConstructor;
-import org.java_websocket.WebSocket;
-import org.springframework.context.annotation.Primary;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_DOMAIN;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_TYPE;
 
 @RequiredArgsConstructor
-@Primary
 public class EmployeeServiceImpl implements EmployeeService {
     private final MessagingService messagingService;
     private final ProjectEmployeeMappingImpl projectsEmployeesMap;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
 
-    public void simulateEmployeeLives(int gameTick, ConcurrentMap<WebSocket, Player> players) {
+    public void simulateEmployeeLives(int gameTick, ConcurrentHashMap<WebSocket, Player> players) {
 
         players.forEach((ignored, player) -> player.getEmployees().forEach(employee -> {
             employee.liveLife(gameTick);

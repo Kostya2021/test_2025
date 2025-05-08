@@ -1,8 +1,9 @@
 package de.andrenitze.softpro.domains.accounting;
 
-import de.andrenitze.softpro.domains.players.Player;
 import lombok.Getter;
 import lombok.Setter;
+
+import de.andrenitze.softpro.domains.players.Player;
 
 @Getter @Setter
 public class AccountingEntry {

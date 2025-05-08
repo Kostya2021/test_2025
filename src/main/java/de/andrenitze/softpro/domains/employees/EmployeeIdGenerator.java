@@ -1,7 +1,8 @@
 package de.andrenitze.softpro.domains.employees;
 
-import de.andrenitze.softpro.GlobalIdManager;
 import lombok.RequiredArgsConstructor;
+
+import de.andrenitze.softpro.GlobalIdManager;
 
 @RequiredArgsConstructor
 public class EmployeeIdGenerator {

@@ -1,10 +1,10 @@
 package de.andrenitze.softpro.types;
 
-import de.andrenitze.softpro.domains.GameOverStats;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
+import de.andrenitze.softpro.domains.GameOverStats;
 import java.sql.Timestamp;
 import java.util.List;
 

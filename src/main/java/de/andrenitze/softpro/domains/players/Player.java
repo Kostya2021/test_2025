@@ -318,4 +318,10 @@ public class Player {
     public void clearMissions() {
         this.missions.clear();
     }
+
+    public void initialize(int level) {
+        setReady(false);
+        initializeObjectives(level);
+        initializeFunds(level);
+    }
 }

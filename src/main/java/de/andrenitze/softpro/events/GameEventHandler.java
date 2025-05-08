@@ -199,7 +199,7 @@ public class GameEventHandler {
     }
 
     private void handleHireTalentEvent(WebSocket websocket, String message) {
-        Player player = playerService.getPlayer(websocket);
+                Player player = playerService.getPlayer(websocket);
         int employeeId = parseIdByKey(message, EMPLOYEE_ID);
 
         Employee employee = talentMarket.hireTalent(player, employeeId, gameLifeCycleService.getTick());

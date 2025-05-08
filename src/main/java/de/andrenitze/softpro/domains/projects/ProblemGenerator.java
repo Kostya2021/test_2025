@@ -1,13 +1,13 @@
 package de.andrenitze.softpro.domains.projects;
 
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.GameServer;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.yaml.snakeyaml.Yaml;
 
+import de.andrenitze.softpro.GameServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;

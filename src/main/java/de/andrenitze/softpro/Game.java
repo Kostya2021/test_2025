@@ -14,8 +14,11 @@ import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
-import de.andrenitze.softpro.services.impl.*;
-import de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl;
+import de.andrenitze.softpro.services.*;
+import de.andrenitze.softpro.services.impl.GameLifeCycleService;
+import de.andrenitze.softpro.services.impl.LevelConsequencesService;
+import de.andrenitze.softpro.services.impl.ScoreCalculator;
+import de.andrenitze.softpro.services.impl.StoryService;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -39,29 +42,26 @@ import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.M
 @RequiredArgsConstructor
 public class Game {
     private final StoryService                  storyService;
-    private final GamePlayerServiceImpl         playerService;
-    private final SkillServiceImpl              skillService;
-    private final AccountingServiceImpl         accountingService;
-    private final MessagingServiceImpl          messagingService;
+    private final GamePlayerService playerService;
+    private final SkillService skillService;
+    private final AccountingService accountingService;
+    private final MessagingService              messagingService;
     private final TalentMarket                  talentMarket;
-    private final ProjectServiceImpl            projectService;
-    private final EmployeeServiceImpl           employeeService;
-    private final GameEventHandler              eventHandler;
+    private final ProjectService                projectService;
+    private final EmployeeService employeeService;
+    private final GameEventHandler eventHandler;
     private final GameEventPublisher            eventPublisher;
-    private final ProjectEmployeeMappingImpl    projectEmployeeService;
+    private final ProjectEmployeeMappingService projectEmployeeService;
     private final GameLifeCycleService          lifeCycle;
     private final LevelConsequencesService      levelConsequencesService;
-    private final ObjectiveServiceImpl          objectiveService;
+    private final ObjectiveService objectiveService;
     private final DecisionDAO                   decisionDAO;
 
     private ScheduledExecutorService gameLoop;
 
     @PostConstruct
     void init() {
-        if (lifeCycle.getLevel() != 1) {
-            talentMarket.initialize();
-        }
-        log.debug("Game {} wired — level {}", hashCode(), lifeCycle.getLevel());
+        log.debug("Game {} wired", hashCode());
     }
 
     public void start() {
@@ -264,11 +264,13 @@ public class Game {
     public void initialize(int level) {
         log.debug("Initializing level {}...", level);
         lifeCycle.setLevel(level);
+
         projectService.loadProblems(level);
         storyService.loadStory(level);
+
         playerService.getPlayers().forEach((webSocket, player) -> skillService.initializePlayer(player));
 
-        if (lifeCycle.getLevel() != 1) {
+        if (level > 1) {
             projectService.initialize(level);
             talentMarket.initialize();
 
@@ -375,6 +377,7 @@ public class Game {
     }
 
     private void handleGameOver(Player player, WebSocket webSocket) {
+        lifeCycle.pause();
         int numberOfLevelsInTheGame = 3;
         int level = lifeCycle.getLevel();
         log.debug("Game over for player {} at level {}.", player.getId(), level);
@@ -384,6 +387,7 @@ public class Game {
         GameOverStats goStats = createGameOverStats(this, player, lifeCycle.getTick());
         goStats.setReport(playerHasWon ? "win" : "fail");
         goStats.setLevel(level);
+        goStats.setScore(new ScoreCalculator().calculateScore(player, this));
 
         GameEvent<GameOverStats> gameOverEvent = new GameEvent<>(EventType.GAME_OVER);
         gameOverEvent.setPayload(goStats);
@@ -393,15 +397,7 @@ public class Game {
         playerUpdateEvent.setPayload(player);
         messagingService.sendToPlayer(player, playerUpdateEvent);
 
-        GameEvent<Integer> levelUpdatedEvent = new GameEvent<>(EventType.LEVEL_UPDATED);
-        levelUpdatedEvent.setPayload(level);
-        messagingService.sendToPlayer(player, levelUpdatedEvent);
-
         if (playerHasWon) {
-            GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
-            GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
-            eventPublisher.publishGameOverEvent(internalGameOverEvent);
-
             if (level < numberOfLevelsInTheGame) {
                 lifeCycle.setLevel(level + 1);
                 log.debug("Player {} has now reached level {}.", player.getId(), lifeCycle.getLevel());
@@ -412,7 +408,10 @@ public class Game {
             log.debug("Player {} has lost. Level stays at {}. Try again! :)", player.getId(), level);
         }
 
-        removePlayer(webSocket);
+        // In any case, the game is over for this player. Notify the game server.
+        GameOverData gameOverData = new GameOverData(webSocket, player, goStats, this);
+        GameOverEvent internalGameOverEvent = new GameOverEvent(this, gameOverData);
+        eventPublisher.publishGameOverEvent(internalGameOverEvent);
     }
 
     private GameOverStats createGameOverStats(Game game, Player player, int tick) {
@@ -444,7 +443,7 @@ public class Game {
         return goStats;
     }
 
-    public void removePlayer(Player player) {
+    public boolean removePlayer(Player player) {
         boolean removed = playerService.removePlayer(player);
         if (removed) {
             log.debug("Player {} removed from game with now {} players.", player.getId(), playerService.getPlayers().size());
@@ -452,6 +451,7 @@ public class Game {
         } else {
             log.warn("Player could not be removed from game.");
         }
+        return removed;
     }
 
     public int getLevel() {
@@ -529,11 +529,6 @@ public class Game {
             xp = 0;
         }
         return xp;
-    }
-
-    public void removePlayer(WebSocket key) {
-        playerService.removePlayer(key);
-        closeGameIfNoPlayersLeft();
     }
 
     public void closeGameIfNoPlayersLeft() {

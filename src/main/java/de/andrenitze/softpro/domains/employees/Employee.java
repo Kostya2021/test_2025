@@ -1,11 +1,11 @@
 package de.andrenitze.softpro.domains.employees;
 
-import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.domains.projects.ProjectType;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
@@ -309,7 +309,6 @@ public class Employee implements Serializable {
                     );
 
             if (alreadyExists) {
-                log.debug("Skipped adding duplicate status effect '{}' to {}", effect.getDescription(), getName());
                 return false;
             }
 

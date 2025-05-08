@@ -423,4 +423,8 @@ public class Project implements Serializable {
     public void clearInvolvedParties() {
         this.involvedParties.clear();
     }
+
+    public boolean isFailed() {
+        return !isCompleted() && getCancelledAt() != 0;
+    }
 }

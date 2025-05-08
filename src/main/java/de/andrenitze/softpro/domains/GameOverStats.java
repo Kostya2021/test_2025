@@ -1,8 +1,8 @@
 package de.andrenitze.softpro.domains;
 
-import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import lombok.Data;
 
+import de.andrenitze.softpro.domains.decisions.OptionVoteDistribution;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -22,4 +22,5 @@ public class GameOverStats {
     private Map<Integer, List<OptionVoteDistribution>> communityVotes;
     private Integer level = 0;
     private String period;
+    private Integer score = 0;
 }

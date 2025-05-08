@@ -7,18 +7,13 @@ import de.andrenitze.softpro.domains.GameState;
 import de.andrenitze.softpro.domains.Savegame;
 import de.andrenitze.softpro.domains.decisions.Decision;
 import de.andrenitze.softpro.domains.decisions.LevelDecisions;
-import de.andrenitze.softpro.domains.employees.Employee;
-import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.players.Player;
-import de.andrenitze.softpro.domains.projects.Project;
-import de.andrenitze.softpro.domains.projects.ProjectType;
-import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.events.GlobalGameEmptyEvent;
 import de.andrenitze.softpro.events.GlobalGameOverEvent;
+import de.andrenitze.softpro.level.LevelConfigurator;
 import de.andrenitze.softpro.repositories.SavegameRepository;
-import de.andrenitze.softpro.services.PlayerService;
 import de.andrenitze.softpro.services.impl.DecisionService;
 import de.andrenitze.softpro.services.impl.player.LobbyPlayerServiceImpl;
 import de.andrenitze.softpro.types.GameOverStatsDAO;
@@ -55,6 +50,7 @@ public class GameServer extends WebSocketServer {
     private final SavegameRepository savegameRepository;
     private final GameOverStatsDAO gameOverStatsDAO;
     private final DecisionService decisionService;
+    private final LevelConfigurator levelConfigurator;
 
     @Getter @Setter private Map<AnnotationConfigApplicationContext, Game> gameContexts = new ConcurrentHashMap<>();
 
@@ -81,7 +77,7 @@ public class GameServer extends WebSocketServer {
     private List<GameOverStats> monthlyHighScores;
     private List<GameOverStats> quarterlyHighScores;
     @Getter
-    @Value("${GAME_SPEED_IN_MILLISECONDS}")
+    @Value("${GAME_SPEED_IN_MILLISECONDS:700}")
     private int gameSpeedInMilliseconds;
 
     /**
@@ -89,13 +85,14 @@ public class GameServer extends WebSocketServer {
      */
     public GameServer(GameFactory gameFactory,
                       LobbyPlayerServiceImpl lobbyPlayerService,
-                      SavegameRepository saveGameRepository) {
+                      SavegameRepository saveGameRepository, LevelConfigurator levelConfigurator) {
         super(new InetSocketAddress(DEFAULT_PORT));
         this.gameFactory = gameFactory;
         this.lobbyPlayerService = lobbyPlayerService;
         this.savegameRepository = saveGameRepository;
         this.gameOverStatsDAO = gameFactory.getGameOverStatsDAO();
         this.decisionService = gameFactory.getDecisionService();
+        this.levelConfigurator = levelConfigurator;
     }
 
     @Override
@@ -259,7 +256,7 @@ public class GameServer extends WebSocketServer {
             log.error("Could not add player to game: {}", e.getMessage());
             return;
         }
-        log.debug("New game {} (level {}) created and prepared for player {}", this.hashCode(), game.getLevel(), player.getId());
+        log.debug("New empty game {} created for player {}", game.hashCode(), player.getId());
         prepareForNextLevel(player, game, level);
 
         // Notify player about next level
@@ -273,61 +270,9 @@ public class GameServer extends WebSocketServer {
      * This can be in the lobby OR on the briefing screen.
      */
     private void prepareForNextLevel(Player player, Game game, int level) {
-        log.debug("Preparing game for level {} and player {}", level, player.getId());
-
         game.initialize(level);
-
-        // Give player chance to prepare for the next level (read up, make decisions etc.)
-        player.setReady(false);
-
-        // Initialization methods change the player's state according to the player's level
-        player.initializeObjectives(level);
-        player.initializeFunds(level);
-        player.setXp(0);
-
-        // For level 1, generate the player as his/her own first and only employee
-        if (level == 1) {
-            player.setEmployees(new ArrayList<>());
-            Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
-            employee.setFirstName(player.getFirstName());
-            employee.setLastName(player.getLastName());
-            employee.setSalary(458, 0);
-            employee.setAge(22);
-            employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
-
-            // List all non-compliance project types
-            List<ProjectType> nonComplianceTypes = Arrays.stream(ProjectType.values())
-                    .filter(projectType -> projectType != ProjectType.COMPLIANCE)
-                    .toList();
-
-            // Increase XP in one random project domain and project type
-            ProjectType randomType = nonComplianceTypes.get(RANDOM.nextInt(nonComplianceTypes.size()));
-            String domain = randomType.getRandomDomain();
-            employee.addXp(randomType, domain, 400);
-            player.addEmployee(employee);
-
-            // Generate a friendly low-risk project matching the player's skill
-            Project perfectProject = new Project(randomType, domain, RiskLevel.LOW, false);
-            game.getProjectService().addProject(perfectProject);
-
-            // Generate two more random non-compliance projects
-            for (int i = 0; i < 2; i++) {
-                randomType = nonComplianceTypes.get(RANDOM.nextInt(nonComplianceTypes.size()));
-                Project project = new Project(randomType,
-                        randomType.getRandomDomain(),
-                        RiskLevel.LOW,
-                        false);
-                game.getProjectService().addProject(project);
-            }
-        }
-
-        if (level == 2) {
-            // For level 2, populate the talent market with employees
-            game.getTalentMarket().initialize();
-
-            // ...and generate first employees for the player
-            game.getPlayerService().generateFirstEmployeesForPlayers();
-        }
+        player.initialize(level);
+        levelConfigurator.configureLevel(game, player, level);
     }
 
     @Override
@@ -656,6 +601,7 @@ public class GameServer extends WebSocketServer {
 
     public void addPlayerToLobby(WebSocket webSocket, Player player, int level) {
         lobbyPlayerService.addPlayer(webSocket, player);
+        log.debug("Added player {} to lobby with now {} players.", player.getId(), lobbyPlayerService.getPlayers().size());
         createGame(webSocket, player, level);
 
         // Send player state to the client
@@ -734,14 +680,12 @@ public class GameServer extends WebSocketServer {
 
     // Move a single player back to the lobby after game over
     public void movePlayerBackToLobby(Game game, Player player, WebSocket webSocket) {
-        PlayerService gamePlayerService = game.getPlayerService();
-
         // Rescue the level from dying game instance to create a correct new one
-        addPlayerToLobby(webSocket, player, game.getLevel()+1);
+        addPlayerToLobby(webSocket, player, game.getLevel());
         player.setReady(false);
 
-        // Remove player from game instance
-        gamePlayerService.removePlayer(player);
+        // Finally remove the player from the game (empty games will be closed)
+        game.removePlayer(player);
     }
 
     /**

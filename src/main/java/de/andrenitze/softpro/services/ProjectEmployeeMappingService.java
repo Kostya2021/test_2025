@@ -2,7 +2,6 @@ package de.andrenitze.softpro.services;
 
 import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.projects.Project;
-
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentMap;
 

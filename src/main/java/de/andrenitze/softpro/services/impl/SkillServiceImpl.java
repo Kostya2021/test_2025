@@ -1,16 +1,16 @@
 package de.andrenitze.softpro.services.impl;
 
 import com.google.gson.reflect.TypeToken;
-import de.andrenitze.softpro.GameServer;
-import de.andrenitze.softpro.domains.players.Player;
-import de.andrenitze.softpro.domains.skills.Skill;
-import de.andrenitze.softpro.services.SkillService;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import de.andrenitze.softpro.GameServer;
+import de.andrenitze.softpro.domains.players.Player;
+import de.andrenitze.softpro.domains.skills.Skill;
+import de.andrenitze.softpro.services.SkillService;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;

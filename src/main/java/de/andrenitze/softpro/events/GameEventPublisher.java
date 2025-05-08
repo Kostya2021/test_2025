@@ -1,16 +1,11 @@
 package de.andrenitze.softpro.events;
 
-import org.jetbrains.annotations.NotNull;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.ApplicationEventPublisherAware;
-import org.springframework.context.annotation.Primary;
 
-@Primary
-public class GameEventPublisher implements ApplicationEventPublisherAware {
-    private ApplicationEventPublisher publisher;
+public class GameEventPublisher {
+    private final ApplicationEventPublisher publisher;
 
-    @Override
-    public void setApplicationEventPublisher(@NotNull ApplicationEventPublisher publisher) {
+    public GameEventPublisher(ApplicationEventPublisher publisher) {
         this.publisher = publisher;
     }
 
@@ -18,7 +13,7 @@ public class GameEventPublisher implements ApplicationEventPublisherAware {
         publisher.publishEvent(gameOverEvent);
     }
 
-    public void publishGameEmptyEvent(GlobalGameEmptyEvent globalGameEmptyEvent) {
-        publisher.publishEvent(globalGameEmptyEvent);
+    public void publishGameEmptyEvent(GlobalGameEmptyEvent gameEmptyEvent) {
+        publisher.publishEvent(gameEmptyEvent);
     }
 }

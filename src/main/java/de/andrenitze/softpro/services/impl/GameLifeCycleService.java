@@ -12,7 +12,7 @@ import java.time.LocalDate;
 @Getter
 public class GameLifeCycleService {
     @Getter
-    @Value("${GAME_SPEED_IN_MILLISECONDS}")
+    @Value("${GAME_SPEED_IN_MILLISECONDS:700}")
     private int gameSpeedInMilliseconds;
     @Setter
     private int tick;
