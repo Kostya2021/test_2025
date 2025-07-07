@@ -9,6 +9,7 @@ import de.andrenitze.softpro.domains.employees.StatusEffect;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.*;
+import de.andrenitze.softpro.domains.projects.generators.ProblemGenerator;
 import de.andrenitze.softpro.services.ProjectEmployeeMappingService;
 import de.andrenitze.softpro.services.ProjectService;
 import jakarta.annotation.PostConstruct;
@@ -44,8 +45,10 @@ public class ProjectServiceImpl implements ProjectService {
     public static final float COMPLIANCE_PROJECT_SPAWN_PROBABILITY = 0.01f;
     static final String FAMILIARIZATION_WITH_NEW_DOMAIN = "Familiarization with new project domain";
     static final String FAMILIARIZATION_WITH_NEW_TYPE = "Familiarization with new project type";
-    @Getter @Setter private List<Project> projects = new ArrayList<>();
-    @Getter private final ProblemGenerator problemGenerator = new ProblemGenerator();
+    @Getter @Setter
+    private List<Project> projects = new ArrayList<>();
+    @Getter
+    private final ProblemGenerator problemGenerator = new ProblemGenerator();
 
     @Getter
     private final AccountingServiceImpl accountingService;
@@ -66,8 +69,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
             return projectsWithChanges;
         }
-
-        // For all projects...
+        
         Iterator<Map.Entry<Project, ArrayList<Employee>>> iterator = projectEmployeeService.getProjectEmployeesMap().entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Project, ArrayList<Employee>> entry = iterator.next();
@@ -81,11 +83,9 @@ public class ProjectServiceImpl implements ProjectService {
                 if (project.isCompleted()) {
                     log.debug("Project {} completed.", project.getName());
                     handleProjectCompletion(project, employees, tick, level);
-
                     // Remove the project from the employees map to avoid memory leaks
                     iterator.remove();
                 }
-
                 // We assume that under the conditions above at least the earned value changed.
                 // So add the project to the list of projects with changes
                 projectsWithChanges.add(project);
@@ -100,11 +100,9 @@ public class ProjectServiceImpl implements ProjectService {
             projectEmployeeService.getProjectEmployeesMap().get(project).forEach(
                     employee -> employee.removeStatusEffectsByTrigger(project)
             );
-
             // Make sure that earned value equals the total value
             project.setEarnedValue(project.getTotalValue());
 
-            // Calculate profit
             int profit = (int) round(project.getTotalValue() * ProjectServiceImpl.PROFIT_MARGIN);
 
             float overduePenaltyMultiplier = 1;
@@ -132,7 +130,7 @@ public class ProjectServiceImpl implements ProjectService {
                 profit = 0;
             }
 
-            player.addFunds(profit);
+            player.addFunds(profit); 
             AccountingEntry projectProfitEntry = new AccountingEntry(player, currentTick, level, profit,
                     AccountCategory.CREDIT_PROJECTS, TransactionType.CREDIT, "Project completed");
             accountingService.addEntry(projectProfitEntry);
@@ -191,6 +189,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setQuality(projectQuality);
     }
 
+    
     private void addEarnedValueForEachEmployee(Project project, ArrayList<Employee> employees, int currentTick) {
         if (project == null || employees == null) {
             log.error("Project or employees list is null.");
@@ -222,7 +221,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     private float calculateTeamOnboardingFactor(Project project, ArrayList<Employee> employees, int currentTick) {
         // Rule #3: Adding people to a late software project makes it later (Brooks' law)
-        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
+        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) { 
             float factor = calculateOnboardingFactor(project, employees);
             log.debug("Averaged onboarding-induced productivity factor for the whole team: {}", factor);
             return factor;
@@ -235,25 +234,25 @@ public class ProjectServiceImpl implements ProjectService {
         int earnedValue = BASE_PRODUCTIVITY_VALUE;
 
         // Apply experience factors
-        earnedValue = applyExperienceFactors(employee, project, earnedValue);
+        earnedValue = applyExperienceFactors(employee, project, earnedValue); 
 
         // Apply context switching penalty
-        earnedValue = applyContextSwitchingPenalty(employee, earnedValue);
+        earnedValue = applyContextSwitchingPenalty(employee, earnedValue); 
 
         // Apply productivity ramp-up for new employees on the project
-        earnedValue = applyRampUpFactor(employee, project, earnedValue);
+        earnedValue = applyRampUpFactor(employee, project, earnedValue); 
 
         // Apply team onboarding factor
-        earnedValue = (int)(earnedValue * onboardingFactor);
+        earnedValue = (int)(earnedValue * onboardingFactor); 
 
         // Apply organizational skills factor
-        earnedValue = (int)(earnedValue * calculateSkillsFactor(project));
+        earnedValue = (int)(earnedValue * calculateSkillsFactor(project)); 
 
         // Apply employee status effects
-        earnedValue = applyStatusEffects(employee, earnedValue);
+        earnedValue = applyStatusEffects(employee, earnedValue); 
 
         // Apply unsolved problems penalty
-        earnedValue = applyUnsolvedProblemsPenalty(project, earnedValue, tick);
+        earnedValue = applyUnsolvedProblemsPenalty(project, earnedValue, tick); 
 
         return earnedValue;
     }
@@ -336,9 +335,8 @@ public class ProjectServiceImpl implements ProjectService {
     private void updateProjectWithEarnedValue(Project project, int earnedValue, int currentTick) {
         // Set project start time if this is the first earned value
         if (project.getEarnedValue() == 0 && earnedValue > 0) {
-            project.setStartedAt(currentTick);
+            project.setStartedAt(currentTick); 
         }
-
         // Add the earned value to the project
         project.addEarnedValue(earnedValue, currentTick);
     }
@@ -390,6 +388,7 @@ public class ProjectServiceImpl implements ProjectService {
         return onboardingFactors.stream().reduce(0f, Float::sum) / onboardingFactors.size();
     }
 
+
     private int getNumberOfParallelProjectsForEmployee(Employee employee) {
         int numberOfProjects = 0;
 
@@ -439,7 +438,8 @@ public class ProjectServiceImpl implements ProjectService {
         project.setCancelledBy(cancelledBy);
 
         // Apply different penalty rates based on who cancelled
-        double penaltyRate = PARTY_CLIENT.equals(cancelledBy)
+        
+        double penaltyRate = PARTY_CLIENT.equals(cancelledBy) 
                 ? CLIENT_CANCELLATION_PENALTY
                 : CONTRACTOR_CANCELLATION_PENALTY;
 
@@ -483,25 +483,24 @@ public class ProjectServiceImpl implements ProjectService {
         log.debug("Project {} cancelled by player {}", project.getName(), player.getId());
     }
 
+    
     public void cancelOverdueProjects(int tick, int level) {
         List<Project> projectsToCancel = new ArrayList<>();
 
         // Identify projects that meet the cancellation criteria
-        for (Project project : getProjects()) {
+        for (Project project : getProjects()) { 
             // Check if project should be automatically cancelled
             if (shouldAutomaticallyCancel(project, tick)) {
                 projectsToCancel.add(project);
             }
         }
 
-        // Process cancellations outside the iteration loop
-        for (Project project : projectsToCancel) {
+        for (Project project : projectsToCancel) { 
             log.info("Auto-cancelling project {} due to excessive schedule overrun", project.getName());
-
             // Cancel for each involved player
             for (Player player : project.getInvolvedPlayers()) {
                 try {
-                    cancelProject(player, project, PARTY_CLIENT, tick, level);
+                    cancelProject(player, project, PARTY_CLIENT, tick, level); 
                 } catch (Exception e) {
                     log.error("Error cancelling project {} for player {}: {}", project.getName(), player.getId(), e.getMessage());
                 }
@@ -521,6 +520,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     private boolean shouldAutomaticallyCancel(Project project, int currentTick) {
         // Don't cancel if not started, already completed or already cancelled
+        
         if (!project.hasBeenStarted() || project.isCompleted() || project.getCancelledAt() > 0) {
             return false;
         }
@@ -535,18 +535,17 @@ public class ProjectServiceImpl implements ProjectService {
             return false;
         }
 
-        // Calculate progress percentage
-        int progressPercentage = (int)(100.0 * project.getEarnedValue() / project.getTotalValue());
+        int progressPercentage = (int)(100.0 * project.getEarnedValue() / project.getTotalValue()); 
 
-        // Calculate schedule overrun
-        int scheduledEndDate = project.getStartedAt() + project.getDeadline();
-        int overrunDays = currentTick - scheduledEndDate;
-        int scheduleOverrunPercentage = (int)(100.0 * overrunDays / project.getDeadline());
+        int scheduledEndDate = project.getStartedAt() + project.getDeadline(); 
+        int overrunDays = currentTick - scheduledEndDate; 
+        int scheduleOverrunPercentage = (int)(100.0 * overrunDays / project.getDeadline()); 
 
         // Cancel if overrun > 100% and progress < 50%
-        return scheduleOverrunPercentage > 100 && progressPercentage < 50;
+        return scheduleOverrunPercentage > 100 && progressPercentage < 50; 
+        
     }
-
+    
     public void addProject(Project project) {
         // Check if project id already exists, if not, add the project. Also, initialize the project employees map.
         if (getProjectById(project.getId()) == null) {
@@ -569,24 +568,22 @@ public class ProjectServiceImpl implements ProjectService {
             log.error("Project not found.");
             return;
         }
-
         project.setStartedAt(startedAt);
     }
 
     @Override
     public void initialize(int level) {
-        setProjects(new ArrayList<>());
+        setProjects(new ArrayList<>()); 
 
         // Fill the market with random amount of project tenders (30-60 tenders)
         int tenderCount = RANDOM.nextInt(30, 60);
         for (int i = 0; i < tenderCount; i++) {
-            Project project = new Project().initialize();
+            Project project = new ProjectBuilder().build();
 
-            // Set randomly negative publish dates to have some history of tenders
             project.setPublishedAt(round(RANDOM.nextFloat() * STALE_TENDERS_KILL_DAYS * -1));
 
             // Add the tender to the list of projects
-            projects.add(project);
+            projects.add(project); 
         }
         log.debug("Created {} tenders.", getProjects().size());
     }
@@ -598,17 +595,20 @@ public class ProjectServiceImpl implements ProjectService {
      * @param tick  Current game tick
      */
     public void spawnComplianceProjects(int tick) {
-        // Only have one compliance project at a time
+        
         if (getProjects().stream().noneMatch(project -> project.getType() == ProjectType.COMPLIANCE) &&
                 RANDOM.nextFloat() <= COMPLIANCE_PROJECT_SPAWN_PROBABILITY) {
             // Generate a new compliance project
-            Project project = new Project(ProjectType.COMPLIANCE, "Compliance", RiskLevel.LOW, false);
+            Project project = new ProjectBuilder().
+                    type(ProjectType.COMPLIANCE).
+                    domain("Compliance").risk(RiskLevel.LOW).
+                    hasTenderProcess(false).
+                    deadline(0).
+                    name(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size()))).
+                    build();
 
             project.setPublishedAt(tick);
             project.setAcquiredAt(tick); // Immediately acquired: Frontend will show it as "acquired"
-            project.setDeadline(0);
-            // Select a name from a list of predefined names
-            project.setName(COMPLIANCE_PROJECT_NAMES.get(RANDOM.nextInt(COMPLIANCE_PROJECT_NAMES.size())));
             getProjects().add(project);
 
             // Add to project-employee map
@@ -653,13 +653,11 @@ public class ProjectServiceImpl implements ProjectService {
 
     public void evaluateTenderProcesses(int tick) {
         for (Project project : getProjects()) {
-            // Don't evaluate acquired projects
-            if (project.getAcquiredAt() != 0) {
+            if (project.getAcquiredAt() != 0) { 
                 continue;
             }
-
             // Regular case: No tender process, assign project immediately
-            if (project.getTenderDeadlineInDays() == 0 || project.getTenderDeadlineInDays() == -1) {
+            if (project.getTenderDeadlineInDays() == 0 || project.getTenderDeadlineInDays() == -1) { 
                 // Set deadline to -1 to exclude it from further evaluations
                 project.setTenderDeadlineInDays(-1);
 
@@ -671,7 +669,9 @@ public class ProjectServiceImpl implements ProjectService {
                     // Inform winner with a confirmation message
                     assignProjectToPlayer(project.getInvolvedPlayers().getFirst(), project, tick);
                 }
-            } else {
+            }
+
+            else {
                 // For tender processes, just decrease the time left for tender participation
                 project.decreaseTimeLeftForTender();
             }
@@ -702,13 +702,13 @@ public class ProjectServiceImpl implements ProjectService {
         // In all running projectService.getProjects()...
         for (Project project : getProjects()) {
             // If it's not running or completed, skip to the next project
-            if (project.getStartedAt() != 0 && !project.isCompleted()) {
+            if (project.getStartedAt() != 0 && !project.isCompleted()) { 
                 // For now, with a fixed chance for a problem to occur,
                 // (can be adjusted later depending on project volume, risk level, etc.)
                 double problemSpawnProbability = 0.01;
                 // but not more than a certain number problems per project
                 if (RANDOM.nextFloat() <= problemSpawnProbability
-                        && project.getUnsolvedProblems().size() < level) { // Higher level -> more problems
+                        && project.getUnsolvedProblems().size() < level) { 
                     // Take all problems of the project
                     List<Problem> occurredProblems = project.getProblems();
 
@@ -731,13 +731,13 @@ public class ProjectServiceImpl implements ProjectService {
             if (project.getType() == ProjectType.COMPLIANCE) {
                 continue;
             }
-
             // For all projects that have been acquired, but not started after MAX(30 days, 10% of project duration)
             if (project.getAcquiredAt() != 0 && project.getStartedAt() == 0) {
                 int daysPassed = tick - project.getAcquiredAt();
-                if (daysPassed >= max(30, project.getScheduledDuration() / 10)) {
+                
+                if (daysPassed >= max(30, project.getScheduledDuration() / 10)) { 
                     // Start the project and inform involved players
-                    startProject(project, tick - 1);
+                    startProject(project, tick - 1); 
                     log.debug("Project {} force started after {} days.", project.getName(), daysPassed);
                 }
             }
@@ -755,7 +755,6 @@ public class ProjectServiceImpl implements ProjectService {
             return;
         }
 
-        // Have a chance to spawn a project
         if (RANDOM.nextFloat() >= PROJECT_SPAWN_PROBABILITY) {
             return;
         }
@@ -764,8 +763,9 @@ public class ProjectServiceImpl implements ProjectService {
         // 25% chance for a perfect project
         if (RANDOM.nextFloat() <= 0.75) {
             // Low-risk, small projects
-            project = new Project(RiskLevel.LOW).initialize();
-        } else {
+            project = new ProjectBuilder().risk(RiskLevel.LOW).build();
+        }
+        else { 
             // Find the project type and domain where one employee has the most experience
             Employee bestEmployee = player.getEmployees().stream().max(Comparator.
                     comparing(Employee::getExperience)).orElse(null);
@@ -776,17 +776,20 @@ public class ProjectServiceImpl implements ProjectService {
             String domain = bestEmployee.getDomainOfExpertise();
             ProjectType type = ProjectType.getTypeByDomain(domain);
 
-            project = new Project(type, domain, RiskLevel.LOW, false);
+            project = new ProjectBuilder().
+                    type(type).
+                    domain(domain).
+                    risk(RiskLevel.LOW).
+                    hasTenderProcess(false).
+                    build();
         }
-
-        project.setTenderProcess(false);
         project.setPublishedAt(tick);
         addProject(project);
     }
 
     public void spawnTenders(int tick) {
         if (RANDOM.nextFloat() <= PROJECT_SPAWN_PROBABILITY) {
-            Project project = new Project().initialize();
+            Project project = new ProjectBuilder().build();
             project.setPublishedAt(tick);
             addProject(project);
         }
@@ -845,12 +848,12 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     public Optional<ProjectSummary> getProjectSummaryIfProgressChanged(Project project, int tick) {
-        Project previousState = getPreviousState(project.getId());
+        Project previousState = getPreviousState(project.getId()); 
 
-        if (previousState == null || project.hasProgressChanged(previousState)) {
-            updatePreviousState(project);
+        if (previousState == null || project.hasProgressChanged(previousState)) { 
+            updatePreviousState(project); 
 
-            ProjectSummary summary = getProjectSummary(project);
+            ProjectSummary summary = getProjectSummary(project); 
             summary.setTick(tick);
 
             return Optional.of(summary);

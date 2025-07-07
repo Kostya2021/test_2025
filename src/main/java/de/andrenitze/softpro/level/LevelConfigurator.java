@@ -5,6 +5,7 @@ import de.andrenitze.softpro.domains.employees.Employee;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
+import de.andrenitze.softpro.domains.projects.ProjectBuilder;
 import de.andrenitze.softpro.domains.projects.ProjectType;
 import de.andrenitze.softpro.domains.projects.RiskLevel;
 import de.andrenitze.softpro.services.ProjectService;
@@ -50,11 +51,24 @@ public class LevelConfigurator {
         player.addEmployee(employee);
 
         ProjectService projectService = game.getProjectService();
-        projectService.addProject(new Project(randomType, domain, RiskLevel.LOW, false));
+        projectService.addProject(
+                new ProjectBuilder().
+                        type(randomType).
+                        domain(domain).
+                        risk(RiskLevel.LOW).
+                        hasTenderProcess(false).
+                        build());
 
         for (int i = 0; i < 2; i++) {
             ProjectType another = nonComplianceTypes.get(RANDOM.nextInt(nonComplianceTypes.size()));
-            projectService.addProject(new Project(another, another.getRandomDomain(), RiskLevel.LOW, false));
+            projectService.addProject(
+                    new ProjectBuilder().
+                            type(another).
+                            domain(another.getRandomDomain()).
+                            risk(RiskLevel.LOW).
+                            hasTenderProcess(false).
+                            build()
+            );
         }
 
         log.debug("Level 1 initialized for player {}", player.getId());

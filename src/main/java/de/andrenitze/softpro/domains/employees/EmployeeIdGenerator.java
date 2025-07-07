@@ -7,6 +7,6 @@ import de.andrenitze.softpro.GlobalIdManager;
 @RequiredArgsConstructor
 public class EmployeeIdGenerator {
     public int generateId() {
-        return GlobalIdManager.generateGlobalId();
+        return GlobalIdManager.generateEmployeeId();
     }
 }

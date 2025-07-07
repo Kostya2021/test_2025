@@ -1,6 +1,7 @@
-package de.andrenitze.softpro.domains.projects;
+package de.andrenitze.softpro.domains.projects.generators;
 
 import com.google.gson.reflect.TypeToken;
+import de.andrenitze.softpro.domains.projects.Problem;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
