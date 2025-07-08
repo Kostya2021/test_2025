@@ -99,12 +99,16 @@ public class GameConfig {
     }
 
     @Bean
+    // ⚠️ This bean is currently unused and inactive.
+    // The Game class uses a GameEventPublisher from the parent (global) context,
+    // so events published by Game go directly to the global context (e.g., GameServer),
+    // and are NOT visible to this GameEventForwarder, which resides in the local game context
     public GameEventForwarder gameEventForwarder(ApplicationEventPublisher parentEventPublisher) {
         return new GameEventForwarder(parentEventPublisher);
     }
 
-    @Bean
-    public GameEventPublisher gameEventPublisher(ApplicationEventPublisher parentEventPublisher) {
-        return new GameEventPublisher(parentEventPublisher);
-    }
+//    @Bean
+//    public GameEventPublisher gameEventPublisher(ApplicationEventPublisher parentEventPublisher) {
+//        return new GameEventPublisher(parentEventPublisher);
+//    }
 }

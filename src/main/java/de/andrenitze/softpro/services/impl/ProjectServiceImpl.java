@@ -219,9 +219,19 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
+//    private float calculateTeamOnboardingFactor(Project project, ArrayList<Employee> employees, int currentTick) {
+//        // Rule #3: Adding people to a late software project makes it later (Brooks' law)
+//        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) {
+//            float factor = calculateOnboardingFactor(project, employees);
+//            log.debug("Averaged onboarding-induced productivity factor for the whole team: {}", factor);
+//            return factor;
+//        }
+//        return 1.0f; // No onboarding required (safe period or no new employees)
+//    }
+
     private float calculateTeamOnboardingFactor(Project project, ArrayList<Employee> employees, int currentTick) {
         // Rule #3: Adding people to a late software project makes it later (Brooks' law)
-        if (!project.isRampingUp(currentTick) && project.hasOnboardingEmployees(employees)) { 
+        if (!isRampingUp(project, currentTick) && hasOnboardingEmployees(project, employees)) {
             float factor = calculateOnboardingFactor(project, employees);
             log.debug("Averaged onboarding-induced productivity factor for the whole team: {}", factor);
             return factor;
@@ -639,7 +649,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         // Calculate the estimation and add it to the project
-        project.estimateProgress(tick);
+        estimateProgress(project, tick);
     }
 
     public void assignProjectToPlayer(Player player, Project project, int tick) {
@@ -861,4 +871,60 @@ public class ProjectServiceImpl implements ProjectService {
 
         return Optional.empty();
     }
+
+    // REVIEW NOTE: These methods were extracted from class Project to improve separation of concerns.
+    private boolean isRampingUp(Project project, int currentTick) {
+        // No extra on-boarding effort is assigned at the beginning of the project for the beginning of a project
+        // (time to allocate staff to project, also general ramp-up, s. Rule #2)
+        // Safe period (10%). No training required.
+        return currentTick <= (project.getScheduledDuration() * GameParameters.SAFE_PERIOD_PERCENT
+                + project.getAcquiredAt()
+                + GameParameters.ASSIGNMENT_TIME_IN_DAYS);
+    }
+
+    private boolean hasOnboardingEmployees(Project project, List<Employee> employees) {
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            return false;
+        }
+
+        // After "safe period": Does any of the employees need on-boarding?
+        int safePeriodInDays = (int) (GameParameters.SAFE_PERIOD_PERCENT * project.getScheduledDuration())
+                + GameParameters.ASSIGNMENT_TIME_IN_DAYS;
+        for (Employee employee : employees) {
+            // Employee has no experience in this project and needs to be trained
+            if (employee.getExperienceByProject(project) <= safePeriodInDays) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void estimateProgress(Project project, int currentTick) {
+        // Estimate progress (0-100) based on the earned value
+        int estimate = (int) (100.0 * project.getEarnedValue() / project.getTotalValue());
+
+        // Project has not been started yet
+        if (!project.hasBeenStarted()) {
+            return;
+        }
+
+        // Add variance of up to 70% based on risk level (e.g., the more risk the more variance)
+        float riskMultiplier = switch (project.getRisk()) {
+            case LOW -> 0.3f;
+            case MEDIUM -> 0.5f;
+            case HIGH -> 0.7f;
+            case EXTREME -> 1.0f;
+        };
+
+
+        int adjustedEstimate = (int) (riskMultiplier * estimate);
+        estimate += adjustedEstimate > 0 ? RANDOM.nextInt(adjustedEstimate) : 0;
+        project.addProgressEstimate(currentTick, Math.min(90, estimate)); // 90% is the maximum progress estimate
+    }
+
+
+
+
+
 }

@@ -162,33 +162,6 @@ public class Project implements Serializable {
         return getInvolvedPlayers().contains(player);
     }
 
-    public boolean hasOnboardingEmployees(List<Employee> employees) {
-        if (this.getType() == ProjectType.COMPLIANCE) {
-            return false;
-        }
-
-        // After "safe period": Does any of the employees need on-boarding?
-        int safePeriodInDays = (int) (GameParameters.SAFE_PERIOD_PERCENT * getScheduledDuration())
-                + GameParameters.ASSIGNMENT_TIME_IN_DAYS;
-        for (Employee employee : employees) {
-            // Employee has no experience in this project and needs to be trained
-            if (employee.getExperienceByProject(this) <= safePeriodInDays) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public boolean isRampingUp(int currentTick) {
-        // No extra on-boarding effort is assigned at the beginning of the project for the beginning of a project
-        // (time to allocate staff to project, also general ramp-up, s. Rule #2)
-        // Safe period (10%). No training required.
-        return currentTick <= (getScheduledDuration() * GameParameters.SAFE_PERIOD_PERCENT
-                + getAcquiredAt()
-                + GameParameters.ASSIGNMENT_TIME_IN_DAYS);
-    }
-
     public int getScheduledDuration() {
         return getDeadline() - getAcquiredAt();
     }
@@ -207,29 +180,6 @@ public class Project implements Serializable {
 
     public void addProgressEstimate(int tick, int estimate) {
         progressEstimates.add(new ProgressEstimate(tick, estimate));
-    }
-
-    public void estimateProgress(int currentTick) {
-        // Estimate progress (0-100) based on the earned value
-        int estimate = (int) (100.0 * getEarnedValue() / getTotalValue());
-
-        // Project has not been started yet
-        if (!hasBeenStarted()) {
-            return;
-        }
-
-        // Add variance of up to 70% based on risk level (e.g., the more risk the more variance)
-        float riskMultiplier = switch (getRiskLevel()) {
-            case LOW -> 0.3f;
-            case MEDIUM -> 0.5f;
-            case HIGH -> 0.7f;
-            case EXTREME -> 1.0f;
-        };
-
-
-        int adjustedEstimate = (int) (riskMultiplier * estimate);
-        estimate += adjustedEstimate > 0 ? RANDOM.nextInt(adjustedEstimate) : 0;
-        addProgressEstimate(currentTick, Math.min(90, estimate)); // 90% is the maximum progress estimate
     }
 
     public void removeParty(Player player) {
