@@ -1,4 +1,4 @@
-package de.andrenitze.softpro.domains.employees;
+package de.andrenitze.softpro.domains.employees.generators;
 
 import lombok.RequiredArgsConstructor;
 

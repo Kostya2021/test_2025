@@ -1,5 +1,8 @@
 package de.andrenitze.softpro.domains.employees;
 
+import de.andrenitze.softpro.domains.employees.generators.EmployeeNameGenerator;
+import de.andrenitze.softpro.domains.employees.utils.EmployeeUtils;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -19,18 +22,19 @@ public class Employee implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
     public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
-    public static final int MINIMUM_AGE = 20;
-    public static final int JOB_SATISFACTION = 50;
+    public static final int MINIMUM_AGE = 20;//убрать - нет это оставить - это Неотъемлемое ограничение домена
+    public static final int JOB_SATISFACTION = 50;//убрать - а это просто параметр для расчета значения поля satisfaction
     public static final String PROJECT_MANAGEMENT_FOUNDATION = "Project Management Foundation";
     public static final String PROJECT_MANAGEMENT_EXPERT = "Project Management Expert";
-    private float sickDayProbability = 0.02f;
+    private float sickDayProbability = 0.02f; //почему не константа?
     @Getter
-    private final Integer id;
+    @Setter(AccessLevel.PACKAGE)
+    private Integer id; //убрал временно final потому что нужно было сразу иниациализировать или через конструктор или сразу тут задавать значение - и только однократно можно - в project так же сделал
     @Getter
     private int salary; // monthly salary
     @Getter
     private final List<SalaryHistoryEntry> salaryHistory = new ArrayList<>();
-    @Setter
+    @Getter @Setter
     private int age;
     @Setter
     private String firstName;
@@ -38,8 +42,8 @@ public class Employee implements Serializable {
     private String lastName;
     @Getter
     private final transient HashMap<Project, Integer> projectExperience = new HashMap<>(); // projectId and days XP
-    @Getter
-    private final EnumMap<ProjectType, Integer> projectTypeExperience;
+    @Getter private final EnumMap<ProjectType, Integer> projectTypeExperience = new EnumMap<>(ProjectType.class); //        //а что просто при инициализации она сразу не заполнится keys - ProjectType
+
     @Getter
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
     @Setter @Getter
@@ -47,7 +51,7 @@ public class Employee implements Serializable {
     private int remainingAnnualSickDays;
     @Getter
     private static final int MINIMUM_SICK_DAYS = 4;
-    private int maximumSickDays = 20;
+    private int maximumSickDays = 20; //почему не static?
     @Getter
     private boolean isSick = false;
     @Getter
@@ -64,7 +68,7 @@ public class Employee implements Serializable {
     private String gender;
     @Getter
     private final List<StatusEffect> statusEffects = new ArrayList<>();
-    private static final NameGenerator nameGenerator = NameGenerator.getInstance();
+    private static final EmployeeNameGenerator EMPLOYEE_NAME_GENERATOR = EmployeeNameGenerator.getInstance();
     @Getter @Setter
     private int employedDays = 0;
     @Getter @Setter
@@ -76,21 +80,19 @@ public class Employee implements Serializable {
 
     public Employee(Integer id) {
         this.id = id;
-        String[] generatedName = nameGenerator.generateName();
+        String[] generatedName = EMPLOYEE_NAME_GENERATOR.generateName();
         setFirstName(generatedName[0]);
         setLastName(generatedName[1]);
         setGender(generatedName[2]);
 
         // Randomize salary
-        setSalary(RANDOM.nextInt(0, 1500) + 1500, 0);
+        setSalary(RANDOM.nextInt(0, 1500) + 1500, 0);//второй аргумент 0 - это tick
 
         // Randomize age between 20 and 60
         setAge(RANDOM.nextInt(40) + MINIMUM_AGE);
 
-        calculateSatisfaction();
-        initializeSickDays();
+        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
 
-        this.projectTypeExperience = new EnumMap<>(ProjectType.class);
         for (ProjectType type : ProjectType.values()) {
             this.projectTypeExperience.put(type, 0);
         }
@@ -107,23 +109,15 @@ public class Employee implements Serializable {
         }
     }
 
-    private void addExperienceForDomain(String domain, int days) {
-        if (projectDomainExperience.containsKey(domain)) {
-            Integer existingDomainExperience = projectDomainExperience.getOrDefault(domain, 0);
-            projectDomainExperience.put(domain, existingDomainExperience + days);
-        } else {
-            projectDomainExperience.put(domain, days);
-        }
-    }
+    public Employee() {
+    };
 
-    public Integer getExperienceByProject(Project project) {
-        return projectExperience.getOrDefault(project, 0);
-    }
 
     /**
      * Employee gains experience in a project.
      * XP in days is stored in projectExperience AND projectTypeExperience AND projectDomainExperience.
      */
+    //получает в параметр объект Project - другой доменный класс - можно было бы вынести в уже имеющийся EmployeeServiceImpl
     public void gainExperience(Project project, int newExperienceInDays) {
         // Don't gain experience in compliance projects
         if (project.getType() == ProjectType.COMPLIANCE) {
@@ -138,83 +132,7 @@ public class Employee implements Serializable {
         }
     }
 
-    public Integer getExperienceInDaysByProjectType(ProjectType type) {
-        return projectTypeExperience.get(type);
-    }
-
-    public Integer getExperienceInDaysByProjectDomain(String domain) {
-        return projectDomainExperience.getOrDefault(domain, 0);
-    }
-
-    public void haveSickLeaveDay(int currentTick) {
-        // Get better every day until fully recovered
-        --remainingAnnualSickDays;
-        setHealth(getHealth() + RANDOM.nextFloat());
-
-        if (getHealth() >= 1) {
-            setHealth(1f);
-            makeSick(false);
-            setLastSickDay(currentTick);
-        }
-
-        // Mark current tick as a sick day
-        sickDays.put(currentTick, true);
-
-        // Increment the number of sick days this year
-        thisYearsSickDays++;
-    }
-
-    private void setLastSickDay(int currentTick) {
-        lastSickDay = currentTick;
-    }
-
-
-    public void makeSick(boolean sick) {
-        isSick = sick;
-
-        if (sick) {
-            health = 0; // Decrease health to 0 when getting sick
-        }
-    }
-
-    public void liveLife(int currentTick) {
-        employedDays++;
-
-        if (!this.isSick()) {
-            if (this.remainingAnnualSickDays > 0 && RANDOM.nextDouble() <= sickDayProbability) {
-                this.makeSick(true);
-            }
-        } else {
-            haveSickLeaveDay(currentTick);
-        }
-
-        // Cooldown all status effects (if they have a cooldown)
-        statusEffects.forEach(StatusEffect::cooldown);
-
-        // Calculate utilization (0-100%)
-        // 1) Calculate the number of days worked in projects
-        int daysWorkedInProjects = projectExperience.keySet().stream().mapToInt(projectExperience::get).sum();
-
-        // 2) Subtract experience days before hiring
-        daysWorkedInProjects -= xpInDaysBeforeHiring;
-
-        // 3) Divide daysWorkedInProjects (in this organization) by employedDays (in this organization)
-        utilization = (int) ((daysWorkedInProjects / (float) employedDays) * 100);
-    }
-
-    // This happens every year
-    public void initializeSickDays() {
-        // Randomize the number of sick days an employee can have in a year
-        this.remainingAnnualSickDays = MINIMUM_SICK_DAYS + RANDOM.nextInt(maximumSickDays - MINIMUM_SICK_DAYS);
-
-        // Reset the number of sick days this year
-        this.thisYearsSickDays = 0;
-    }
-
-    public boolean hasFirstDayAfterSickLeave(int currentTick) {
-        return getLastSickDay() == currentTick - 1;
-    }
-
+    //этот бы метод и остальные идущие ниже и связанные с опытом оставил в этом классе - только со своими полями работают - простая манипуляция данными
     public void addXp(ProjectType type, String domain, int days) {
         // Check if the project domain is valid
         if (domain == null || domain.isEmpty()) {
@@ -241,6 +159,124 @@ public class Employee implements Serializable {
         projectTypeExperience.put(type, existingExperience + days);
     }
 
+    private void addExperienceForDomain(String domain, int days) {
+        if (projectDomainExperience.containsKey(domain)) {
+            Integer existingDomainExperience = projectDomainExperience.getOrDefault(domain, 0);
+            projectDomainExperience.put(domain, existingDomainExperience + days);
+        } else {
+            projectDomainExperience.put(domain, days);
+        }
+    }
+
+    public Integer getExperience() {
+        // Count the days of experience in all projects
+        Integer totalExperience = 0;
+        for (Integer experience : projectExperience.values()) {
+            totalExperience += experience;
+        }
+        return totalExperience;
+    }
+
+
+    public String getDomainOfExpertise() {
+        // Find the domain with the most experience
+        Map.Entry<String, Integer> maxEntry = null;
+        for (Map.Entry<String, Integer> entry : projectDomainExperience.entrySet()) {
+            if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
+                maxEntry = entry;
+            }
+        }
+        if (maxEntry == null) {
+            return null;
+        }
+        return maxEntry.getKey();
+    }
+
+
+    //методы относящиеся к здоровью employee
+    //этот метод рассчитывает будет ли employee болеть в этот tick
+    //в нем сейчас переплетены 3 аспекта:
+    //Прогресс «здоровья» (заразился/лечится)
+    //Откат статус эффектов (cooldown) - то есть например есть employee доволен - то он работать будет проуктивнее и тд
+    //Пересчёт загрузки (utilization) - сколько реально employee отработал с момента его трудоустройства
+    //И второй момент ---> тут есть константа – sickDayProbability - вероятность заболевания
+    //работает он со своими полями поэтому я бы его оставил тут но каждый из этих 3 аспектов вынес бы в свой атомарный метод а потом бы их вызывал в этом методе
+    //остальные методы по здоровью я бы тут оставил - ниже которые идут
+    public void liveLife(int currentTick) {
+        employedDays++;
+
+        if (!this.isSick()) { //например в 1-ый тик игры он точно не будет sick/болен - и заходим сюда
+            if (this.remainingAnnualSickDays > 0 && RANDOM.nextDouble() <= sickDayProbability) {
+                this.makeSick(true);
+            }
+        }
+        else {
+            haveSickLeaveDay(currentTick);//если уже болеет то сюда заходим
+        }
+
+        // Cooldown all status effects (if they have a cooldown)
+        //эффекты - в него enum входит - поле - там 4 типа - SATISFACTION,HEALTH,PRODUCTIVITY,TRAINING
+        //эффекты
+        statusEffects.forEach(StatusEffect::cooldown);
+
+        // Calculate utilization (0-100%)
+        // 1) Calculate the number of days worked in projects - Получается общее число дней, проведённых сотрудником на проектах в рамках вашей организации - то есть у меня как игрока
+        int daysWorkedInProjects = projectExperience.keySet().stream().mapToInt(projectExperience::get).sum();
+
+        // 2) Subtract experience days before hiring
+        //Поле xpInDaysBeforeHiring хранит, сколько дней опыта сотрудник уже имел до того, как пришёл в вашу компанию. Эти дни мы не считаем при вычислении текущей загрузки, потому что они не были «днями работы» на ваших проектах
+        daysWorkedInProjects -= xpInDaysBeforeHiring;
+
+        // 3) Divide daysWorkedInProjects (in this organization) by employedDays (in this organization)
+        //employedDays — общее число тиков (дней) с момента приёма на работу - тот момент когда я его выбрал в игре на рынке
+        //Делим “рабочие дни” на “общее время в компании” и умножаем на 100, чтобы получить процент - который сотрудник реально был загружен работой с момента найма
+        utilization = (int) ((daysWorkedInProjects / (float) employedDays) * 100); //пока вообще никак не используется
+    }
+
+    //когда уже болеет - смотрим продолжит болеть или станет здоровым
+    public void haveSickLeaveDay(int currentTick) {
+        // Get better every day until fully recovered
+        --remainingAnnualSickDays; //то есть мы уменьшим это поле только через тик как заболеем почему то
+        setHealth(getHealth() + RANDOM.nextFloat());
+
+        if (getHealth() >= 1) {
+            setHealth(1f);
+            makeSick(false);
+            setLastSickDay(currentTick);
+        }
+
+        // Mark current tick as a sick day
+        sickDays.put(currentTick, true);
+
+        // Increment the number of sick days this year
+        thisYearsSickDays++;
+    }
+
+    public void makeSick(boolean sick) {
+        isSick = sick;
+
+        if (sick) {
+            health = 0; // Decrease health to 0 when getting sick
+        }
+    }
+
+    public boolean hasFirstDayAfterSickLeave(int currentTick) {
+        return getLastSickDay() == currentTick - 1;
+    }
+
+    public void initializeSickDays(int annualSickDays) {
+        this.remainingAnnualSickDays = annualSickDays;
+
+        // Reset the number of sick days this year
+        this.thisYearsSickDays = 0;
+    }
+
+    private void setLastSickDay(int currentTick) {
+        lastSickDay = currentTick;
+    }
+
+
+
     public void setSalary(int newSalary, int tick) {
         this.salary = newSalary;
 
@@ -252,53 +288,12 @@ public class Employee implements Serializable {
             salaryHistory.removeFirst();
         }
 
-        calculateSatisfaction();
-    }
-
-    private void calculateSatisfaction() {
-        double salaryInThousands = this.salary / 1000.0;
-        double otherSatisfactionFactors = calculateOtherSatisfactionFactors();
-        double baseSatisfaction = calculateBaseSatisfaction();
-
-        // Calculate the salary component
-        double salaryComponent = (Math.log(salaryInThousands) * 30 + Math.sqrt(salaryInThousands) * 20);
-        salaryComponent = Math.min(salaryComponent, 100);
-
-        // Weighted components
-        double salaryWeight = 0.5;
-        double factorsWeight = 0.5;
-
-        // Calculate total satisfaction
-        this.satisfaction = (float) ((salaryWeight * salaryComponent) + (factorsWeight * otherSatisfactionFactors) + baseSatisfaction);
-
-        // Apply all status effects of type SATISFACTION
-        for (StatusEffect effect : statusEffects) {
-            if (effect.getType() == StatusEffectType.SATISFACTION) {
-                this.satisfaction *= effect.getMultiplier();
-            }
-        }
-
-        this.satisfaction = Math.clamp(this.satisfaction, 1, 100); // Clamp to [1, 100]
-    }
-
-    // Intrinsic satisfaction of an employee
-    private double calculateBaseSatisfaction() {
-        // Value between 5 and 20, depending on age
-        return Math.clamp(20L - (age - MINIMUM_AGE), 5, 20);
-    }
-
-    // Job satisfaction factors not related to salary
-    private int calculateOtherSatisfactionFactors() {
-        // Dummy value, refine later (work environment, career opportunities, mentoring etc.)
-        // Satisfaction 0-100
-        return JOB_SATISFACTION;
-    }
-
-    public String getName() {
-        return firstName + " " + lastName;
+        //calculateSatisfaction(); было так
+        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
     }
 
     // Main method: adds a StatusEffect object if it does not already exist
+    //методы пошли уже по третьей функицональной области - statusEffects!!!!!!!!!
     public boolean addStatusEffect(StatusEffect effect) {
         try {
             boolean alreadyExists = statusEffects.stream()
@@ -315,9 +310,10 @@ public class Employee implements Serializable {
             statusEffects.add(effect);
             log.debug("Added status effect '{}' - {} to {} ({} active effects)",
                     effect.getDescription(), effect.getType(), getName(), statusEffects.size());
-            calculateSatisfaction();
+            this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
             return true;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             log.error("Error adding status effect {} to {}: {}", effect, getName(), e.getMessage());
             return false;
         }
@@ -342,47 +338,17 @@ public class Employee implements Serializable {
 
     }
 
-    public Integer getExperience() {
-        // Count the days of experience in all projects
-        Integer totalExperience = 0;
-        for (Integer experience : projectExperience.values()) {
-            totalExperience += experience;
-        }
-        return totalExperience;
-    }
-
-    public Integer getExperienceByType(ProjectType type) {
-        return projectTypeExperience.getOrDefault(type, 0);
-    }
-
-    public Integer getExperienceByDomain(String domain) {
-        return projectDomainExperience.getOrDefault(domain, 0);
-    }
-
-    public String getDomainOfExpertise() {
-        // Find the domain with the most experience
-        Map.Entry<String, Integer> maxEntry = null;
-        for (Map.Entry<String, Integer> entry : projectDomainExperience.entrySet()) {
-            if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0) {
-                maxEntry = entry;
-            }
-        }
-        if (maxEntry == null) {
-            return null;
-        }
-        return maxEntry.getKey();
-    }
-
-    public void removeAllStatusEffects() {
-        statusEffects.clear();
-        log.debug("Removed all status effects from {}", getName());
-        calculateSatisfaction();
-    }
-
+    //В IT и геймдеве crunch mode — это когда компания заставляет сотрудников работать сверхурочно, ночами, без выходных, чтобы успеть к релизу или дедлайну
+    //Какие ещё сценарии могут появиться (и почему это “система”, а не Employee) --->
+    //Мотивация бонусами — менеджер назначает премию, сотрудники временно счастливее
+    //Сокращение — система решает: “Сотрудники теряют мотивацию, падает продуктивность
+    //то есть тут внешний сценарий - это правила игры/компании - игрок сам не может решать
+    //Эти сценарии не живут в Employee, потому что он их не придумывает, он просто получает их и реагирует
+    //вынес бы пока в EmployeeServiceImpl если будет расти количество сценариев то тогда в StatusEffectService
     public void addComplexStatusEffect(String effect) {
         log.debug("Applying {} to {}", effect, getName());
 
-        // Effect "crunch-mode" will do:
+        // Effect "crunch-mode" will do: --->режим аврала/запары
         // +50% productivity
         // -20% satisfaction
         // -10% health (absolute, recovers only slowly)
@@ -414,15 +380,9 @@ public class Employee implements Serializable {
             }
     }
 
-    public boolean removeExpiredStatusEffects() {
-        // Remove all expired status effects that are not infinite
-        boolean removed = statusEffects.removeIf(StatusEffect::isExpiredAndNotInfinite);
-        if (removed) {
-            calculateSatisfaction();
-        }
-        return removed;
-    }
-
+    //Это как если начальник вызвал тебя на разговор, выслушал твои проблемы, дал обратную связь.
+    //После этого ты чувствуешь себя более ценным и довольным → работаешь охотнее.
+    //тоже в сервис бы вынес EmployeeServiceImpl или StatusEffectService
     public void haveOneToOneMeeting() {
         // Don't add the same effect twice
         statusEffects.removeIf(effect -> effect.getDescription().equals("Feels heard"));
@@ -430,19 +390,12 @@ public class Employee implements Serializable {
         // Add a time-limited status effect that increases satisfaction by 10% for some time
         addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
 
-        calculateSatisfaction();
+        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
+
     }
 
-    public void removeStatusEffectsByTrigger(Object trigger) {
-        statusEffects.removeIf(effect -> {
-            if (trigger != null && effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
-                calculateSatisfaction();
-                log.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
-            }
-            return effect.getTrigger() == trigger;
-        });
-    }
-
+    //Когда на фронтенде игрок нажимает кнопку “Отправить сотрудника на обучение” - и тогда он на время тренинга теряет PRODUCTIVITY
+    //тоже бы вынес в сервис - EmployeeServiceImpl или StatusEffectService или новый TrainingService
     public void train(String training) {
         // Add permanent status effect after the training
         switch (training) {
@@ -452,13 +405,71 @@ public class Employee implements Serializable {
         }
     }
 
+
+    public void removeAllStatusEffects() {
+        statusEffects.clear();
+        log.debug("Removed all status effects from {}", getName());
+        //calculateSatisfaction();
+        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
+
+    }
+
+
+    public void removeStatusEffectsByTrigger(Object trigger) {
+        statusEffects.removeIf(effect -> {
+            if (trigger != null && effect.getTrigger() == trigger && effect.getType() == StatusEffectType.SATISFACTION) {
+                //calculateSatisfaction();
+                this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
+                log.debug("Removed status effects with trigger {} from {}", trigger.getClass(), getName());
+            }
+            return effect.getTrigger() == trigger;
+        });
+    }
+
+    public boolean removeExpiredStatusEffects() {
+        // Remove all expired status effects that are not infinite
+        boolean removed = statusEffects.removeIf(StatusEffect::isExpiredAndNotInfinite);
+        if (removed) {
+            this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
+
+        }
+        return removed;
+    }
+
     public void removeStatusEffectsByReason(String reason) {
         statusEffects.removeIf(effect -> {
             if (effect.getDescription().equals(reason) && effect.getType() == StatusEffectType.SATISFACTION) {
-                calculateSatisfaction();
+                //calculateSatisfaction();
+                this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
             }
             return effect.getDescription().equals(reason);
         });
         log.debug("Removed status effects with reason {} from {}", reason, getName());
+    }
+
+
+
+    public String getName() {
+        return firstName + " " + lastName;
+    }
+
+    public Integer getExperienceByProject(Project project) {
+        return projectExperience.getOrDefault(project, 0);
+    }
+    public Integer getExperienceByType(ProjectType type) {
+        return projectTypeExperience.getOrDefault(type, 0);
+    }
+
+    public Integer getExperienceByDomain(String domain) {
+        return projectDomainExperience.getOrDefault(domain, 0);
+    }
+
+
+    public Integer getExperienceInDaysByProjectType(ProjectType type) {
+        return projectTypeExperience.get(type);
+    }
+
+    public Integer getExperienceInDaysByProjectDomain(String domain) {
+        return projectDomainExperience.getOrDefault(domain, 0);
     }
 }

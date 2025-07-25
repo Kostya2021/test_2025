@@ -1,20 +1,22 @@
-package de.andrenitze.softpro.domains.employees;
+package de.andrenitze.softpro.domains.employees.generators;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
 
-public class NameGenerator {
+//тут тоже улучшить/облегчить метод - как в старой версии - ессли получится!!!
+//переменные вроде тоже остались проблемы которые вызовут при многопоточности!!! - вообщем все проверить
+public class EmployeeNameGenerator {
     public static final String FEMALE = "female";
     public static final String MALE = "male";
-    private static NameGenerator instance;
+    private static EmployeeNameGenerator instance;
     private String gender;
 
-    private NameGenerator() {
+    private EmployeeNameGenerator() {
         // Prevent instantiation
     }
 
-    public static synchronized NameGenerator getInstance() {
+    public static synchronized EmployeeNameGenerator getInstance() {
         if (instance == null) {
-            instance = new NameGenerator();
+            instance = new EmployeeNameGenerator();
         }
         return instance;
     }

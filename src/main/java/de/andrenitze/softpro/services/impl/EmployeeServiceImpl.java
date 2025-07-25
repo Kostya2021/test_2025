@@ -1,5 +1,6 @@
 package de.andrenitze.softpro.services.impl;
 
+import de.andrenitze.softpro.domains.employees.utils.EmployeeUtils;
 import lombok.RequiredArgsConstructor;
 import org.java_websocket.WebSocket;
 
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_DOMAIN;
 import static de.andrenitze.softpro.services.impl.ProjectServiceImpl.FAMILIARIZATION_WITH_NEW_TYPE;
 
@@ -27,6 +29,8 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final ProjectEmployeeMappingImpl projectsEmployeesMap;
     public static final double DAYS_TO_LEARN_NEW_THINGS = 180; // 6 months to learn something new
 
+
+
     public void simulateEmployeeLives(int gameTick, ConcurrentHashMap<WebSocket, Player> players) {
 
         players.forEach((ignored, player) -> player.getEmployees().forEach(employee -> {
@@ -35,7 +39,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 
             // Annual events that affect employees
             if (gameTick % 365 == 0) {
-                employee.initializeSickDays();
+                //employee.initializeSickDays(); было так
+                employee.initializeSickDays(EmployeeUtils.calculateAnnualSickDays()); //проверить на потокобезопастность!
             }
 
             // Monthly events that affect employees
@@ -121,6 +126,21 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         return employee.addStatusEffect(newEffect);
     }
+
+
+    //методы с бизнесс логикой которые перенес из класса employee--->
+
+    //как правильно оформить - может сделать в этом методе только расчет - а уже вызов сеттеров в отдельных методах прописать или нет смысла?
+    //спросить у юры как целесообразнее и правильнее - осставить этот метод здесь только без сеттеров или вынести в класс отдельный util - ведь тут нет пока бизнесс логики просто простой рандомный матем рассчет?
+    //будет норм если я его пока просто static сделаю это норм практика - чтрбы не создавать пока employeeUtils класс ради одного метода?
+//    public void initializeSickDays() {
+//        // Randomize the number of sick days an employee can have in a year
+//        this.remainingAnnualSickDays = MINIMUM_SICK_DAYS + RANDOM.nextInt(maximumSickDays - MINIMUM_SICK_DAYS);
+//
+//        // Reset the number of sick days this year
+//        this.thisYearsSickDays = 0;
+//    }
+
 
 
 }

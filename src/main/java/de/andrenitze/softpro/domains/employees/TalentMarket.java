@@ -1,5 +1,6 @@
 package de.andrenitze.softpro.domains.employees;
 
+import de.andrenitze.softpro.domains.employees.generators.EmployeeIdGenerator;
 import lombok.extern.slf4j.Slf4j;
 
 import de.andrenitze.softpro.domains.players.Player;
