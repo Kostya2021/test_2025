@@ -23,7 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static de.andrenitze.softpro.domains.employees.Employee.PROJECT_MANAGEMENT_FOUNDATION;
+import static de.andrenitze.softpro.services.impl.StatusEffectService.PROJECT_MANAGEMENT_FOUNDATION;
+
 
 @Primary
 @Slf4j

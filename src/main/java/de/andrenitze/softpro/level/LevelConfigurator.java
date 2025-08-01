@@ -2,6 +2,7 @@ package de.andrenitze.softpro.level;
 
 import de.andrenitze.softpro.Game;
 import de.andrenitze.softpro.domains.employees.Employee;
+import de.andrenitze.softpro.domains.employees.EmployeeBuilder;
 import de.andrenitze.softpro.domains.employees.StatusEffectType;
 import de.andrenitze.softpro.domains.players.Player;
 import de.andrenitze.softpro.domains.projects.Project;
@@ -34,12 +35,16 @@ public class LevelConfigurator {
         player.setXp(0);
         player.setEmployees(new ArrayList<>());
 
-        Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId());
-        employee.setFirstName(player.getFirstName());
-        employee.setLastName(player.getLastName());
-        employee.setSalary(458, 0);
-        employee.setAge(22);
-        employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
+        //Employee employee = new Employee(game.getTalentMarket().generateNewEmployeeId()); - было так
+        Employee employee = new EmployeeBuilder(game.getTalentMarket().generateNewEmployeeId())
+                .firstName(player.getFirstName())
+                .lastName(player.getLastName())
+                .salary(458,0)
+                .age(22)
+                .statusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated")
+                .build();
+
+
 
         List<ProjectType> nonComplianceTypes = Arrays.stream(ProjectType.values())
                 .filter(type -> type != ProjectType.COMPLIANCE)

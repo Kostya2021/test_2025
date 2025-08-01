@@ -1,6 +1,7 @@
 package de.andrenitze.softpro.services.impl;
 
 import de.andrenitze.softpro.domains.employees.utils.EmployeeUtils;
+import de.andrenitze.softpro.domains.projects.ProjectType;
 import lombok.RequiredArgsConstructor;
 import org.java_websocket.WebSocket;
 
@@ -13,10 +14,8 @@ import de.andrenitze.softpro.events.EventType;
 import de.andrenitze.softpro.events.GameEvent;
 import de.andrenitze.softpro.services.EmployeeService;
 import de.andrenitze.softpro.services.MessagingService;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
@@ -129,17 +128,27 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 
     //методы с бизнесс логикой которые перенес из класса employee--->
+    /**
+     * Employee gains experience in a project.
+     * XP in days is stored in projectExperience AND projectTypeExperience AND projectDomainExperience.
+     */
+    //проверить правильно ли перенес метод из класса employee!!!
+    public void gainExperience(Employee employee, Project project, int newExperienceInDays) {
+        // Don't gain experience in compliance projects
 
-    //как правильно оформить - может сделать в этом методе только расчет - а уже вызов сеттеров в отдельных методах прописать или нет смысла?
-    //спросить у юры как целесообразнее и правильнее - осставить этот метод здесь только без сеттеров или вынести в класс отдельный util - ведь тут нет пока бизнесс логики просто простой рандомный матем рассчет?
-    //будет норм если я его пока просто static сделаю это норм практика - чтрбы не создавать пока employeeUtils класс ради одного метода?
-//    public void initializeSickDays() {
-//        // Randomize the number of sick days an employee can have in a year
-//        this.remainingAnnualSickDays = MINIMUM_SICK_DAYS + RANDOM.nextInt(maximumSickDays - MINIMUM_SICK_DAYS);
-//
-//        // Reset the number of sick days this year
-//        this.thisYearsSickDays = 0;
-//    }
+        if (project.getType() == ProjectType.COMPLIANCE) {
+            return;
+        }
+
+        if (newExperienceInDays > 0) {
+            HashMap<Project, Integer> projectExperience = employee.getProjectExperience();
+
+            int existingExperience = projectExperience.computeIfAbsent(project, ignored -> 0);
+            projectExperience.put(project, ++existingExperience);
+
+            employee.addXp(project.getType(), project.getDomain(), newExperienceInDays);
+        }
+    }
 
 
 

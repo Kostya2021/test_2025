@@ -13,6 +13,7 @@ import de.andrenitze.softpro.domains.projects.Project;
 import de.andrenitze.softpro.services.*;
 import de.andrenitze.softpro.services.impl.AccountingServiceImpl;
 import de.andrenitze.softpro.services.impl.GameLifeCycleService;
+import de.andrenitze.softpro.services.impl.StatusEffectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.WebSocket;
@@ -26,11 +27,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static de.andrenitze.softpro.services.impl.StatusEffectService.CRUNCH_MODE;
+import static de.andrenitze.softpro.services.impl.StatusEffectService.TEAM_SPIRIT;
+
 @RequiredArgsConstructor
 @Slf4j
 public class GameEventHandler {
-    public static final String TEAM_SPIRIT = "team-spirit";
-    public static final String CRUNCH_MODE = "crunch-mode";
+    //перенес их в StatusEffectService
+//    public static final String TEAM_SPIRIT = "team-spirit";
+//    public static final String CRUNCH_MODE = "crunch-mode";
     public static final String PARTY_CONTRACTOR = "contractor";
     public static final String PARTY_CLIENT = "client";
     public static final String EMPLOYEE_ID = "employeeId";
@@ -46,6 +51,8 @@ public class GameEventHandler {
     private final SkillService skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
     private final AccountingServiceImpl accountingService;
+    private final StatusEffectService statusEffectService;
+
 
     public void handleEvent(WebSocket websocket, String message) {
         GameEvent<?> event = GameServer.getGson().fromJson(message, GameEvent.class);
@@ -129,7 +136,10 @@ public class GameEventHandler {
         accountingService.addEntry(accountingEntry);
         player.subtractFunds(accountingEntry.getAmount());
 
-        employee.train(training);
+        //employee.train(training); было так
+        statusEffectService.train(employee, training);
+
+
         log.debug("Player {} trained employee {} - {}", player.getId(), employee.getId(), employee.getName());
     }
 
@@ -213,7 +223,8 @@ public class GameEventHandler {
         log.debug("Talent market has the following employees left: {}", talentMarket.getTalents().size());
 
         if (skillService.playerHasSkill(player, TEAM_SPIRIT)) {
-            employee.addComplexStatusEffect(TEAM_SPIRIT);
+            //employee.addComplexStatusEffect(TEAM_SPIRIT); было так
+            statusEffectService.addComplexStatusEffect(employee, TEAM_SPIRIT);
         }
 
         GameEvent<Player> playerUpdateEvent = new GameEvent<>(EventType.STATE_UPDATED);
@@ -307,7 +318,8 @@ public class GameEventHandler {
             }
 
             for (Employee employee : projectEmployeeService.getEmployeesByProject(project)) {
-                employee.addComplexStatusEffect(effect);
+                //employee.addComplexStatusEffect(effect); было так
+                statusEffectService.addComplexStatusEffect(employee, effect);
                 messagingService.sendEmployeeUpdate(playerService.getPlayer(websocket), employee);
             }
 
@@ -326,7 +338,8 @@ public class GameEventHandler {
             }, gameLifeCycleService.getGameSpeedInMilliseconds() * (long) crunchModeCooldown, TimeUnit.MILLISECONDS);
         } else if (effect.equals(TEAM_SPIRIT)) {
             for (Employee employee : playerService.getPlayer(websocket).getEmployees()) {
-                employee.addComplexStatusEffect(effect);
+                //employee.addComplexStatusEffect(effect); было так
+                statusEffectService.addComplexStatusEffect(employee, effect);
                 messagingService.sendEmployeeUpdate(playerService.getPlayer(websocket), employee);
             }
         }
@@ -366,7 +379,9 @@ public class GameEventHandler {
         Player player = playerService.getPlayer(websocket);
         Employee employee = player.getEmployeeById(employeeId);
 
-        employee.haveOneToOneMeeting();
+        //employee.haveOneToOneMeeting(); было так
+        statusEffectService.haveOneToOneMeeting(employee);
+
         messagingService.sendEmployeeUpdate(player, employee);
     }
 

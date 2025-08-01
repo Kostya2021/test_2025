@@ -60,7 +60,6 @@ public final class EmployeeUtils {
     }
 
 
-    //---------->
     public static int calculateAnnualSickDays() {
         // Randomize the number of sick days an employee can have in a year
         return MINIMUM_SICK_DAYS + RANDOM.nextInt(maximumSickDays - MINIMUM_SICK_DAYS);

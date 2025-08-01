@@ -14,21 +14,18 @@ import java.io.Serializable;
 import java.util.*;
 
 import static de.andrenitze.softpro.GameServer.RANDOM;
-import static de.andrenitze.softpro.events.GameEventHandler.CRUNCH_MODE;
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
 
-@Slf4j
+
+@Slf4j //может убрать теперь? - добавил в 2 новых сервиса!?
 public class Employee implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
-    public static final int NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN = 3;
     public static final int MINIMUM_AGE = 20;//убрать - нет это оставить - это Неотъемлемое ограничение домена
-    public static final int JOB_SATISFACTION = 50;//убрать - а это просто параметр для расчета значения поля satisfaction
-    public static final String PROJECT_MANAGEMENT_FOUNDATION = "Project Management Foundation";
-    public static final String PROJECT_MANAGEMENT_EXPERT = "Project Management Expert";
-    private float sickDayProbability = 0.02f; //почему не константа?
-    @Getter
-    @Setter(AccessLevel.PACKAGE)
+    //вынес эти 2 нижнее константы тоже в сервис - StatusEffectService
+//    public static final String PROJECT_MANAGEMENT_FOUNDATION = "Project Management Foundation";
+//    public static final String PROJECT_MANAGEMENT_EXPERT = "Project Management Expert";
+    private float sickDayProbability = 0.02f; //почему не константа? - уже не константа - она меняется в методах например addComplexStatuseffect и тд
+    @Getter @Setter(AccessLevel.PACKAGE)
     private Integer id; //убрал временно final потому что нужно было сразу иниациализировать или через конструктор или сразу тут задавать значение - и только однократно можно - в project так же сделал
     @Getter
     private int salary; // monthly salary
@@ -43,15 +40,14 @@ public class Employee implements Serializable {
     @Getter
     private final transient HashMap<Project, Integer> projectExperience = new HashMap<>(); // projectId and days XP
     @Getter private final EnumMap<ProjectType, Integer> projectTypeExperience = new EnumMap<>(ProjectType.class); //        //а что просто при инициализации она сразу не заполнится keys - ProjectType
-
     @Getter
     private final HashMap<String, Integer> projectDomainExperience = new HashMap<>();
     @Setter @Getter
     private float satisfaction;
     private int remainingAnnualSickDays;
-    @Getter
-    private static final int MINIMUM_SICK_DAYS = 4;
-    private int maximumSickDays = 20; //почему не static?
+//    @Getter
+//    private static final int MINIMUM_SICK_DAYS = 4; //вроде нигде не используется вынес в employeeutil class
+    private int maximumSickDays = 20; //почему не static? - потому что также как и sickDayProbability - она меняется в методах например addComplexStatuseffect и тд
     @Getter
     private boolean isSick = false;
     @Getter
@@ -68,7 +64,6 @@ public class Employee implements Serializable {
     private String gender;
     @Getter
     private final List<StatusEffect> statusEffects = new ArrayList<>();
-    private static final EmployeeNameGenerator EMPLOYEE_NAME_GENERATOR = EmployeeNameGenerator.getInstance();
     @Getter @Setter
     private int employedDays = 0;
     @Getter @Setter
@@ -78,59 +73,41 @@ public class Employee implements Serializable {
     @Getter @Setter
     private boolean updated = false;
 
-    public Employee(Integer id) {
-        this.id = id;
-        String[] generatedName = EMPLOYEE_NAME_GENERATOR.generateName();
-        setFirstName(generatedName[0]);
-        setLastName(generatedName[1]);
-        setGender(generatedName[2]);
-
-        // Randomize salary
-        setSalary(RANDOM.nextInt(0, 1500) + 1500, 0);//второй аргумент 0 - это tick
-
-        // Randomize age between 20 and 60
-        setAge(RANDOM.nextInt(40) + MINIMUM_AGE);
-
-        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
-
-        for (ProjectType type : ProjectType.values()) {
-            this.projectTypeExperience.put(type, 0);
-        }
-
-        // Add some days of experience in a few of the project types
-        int maxDaysOfXP = 365;
-        for (int i = 0; i < NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN; i++) {
-            int projectTypeIndex = RANDOM.nextInt(ProjectType.values().length);
-            int days = RANDOM.nextInt(maxDaysOfXP);
-
-            // Now, add some days of experience in one project domain of this type
-            ProjectType type = ProjectType.values()[projectTypeIndex];
-            addXp(type, type.getRandomDomain(), days);
-        }
-    }
+    //убрать констурктор как все проверю!!!
+//    public Employee(Integer id) {
+//        this.id = id;
+//        String[] generatedName = EMPLOYEE_NAME_GENERATOR.generateName();
+//        setFirstName(generatedName[0]);
+//        setLastName(generatedName[1]);
+//        setGender(generatedName[2]);
+//
+//        // Randomize salary
+//        setSalary(RANDOM.nextInt(0, 1500) + 1500, 0);//второй аргумент 0 - это tick
+//
+//        // Randomize age between 20 and 60
+//        setAge(RANDOM.nextInt(40) + MINIMUM_AGE);
+//
+//        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
+//
+//        for (ProjectType type : ProjectType.values()) {
+//            this.projectTypeExperience.put(type, 0);
+//        }
+//
+//        // Add some days of experience in a few of the project types
+//        int maxDaysOfXP = 365;
+//        for (int i = 0; i < NUMBER_OF_PROJECTS_TO_HAVE_EXPERIENCE_IN; i++) {
+//            int projectTypeIndex = RANDOM.nextInt(ProjectType.values().length);
+//            int days = RANDOM.nextInt(maxDaysOfXP);
+//
+//            // Now, add some days of experience in one project domain of this type
+//            ProjectType type = ProjectType.values()[projectTypeIndex];
+//            addXp(type, type.getRandomDomain(), days);
+//        }
+//    }
 
     public Employee() {
     };
 
-
-    /**
-     * Employee gains experience in a project.
-     * XP in days is stored in projectExperience AND projectTypeExperience AND projectDomainExperience.
-     */
-    //получает в параметр объект Project - другой доменный класс - можно было бы вынести в уже имеющийся EmployeeServiceImpl
-    public void gainExperience(Project project, int newExperienceInDays) {
-        // Don't gain experience in compliance projects
-        if (project.getType() == ProjectType.COMPLIANCE) {
-            return;
-        }
-
-        if (newExperienceInDays > 0) {
-            int existingExperience = this.projectExperience.computeIfAbsent(project, ignored -> 0);
-            this.projectExperience.put(project, ++existingExperience);
-
-            addXp(project.getType(), project.getDomain(), newExperienceInDays);
-        }
-    }
 
     //этот бы метод и остальные идущие ниже и связанные с опытом оставил в этом классе - только со своими полями работают - простая манипуляция данными
     public void addXp(ProjectType type, String domain, int days) {
@@ -345,65 +322,65 @@ public class Employee implements Serializable {
     //то есть тут внешний сценарий - это правила игры/компании - игрок сам не может решать
     //Эти сценарии не живут в Employee, потому что он их не придумывает, он просто получает их и реагирует
     //вынес бы пока в EmployeeServiceImpl если будет расти количество сценариев то тогда в StatusEffectService
-    public void addComplexStatusEffect(String effect) {
-        log.debug("Applying {} to {}", effect, getName());
-
-        // Effect "crunch-mode" will do: --->режим аврала/запары
-        // +50% productivity
-        // -20% satisfaction
-        // -10% health (absolute, recovers only slowly)
-        // Slightly increased chance of sick days
-        if (effect.equals(CRUNCH_MODE)) {
-            int cooldown = 20;
-            addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.5f, CRUNCH_MODE, cooldown);
-            addStatusEffect(StatusEffectType.SATISFACTION, 0.8f, CRUNCH_MODE, cooldown);
-            addStatusEffect(StatusEffectType.HEALTH, 0.90f, CRUNCH_MODE, cooldown);
-
-            // Increment max and annual sick days with every "crunch mode", because it's stressful
-            remainingAnnualSickDays += 1;
-            maximumSickDays += 1;
-            sickDayProbability += 0.01f;
-        } else
-
-            // Effect "team-spirit" will do:
-            // -5% productivity (no cooldown = forever)
-            // +15% satisfaction (forever)
-            // +15% health (forever)
-            if (effect.equals(TEAM_SPIRIT)) {
-                addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, TEAM_SPIRIT);
-                addStatusEffect(StatusEffectType.SATISFACTION, 1.15f, TEAM_SPIRIT);
-                addStatusEffect(StatusEffectType.HEALTH, 1.15f, TEAM_SPIRIT);
-
-                // Decrease maximum sick days by 2 because of the positive effect on health
-                remainingAnnualSickDays -= 2;
-                maximumSickDays -= 2;
-            }
-    }
+//    public void addComplexStatusEffect(String effect) {
+//        log.debug("Applying {} to {}", effect, getName());
+//
+//        // Effect "crunch-mode" will do: --->режим аврала/запары
+//        // +50% productivity
+//        // -20% satisfaction
+//        // -10% health (absolute, recovers only slowly)
+//        // Slightly increased chance of sick days
+//        if (effect.equals(CRUNCH_MODE)) {
+//            int cooldown = 20;
+//            addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.5f, CRUNCH_MODE, cooldown);
+//            addStatusEffect(StatusEffectType.SATISFACTION, 0.8f, CRUNCH_MODE, cooldown);
+//            addStatusEffect(StatusEffectType.HEALTH, 0.90f, CRUNCH_MODE, cooldown);
+//
+//            // Increment max and annual sick days with every "crunch mode", because it's stressful
+//            remainingAnnualSickDays += 1;
+//            maximumSickDays += 1;
+//            sickDayProbability += 0.01f;
+//        } else
+//
+//            // Effect "team-spirit" will do:
+//            // -5% productivity (no cooldown = forever)
+//            // +15% satisfaction (forever)
+//            // +15% health (forever)
+//            if (effect.equals(TEAM_SPIRIT)) {
+//                addStatusEffect(StatusEffectType.PRODUCTIVITY, 0.95f, TEAM_SPIRIT);
+//                addStatusEffect(StatusEffectType.SATISFACTION, 1.15f, TEAM_SPIRIT);
+//                addStatusEffect(StatusEffectType.HEALTH, 1.15f, TEAM_SPIRIT);
+//
+//                // Decrease maximum sick days by 2 because of the positive effect on health
+//                remainingAnnualSickDays -= 2;
+//                maximumSickDays -= 2;
+//            }
+//    }
 
     //Это как если начальник вызвал тебя на разговор, выслушал твои проблемы, дал обратную связь.
     //После этого ты чувствуешь себя более ценным и довольным → работаешь охотнее.
     //тоже в сервис бы вынес EmployeeServiceImpl или StatusEffectService
-    public void haveOneToOneMeeting() {
-        // Don't add the same effect twice
-        statusEffects.removeIf(effect -> effect.getDescription().equals("Feels heard"));
-
-        // Add a time-limited status effect that increases satisfaction by 10% for some time
-        addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
-
-        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
-
-    }
+//    public void haveOneToOneMeeting() {
+//        // Don't add the same effect twice
+//        statusEffects.removeIf(effect -> effect.getDescription().equals("Feels heard"));
+//
+//        // Add a time-limited status effect that increases satisfaction by 10% for some time
+//        addStatusEffect(StatusEffectType.SATISFACTION, 1.1f, "Feels heard", 45);
+//
+//        this.satisfaction = EmployeeUtils.calculateSatisfaction(this.salary, this.age, this.statusEffects);
+//
+//    }
 
     //Когда на фронтенде игрок нажимает кнопку “Отправить сотрудника на обучение” - и тогда он на время тренинга теряет PRODUCTIVITY
     //тоже бы вынес в сервис - EmployeeServiceImpl или StatusEffectService или новый TrainingService
-    public void train(String training) {
-        // Add permanent status effect after the training
-        switch (training) {
-            case PROJECT_MANAGEMENT_FOUNDATION -> addTraining(PROJECT_MANAGEMENT_FOUNDATION);
-            case PROJECT_MANAGEMENT_EXPERT -> addTraining(PROJECT_MANAGEMENT_EXPERT);
-            default -> log.warn("Unknown training: {}", training);
-        }
-    }
+//    public void train(String training) {
+//        // Add permanent status effect after the training
+//        switch (training) {
+//            case PROJECT_MANAGEMENT_FOUNDATION -> addTraining(PROJECT_MANAGEMENT_FOUNDATION);
+//            case PROJECT_MANAGEMENT_EXPERT -> addTraining(PROJECT_MANAGEMENT_EXPERT);
+//            default -> log.warn("Unknown training: {}", training);
+//        }
+//    }
 
 
     public void removeAllStatusEffects() {
@@ -446,6 +423,28 @@ public class Employee implements Serializable {
         });
         log.debug("Removed status effects with reason {} from {}", reason, getName());
     }
+
+    //добавил для сервиса statuseeffectservice
+    public void increaseRemainingAnnualSickDays(int amount) {
+        this.remainingAnnualSickDays += amount;
+    }
+    public void decreaseRemainingAnnualSickDays(int amount) {
+        this.remainingAnnualSickDays -= amount;
+    }
+
+    public void increaseMaximumSickDays(int amount) {
+        this.maximumSickDays += amount;
+    }
+
+    public void decreaseMaximumSickDays(int amount) {
+        this.maximumSickDays -= amount;
+    }
+
+    public void increaseSickDayProbability(float amount) {
+        this.sickDayProbability += amount;
+    }
+
+
 
 
 

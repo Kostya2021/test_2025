@@ -54,6 +54,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final AccountingServiceImpl accountingService;
     private final SkillServiceImpl skillService;
     private final ProjectEmployeeMappingService projectEmployeeService;
+    private final EmployeeServiceImpl employeeService; //добавил!!! - убрать потом этот коммент!!!
     private final Map<Integer, Project> previousProjectStates = new HashMap<>();
 
     @PostConstruct
@@ -215,7 +216,8 @@ public class ProjectServiceImpl implements ProjectService {
             updateProjectWithEarnedValue(project, earnedValue, currentTick);
 
             // Increase the employee's experience
-            employee.gainExperience(project, 1);
+            //employee.gainExperience(project, 1); было так - стало как ниже!
+            employeeService.gainExperience(employee, project, 1);
         }
     }
 

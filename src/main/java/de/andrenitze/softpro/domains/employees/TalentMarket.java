@@ -29,7 +29,8 @@ public class TalentMarket {
         clear();
 
         for (int i = 0; i < 30; i++) {
-            Employee employee = new Employee(generateNewEmployeeId());
+            //Employee employee = new Employee(generateNewEmployeeId());
+            Employee employee = new EmployeeBuilder(generateNewEmployeeId()).build();
             addTalent(employee);
         }
         log.debug("Talent market initialized with {} employees.", getTalents().size());
@@ -39,13 +40,27 @@ public class TalentMarket {
         ArrayList<Employee> employees = new ArrayList<>();
 
         // The first two employees have a moderate amount of XP in one random project domain
+        //было так - в новой версии просто строчки кода местами поменяю чтобы сначала ти проекта и домейн был выбран
+        //убрать как все проверю - проверю что код работает
+//        for (int i = 0; i < 2; i++) {
+//            Employee employeeWithXP = new Employee(employeeIdGenerator.generateId());
+//            ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
+//            String domain = type.getRandomDomain();
+//            employeeWithXP.addXp(type, domain, RANDOM.nextInt(500) + 750);
+//            employees.add(employeeWithXP);
+//        }
+
         for (int i = 0; i < 2; i++) {
-            Employee employeeWithXP = new Employee(employeeIdGenerator.generateId());
             ProjectType type = ProjectType.values()[RANDOM.nextInt(ProjectType.values().length)];
             String domain = type.getRandomDomain();
-            employeeWithXP.addXp(type, domain, RANDOM.nextInt(500) + 750);
+
+            Employee employeeWithXP = new EmployeeBuilder(employeeIdGenerator.generateId())
+                    .xp(type, domain, RANDOM.nextInt(500) + 750)
+                    .build();
+
             employees.add(employeeWithXP);
         }
+
         return employees;
     }
 

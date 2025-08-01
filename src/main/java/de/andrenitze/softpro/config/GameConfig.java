@@ -26,14 +26,15 @@ public class GameConfig {
             TalentMarket talentMarket,
             GameEventPublisher eventPublisher,
             GameLifeCycleService gameLifeCycleService,
-            DecisionDAO decisionDAO
+            DecisionDAO decisionDAO,
+            StatusEffectService statusEffectService //добавил сюда
     ) {
         // Manually create the beans to avoid circular dependencies
         GamePlayerServiceImpl playerService = new GamePlayerServiceImpl(talentMarket);
         MessagingServiceImpl messagingService = new MessagingServiceImpl(playerService);
         ProjectEmployeeMappingImpl projectEmployeeService = new ProjectEmployeeMappingImpl();
-        ProjectServiceImpl projectService = new ProjectServiceImpl(accountingService, skillService, projectEmployeeService);
-        EmployeeServiceImpl employeeService = new EmployeeServiceImpl(messagingService, projectEmployeeService);
+        EmployeeServiceImpl employeeService = new EmployeeServiceImpl(messagingService, projectEmployeeService); //поменял местами с нижним и конструктор у нижнего сервиса поменял - ProjectServiceImpl
+        ProjectServiceImpl projectService = new ProjectServiceImpl(accountingService, skillService, projectEmployeeService, employeeService);
         LevelConsequencesService levelConsequencesService = new LevelConsequencesService(playerService, talentMarket);
         ObjectiveServiceImpl objectiveService = new ObjectiveServiceImpl(playerService, gameLifeCycleService, projectService, skillService, projectEmployeeService);
         GameEventHandler eventHandler = new GameEventHandler(
@@ -45,7 +46,8 @@ public class GameConfig {
                 gameLifeCycleService,
                 skillService,
                 projectEmployeeService,
-                accountingService
+                accountingService,
+                statusEffectService//добавил сюда
         );
 
         return new Game(
@@ -63,7 +65,8 @@ public class GameConfig {
                 gameLifeCycleService,
                 levelConsequencesService,
                 objectiveService,
-                decisionDAO
+                decisionDAO,
+                statusEffectService //добавил сюда
         );
     }
 
@@ -80,11 +83,20 @@ public class GameConfig {
         return new TalentMarket();
     }
 
+    //добавил параметр этому бину - StatusEffectService
     @Bean
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-    public SkillServiceImpl skillService() {
-        return new SkillServiceImpl();
+    public SkillServiceImpl skillService(StatusEffectService statusEffectService) {
+        return new SkillServiceImpl(statusEffectService);
     }
+
+    //добавил бин
+    @Bean
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    public StatusEffectService statusEffectService() {
+        return new StatusEffectService();
+    }
+
 
     @Bean
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)

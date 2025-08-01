@@ -15,10 +15,7 @@ import de.andrenitze.softpro.domains.skills.Skill;
 import de.andrenitze.softpro.domains.story.StoryElement;
 import de.andrenitze.softpro.events.*;
 import de.andrenitze.softpro.services.*;
-import de.andrenitze.softpro.services.impl.GameLifeCycleService;
-import de.andrenitze.softpro.services.impl.LevelConsequencesService;
-import de.andrenitze.softpro.services.impl.ScoreCalculator;
-import de.andrenitze.softpro.services.impl.StoryService;
+import de.andrenitze.softpro.services.impl.*;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
+import static de.andrenitze.softpro.services.impl.StatusEffectService.TEAM_SPIRIT;
 import static de.andrenitze.softpro.services.impl.player.GamePlayerServiceImpl.MAX_NUMBER_OF_PLAYERS_PER_GAME;
 
 @Slf4j
@@ -56,6 +53,7 @@ public class Game {
     private final LevelConsequencesService      levelConsequencesService;
     private final ObjectiveService objectiveService;
     private final DecisionDAO                   decisionDAO;
+    private final StatusEffectService statusEffectService;
 
     private ScheduledExecutorService gameLoop;
 
@@ -254,7 +252,8 @@ public class Game {
                 log.debug("Player {} has the skill {}", somePlayerInTheGame.getId(), TEAM_SPIRIT);
                 somePlayerInTheGame.getEmployees().forEach(employee -> {
                     log.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
-                    employee.addComplexStatusEffect(TEAM_SPIRIT);
+                    //employee.addComplexStatusEffect(TEAM_SPIRIT); было так
+                    statusEffectService.addComplexStatusEffect(employee, TEAM_SPIRIT);
                 });
             }
         });

@@ -1,5 +1,6 @@
 package de.andrenitze.softpro.services.impl;
 
+import de.andrenitze.softpro.domains.employees.EmployeeBuilder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
 
@@ -23,9 +24,10 @@ public class LevelConsequencesService {
                 player.getEmployees().forEach(employee -> employee.addStatusEffect(
                         StatusEffectType.PRODUCTIVITY, 1.75f, "Efficient work organization"));
             } else if (option == 2) {
-                Employee freeEmployee = new Employee(talentMarket.generateNewEmployeeId());
-                freeEmployee.setSalary(0, 0);
-                freeEmployee.setSatisfaction(0.7f);
+                Employee freeEmployee = new EmployeeBuilder(talentMarket.generateNewEmployeeId())
+                        .salary(0, 0)
+                        .satisfaction(0.7f)
+                        .build();
                 player.addEmployee(freeEmployee);
             } else if (option == 3) {
                 player.getEmployees().forEach(employee -> {

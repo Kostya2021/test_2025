@@ -11,7 +11,9 @@ import java.util.EnumMap;
 import static de.andrenitze.softpro.GameServer.RANDOM;
 import static de.andrenitze.softpro.domains.employees.Employee.MINIMUM_AGE;
 
-
+//теперь проверить как создавались объекты класса employee - и нужно ли сюда добавлять методы для ручной установки полей!!!
+//поменять везде создание объектов класса employee
+//потом доработать - как показывал через boolean - чтобы поля который сами вручную настраиваем не генерировались уже рандомно
 public class EmployeeBuilder {
 
     private static final EmployeeNameGenerator EMPLOYEE_NAME_GENERATOR = EmployeeNameGenerator.getInstance();
@@ -37,7 +39,6 @@ public class EmployeeBuilder {
         // Randomize age between 20 and 60
         employee.setAge(RANDOM.nextInt(40) + MINIMUM_AGE);
 
-        //calculateSatisfaction();//под вопросов что делать?! - много где используется!
         float satisfaction = EmployeeUtils.calculateSatisfaction(employee.getSalary(), employee.getAge(), employee.getStatusEffects());
         employee.setSatisfaction(satisfaction);
 
@@ -72,6 +73,55 @@ public class EmployeeBuilder {
         }
 
         }
+
+
+
+    public EmployeeBuilder firstName(String firstName) {
+        employee.setFirstName(firstName);
+        return this;
+    }
+
+    public EmployeeBuilder lastName(String lastName) {
+        employee.setLastName(lastName);
+        return this;
+    }
+
+    public EmployeeBuilder salary(int salary, int tick) {
+        employee.setSalary(salary, tick);
+        return this;
+    }
+
+    public EmployeeBuilder age(int age) {
+        employee.setAge(age);
+        return this;
+    }
+
+    public EmployeeBuilder statusEffect(StatusEffectType type, float multiplier, String description) {
+        employee.addStatusEffect(type, multiplier, description);
+        return this;
+    }
+
+    public EmployeeBuilder satisfaction(float satisfaction) {
+        employee.setSatisfaction(satisfaction);
+        return this;
+    }
+
+    public EmployeeBuilder xp(ProjectType type, String domain, int days) {
+        employee.addXp(type, domain, days);
+        return this;
+    }
+
+    public Employee build() {
+        return employee;
+    }
+
+
+    //добавить сеттеры для этих методов ---> для класса LevelConfigurator
+    //employee.setFirstName(player.getFirstName());
+    //        employee.setLastName(player.getLastName());
+    //        employee.setSalary(458, 0);
+    //        employee.setAge(22);
+    //        employee.addStatusEffect(StatusEffectType.PRODUCTIVITY, 1.2f, "Highly motivated");
 
 
 }

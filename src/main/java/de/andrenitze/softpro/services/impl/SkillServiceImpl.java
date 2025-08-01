@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static de.andrenitze.softpro.events.GameEventHandler.TEAM_SPIRIT;
+import static de.andrenitze.softpro.services.impl.StatusEffectService.TEAM_SPIRIT;
 
 @Setter
 @Getter
@@ -31,6 +31,9 @@ public class SkillServiceImpl implements SkillService {
     public static final String JSON = ".json";
     private ConcurrentHashMap<Player, HashMap<String, Skill>> playersSkills;
     private static final String SKILLS_DIRECTORY = "skills/";
+
+    private final StatusEffectService statusEffectService; //добавил зависимость
+
 
     @PostConstruct
     public void init() {
@@ -198,7 +201,8 @@ public class SkillServiceImpl implements SkillService {
                 log.debug("Player {} has the skill {}", player.getId(), TEAM_SPIRIT);
                 player.getEmployees().forEach(employee -> {
                     log.debug("Adding permanent status effect {} to employee {}", TEAM_SPIRIT, employee.getId());
-                    employee.addComplexStatusEffect(TEAM_SPIRIT);
+                    //employee.addComplexStatusEffect(TEAM_SPIRIT); было так
+                    statusEffectService.addComplexStatusEffect(employee, TEAM_SPIRIT);
                 });
             }
         });
